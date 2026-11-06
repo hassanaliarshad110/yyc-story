@@ -73,7 +73,7 @@ async function boot() {
   buildWorldMeshes(scene, world); addMountains();
   if (game.photoOn) {
     document.body.classList.add('photo');
-    game.photo = new PhotoCity(scene, camera, renderer, world, game.key, { errorTarget: mobile ? 16 : 8 });
+    game.photo = new PhotoCity(scene, camera, renderer, world, game.key, { errorTarget: mobile ? 10 : 5 });
     renderer.shadowMap.enabled = false;
     scene.fog.near = 1500; scene.fog.far = 7000;
     for (const o of scene.children) if (o.name === 'world') o.visible = false;
@@ -266,7 +266,7 @@ function loop(now) {
     if (game.photo) {
       $('#gattr-data').textContent = game.photo.attributions();
       game._photoT = (game._photoT || now);
-      if (!game._warned && (game.photo.failed || (!game.photo.ready && now - game._photoT > 25000))) {   // fall back to the map-drawn city
+      if (!game._warned && (game.photo.failed || (!game.photo.ready && now - game._photoT > 45000))) {   // fall back to the map-drawn city
         game._warned = true; toast('The Google 3D city could not load here, so the map-drawn city is shown instead.', 6000);
         setTimeout(() => location.replace(location.pathname + '?map'), 2500);
       }

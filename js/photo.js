@@ -19,11 +19,12 @@ export class PhotoCity {
     tiles.registerPlugin(new TilesFadePlugin());
     this.reo = new ReorientationPlugin({ lat: world.proj.lat0 * DEG, lon: world.proj.lon0 * DEG, height: 1045, recenter: true });
     tiles.registerPlugin(this.reo);
-    tiles.errorTarget = opts.errorTarget ?? 10;
+    tiles.errorTarget = opts.errorTarget ?? 6;
+    tiles.lruCache.minSize = 900; tiles.lruCache.maxSize = 1400;
     tiles.setCamera(camera); tiles.setResolutionFromRenderer(camera, renderer);
     this.holder.add(tiles.group);
     this.ax = 0; this.ay = 0; this.failed = false; this.ready = false;
-    tiles.addEventListener('load-tile-set', () => { this.ready = true; });
+    for (const ev of ['load-root-tileset', 'load-tileset', 'load-model']) tiles.addEventListener(ev, () => { this.ready = true; });
     tiles.addEventListener('load-error', e => { this.errors = (this.errors || 0) + 1; if (this.errors > 8 && !this.ready) this.failed = true; console.warn('3D tiles', e.error || e); });
     this.ray = new THREE.Raycaster(); this.ray.firstHitOnly = true;
     this.down = new THREE.Vector3(0, -1, 0);
