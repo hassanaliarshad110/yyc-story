@@ -39,7 +39,7 @@ export class Traffic {
         const pts = []; let len = 0;
         for (let i = 0; i < n; i++) { const p = [r[i * 2] + t.ox, r[i * 2 + 1] + t.oy]; if (i) len += Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]); pts.push(p); }
         if (len < 0.5) continue;
-        const piece = { pts, len, kind: f.kind, oneway: !!(f.flags & 1), w: f.a / 10, tile: t, name: f.name };
+        const piece = { pts, len, kind: f.kind, oneway: !!(f.flags & 1), w: f.a / 10, tile: t, name: f.name, zs: r.z || null };
         this.pieces.push(piece);
         for (const [end, p] of [[0, pts[0]], [1, pts[n - 1]]]) { const k = nkey(p); let l = this.ends.get(k); if (!l) this.ends.set(k, l = []); l.push([piece, end]); }
       }
@@ -86,7 +86,7 @@ export class Traffic {
       const car = { mesh: makeCar(Math.random() < 0.18 ? 'truck' : Math.random() < 0.35 ? 'suv' : 'car'), piece: p, dir, s: Math.random() * p.len, v: SPEED[p.kind] * 0.7, x: 0, y: 0, h: 0, gy: 0, wait: 0 };
       this.place(car);
       if (this.cars.some(o => Math.hypot(o.x - car.x, o.y - car.y) < 12)) continue;      // never spawn on top of another car
-      car.gy = this.groundY(car.x, car.y, null); car.mesh.position.y = car.gy;
+      car.mesh.position.y = car.gy;
       this.scene.add(car.mesh); this.cars.push(car); return;
     }
   }
@@ -100,7 +100,7 @@ export class Traffic {
       if (p.len < 30) continue;
       this.place(car, p.w / 2 + 0.9);          // at the curb
       if (this.tiles.collide(car.x, car.y, 1.1).hit || this.cars.some(o => Math.hypot(o.x - car.x, o.y - car.y) < 7)) continue;
-      car.gy = this.groundY(car.x, car.y, null); car.mesh.position.y = car.gy;
+      car.mesh.position.y = car.gy;
       this.scene.add(car.mesh); this.cars.push(car); return;
     }
   }
@@ -113,6 +113,7 @@ export class Traffic {
         const u = l ? Math.min(1, Math.max(0, (s - acc) / l)) : 0;
         let h = Math.atan2(b[0] - a[0], b[1] - a[1]); if (car.dir < 0) h += Math.PI;
         const off = side ?? (p.oneway ? 0 : Math.max(1.8, p.w / 4));
+        if (p.zs) { const ia = car.dir > 0 ? i - 1 : i, ib = car.dir > 0 ? i : i - 1; car.gy = p.zs[i - 1] + (p.zs[i] - p.zs[i - 1]) * u; } else car.gy = 0;
         const [dx, dy] = dirOf(h);
         const tx = a[0] + (b[0] - a[0]) * u + dy * off, ty = a[1] + (b[1] - a[1]) * u - dx * off;   // keep right
         if (!car.placed) { car.x = tx; car.y = ty; car.h = h; car.placed = true; }
@@ -196,7 +197,6 @@ export class Traffic {
       }
       this.place(c);
       // ground height (photo mode) every few frames
-      if ((c.gt = (c.gt || 0) - dt) <= 0) { c.gt = 0.35; const g = this.groundY(c.x, c.y, c.gy); if (g != null) c.gy = g; }
       c.mesh.position.y = c.gy;
     }
     for (const n of this.nodes.values()) if (n.holder && (n.holder.dead || (n.holdT += dt) > 8)) n.holder = null;

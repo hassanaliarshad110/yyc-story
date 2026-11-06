@@ -86,7 +86,7 @@ async function boot() {
   player.onCrash = () => { if (performance.now() - (game._crash || 0) > 1500) { game._crash = performance.now(); toast('Bump! Careful.'); } };
   traffic = new Traffic(scene, tiles, world, { max: mobile ? 14 : 28, parked: mobile ? 10 : 18 }); game.traffic = traffic;
   transit = new Transit(scene, world, { bus: mobile ? 2 : 4, train: mobile ? 1 : 2 }); game.transit = transit;
-  traffic.groundY = transit.groundY = game.groundY;
+  transit.groundY = (x, y, hint) => tiles.surfaceAt(x, y, hint ?? 0, 1.5);
   missions = new Missions(game); game.missions = missions;
   initHUD(world, game); initPhone(game); initRealView(game); initInput(canvas);
   game.updateMoney();

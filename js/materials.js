@@ -17,6 +17,9 @@ export function initMaterials() {
   MAT.wallTower = wall('tower');
   MAT.walls = [...MAT.wallHouses, MAT.wallApt, MAT.wallComm, MAT.wallTower];
   MAT.roof = new THREE.MeshLambertMaterial({ vertexColors: true });
+  MAT.concrete = new THREE.MeshLambertMaterial({ vertexColors: true });
+  MAT.trunk = new THREE.MeshLambertMaterial({ color: 0x5b4535 });
+  MAT.leaves = new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true });
   const gt = groundTexture('#ffffff', ['#d8d8d8', '#eeeeee', '#c8c8c8', '#f6f6f6']);
   MAT.ground = new THREE.MeshLambertMaterial({ vertexColors: true, map: gt, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   MAT.water = new THREE.MeshPhongMaterial({ color: 0x4f86b5, shininess: 80, specular: 0x8899aa, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });

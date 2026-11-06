@@ -21,7 +21,7 @@ export class Player {
     if (this.person) this.scene.remove(this.person);
     this.look = look; this.person = makePerson(LOOKS[look] || LOOKS.ayaan); this.scene.add(this.person);
   }
-  place(x, y, h = this.h) { this.x = x; this.y = y; this.h = h; this.v = 0; this.sync(); }
+  place(x, y, h = this.h) { this.x = x; this.y = y; this.h = h; this.v = 0; this.gy = 0; this.vy = 0; this.sync(); }
   sync() {
     if (this.mode === 'car' && this.car) {
       this.car.x = this.x; this.car.y = this.y; this.car.h = this.h;
@@ -34,8 +34,17 @@ export class Player {
   update(dt, inp, camHeading) {
     if (this.mode === 'foot') this.walk(dt, inp, camHeading);
     else if (this.mode === 'car') this.drive(dt, inp);
+    this.height(dt);
     this.sync();
   }
+  // stand on bridges and ramps; fall off edges
+  height(dt) {
+    const target = this.tiles.surfaceAt(this.x, this.y, this.gy, this.mode === 'car' ? 1.0 : 0.8);
+    if (target >= this.gy - 0.05) { this.gy += (target - this.gy) * Math.min(1, dt * 18); this.vy = 0; }
+    else { this.vy = (this.vy || 0) - 22 * dt; this.gy = Math.max(target, this.gy + this.vy * dt); if (this.gy <= target) this.vy = 0; }
+  }
+  // building walls only matter near the ground
+  collide(x, y, r) { return this.gy > 3.5 ? { x, y, hit: false } : this.tiles.collide(x, y, r); }
   walk(dt, inp, camH) {
     const run = inp.sprint ? 7.2 : 3.4;
     let mx = 0, my = 0;
@@ -51,7 +60,7 @@ export class Player {
     }
     const [dx, dy] = dirOf(this.h);
     let nx = this.x + dx * this.v * dt, ny = this.y + dy * this.v * dt;
-    const c = this.tiles.collide(nx, ny, 0.45);
+    const c = this.collide(nx, ny, 0.45);
     this.x = c.x; this.y = c.y;
     animatePerson(this.person, Math.abs(this.v), dt);
   }
@@ -71,7 +80,7 @@ export class Player {
     let hit = false;
     for (const off of [1.5, 0, -1.5]) {
       const cx = nx + dx * off, cy = ny + dy * off;
-      const c = this.tiles.collide(cx, cy, 1.0);
+      const c = this.collide(cx, cy, 1.0);
       if (c.hit) { hit = true; nx += c.x - cx; ny += c.y - cy; }
     }
     if (hit) { this.v *= -0.25; if (this.onCrash) this.onCrash(); }

@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { MAT } from './materials.js';
 
-export const L = { BLD: 1, ROAD: 2, PATH: 3, RAIL: 4, AREA: 5, WATER: 6, WWAY: 7, POI: 8, STOP: 9, BARR: 10 };
+export const L = { BLD: 1, ROAD: 2, PATH: 3, RAIL: 4, AREA: 5, WATER: 6, WWAY: 7, POI: 8, STOP: 9, BARR: 10, TREE: 11 };
 const dec = new TextDecoder();
 
 export function parseTile(buf, ox, oy) {
@@ -21,6 +21,7 @@ export function parseTile(buf, ox, oy) {
         const np = dv.getUint16(o, true); o += 2;
         const arr = new Float32Array(np * 2);       // tile-local metres: x east, y north
         for (let i = 0; i < np; i++) { arr[i * 2] = dv.getInt16(o, true) / 10; arr[i * 2 + 1] = dv.getInt16(o + 2, true) / 10; o += 4; }
+        if (flags & 0x10) { const z = new Float32Array(np); for (let i = 0; i < np; i++) { z[i] = dv.getInt16(o, true) / 10; o += 2; } arr.z = z; }   // deck heights (bridges, ramps)
         rings.push(arr);
       }
       feats.push({ kind, flags, a, b, name, rings });
@@ -183,12 +184,99 @@ export function buildRibbons(lines, y, widthOf, colour = 0xffffff, vScale = 10) 
       const dot = Math.max(0.35, dx * ax + dz * az);       // miter length limit
       const ox = -dz * w / dot, oz = dx * w / dot;          // left normal in (x, north)
       if (i > 0) along += la;
-      G.v(x + ox, yy, -(z + oz), 0, 1, 0, 0, along / vScale, tmpC);
-      G.v(x - ox, yy, -(z - oz), 0, 1, 0, 1, along / vScale, tmpC);
+      const yh = yy + (r.z ? r.z[i] : 0);
+      G.v(x + ox, yh, -(z + oz), 0, 1, 0, 0, along / vScale, tmpC);
+      G.v(x - ox, yh, -(z - oz), 0, 1, 0, 1, along / vScale, tmpC);
       if (i > 0) { const a = base + (i - 1) * 2; G.idx.push(a, a + 1, a + 3, a, a + 3, a + 2); }
     }
   }
   return G.build();
+}
+
+// bridge and overpass structure: deck sides, railings and pillars under raised roads, paths and rails
+export function buildDecks(lines, widthOf, rail = true) {
+  const G = new GeoBuilder(); const c = new THREE.Color(0xb9b6ae), cr = new THREE.Color(0x8d8f93);
+  for (const ln of lines) {
+    const r = ln.rings[0], Z = r.z; if (!Z) continue;
+    const n = r.length / 2, hw = widthOf(ln) / 2 + 0.3;
+    let sincePillar = 15;
+    for (let i = 1; i < n; i++) {
+      const ax = r[i * 2 - 2], ay = r[i * 2 - 1], bx = r[i * 2], by = r[i * 2 + 1], za = Z[i - 1], zb = Z[i];
+      if (Math.max(za, zb) < 0.8) continue;
+      const dx = bx - ax, dy = by - ay, l = Math.hypot(dx, dy); if (l < 0.05) continue;
+      const nx = -dy / l * hw, ny = dx / l * hw;            // left side offset
+      for (const sgn of [1, -1]) {
+        const x0 = ax + nx * sgn, y0 = ay + ny * sgn, x1 = bx + nx * sgn, y1 = by + ny * sgn;
+        const fnx = sgn * -dy / l, fnz = -(sgn * dx / l);
+        const q = (xa, ya, ha, la, xb, yb, hb, lb, col) => {     // a vertical quad from (low..high) at both ends
+          const i0 = G.v(xa, la, -ya, fnx, 0, fnz, 0, 0, col), i1 = G.v(xb, lb, -yb, fnx, 0, fnz, 1, 0, col), i2 = G.v(xb, hb, -yb, fnx, 0, fnz, 1, 1, col), i3 = G.v(xa, ha, -ya, fnx, 0, fnz, 0, 1, col);
+          if (sgn > 0) G.idx.push(i0, i2, i1, i0, i3, i2); else G.idx.push(i0, i1, i2, i0, i2, i3);
+        };
+        q(x0, y0, za + 0.2, Math.max(0, za - 1.1), x1, y1, zb + 0.2, Math.max(0, zb - 1.1), c);     // deck edge
+        if (rail) q(x0, y0, za + 1.0, za + 0.2, x1, y1, zb + 1.0, zb + 0.2, cr);                  // railing
+      }
+      // pillars every ~30 m where the deck is high
+      sincePillar += l;
+      if (sincePillar > 30 && (za + zb) / 2 > 3) {
+        sincePillar = 0;
+        const px = (ax + bx) / 2, py = (ay + by) / 2, top = (za + zb) / 2 - 1.1, s2 = 0.7;
+        const pts = [[px - s2, py - s2], [px + s2, py - s2], [px + s2, py + s2], [px - s2, py + s2]];
+        for (let k = 0; k < 4; k++) {
+          const p0 = pts[k], p1 = pts[(k + 1) % 4], ex = p1[0] - p0[0], ey = p1[1] - p0[1], el = Math.hypot(ex, ey);
+          const ox = ey / el, oz = ex / el;
+          const i0 = G.v(p0[0], 0, -p0[1], ox, 0, oz, 0, 0, c), i1 = G.v(p1[0], 0, -p1[1], ox, 0, oz, 1, 0, c), i2 = G.v(p1[0], top, -p1[1], ox, 0, oz, 1, 1, c), i3 = G.v(p0[0], top, -p0[1], ox, 0, oz, 0, 1, c);
+          G.idx.push(i0, i1, i2, i0, i2, i3);
+        }
+      }
+    }
+  }
+  return G.build();
+}
+
+// surfaces you can stand or drive on above the ground (tile-local segments), for heights
+export function buildSurfaces(lists) {
+  const cell = 16, grid = new Map(); let n = 0;
+  for (const [lines, widthOf] of lists) for (const ln of lines) {
+    const r = ln.rings[0], Z = r.z; if (!Z || (ln.flags & 4)) continue;
+    const hw = widthOf(ln) / 2 + 0.4;
+    for (let i = 1; i < r.length / 2; i++) {
+      if (Math.max(Z[i - 1], Z[i]) < 0.3) continue;
+      const seg = [r[i * 2 - 2], r[i * 2 - 1], Z[i - 1], r[i * 2], r[i * 2 + 1], Z[i], hw]; n++;
+      const x0 = Math.floor((Math.min(seg[0], seg[3]) - hw) / cell), x1 = Math.floor((Math.max(seg[0], seg[3]) + hw) / cell);
+      const y0 = Math.floor((Math.min(seg[1], seg[4]) - hw) / cell), y1 = Math.floor((Math.max(seg[1], seg[4]) + hw) / cell);
+      for (let cx = x0; cx <= x1; cx++) for (let cy = y0; cy <= y1; cy++) { const k = cx * 100000 + cy; let l = grid.get(k); if (!l) grid.set(k, l = []); l.push(seg); }
+    }
+  }
+  return n ? { cell, grid } : null;
+}
+
+// street trees (City of Calgary public tree inventory): instanced trunks and crowns
+const TREE_GEO = {};
+export function buildTrees(feats) {
+  if (!feats || !feats.length) return [];
+  TREE_GEO.trunk ||= new THREE.CylinderGeometry(0.12, 0.2, 1, 6).translate(0, 0.5, 0);
+  TREE_GEO.leaf ||= new THREE.IcosahedronGeometry(1, 1);
+  TREE_GEO.cone ||= new THREE.ConeGeometry(1, 1, 8).translate(0, 0.5, 0);
+  const dec = feats.filter(f => f.kind !== 2), con = feats.filter(f => f.kind === 2);
+  const out = [], m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), pos = new THREE.Vector3(), col = new THREE.Color();
+  const trunks = new THREE.InstancedMesh(TREE_GEO.trunk, MAT.trunk, feats.length);
+  feats.forEach((f, i) => { const r = f.rings[0], h = f.a / 10; m.compose(pos.set(r[0], 0, -r[1]), q.identity(), sc.set(1 + f.b / 60, h * 0.45, 1 + f.b / 60)); trunks.setMatrixAt(i, m); });
+  trunks.castShadow = true; out.push(trunks);
+  const crowns = (list, geo, conifer) => {
+    if (!list.length) return;
+    const im = new THREE.InstancedMesh(geo, MAT.leaves, list.length);
+    list.forEach((f, i) => {
+      const r = f.rings[0], h = f.a / 10, cr = f.b / 10, hs = Math.abs(Math.sin(r[0] * 12.9898 + r[1] * 78.233));
+      if (conifer) m.compose(pos.set(r[0], h * 0.15, -r[1]), q.identity(), sc.set(cr * 0.8, h * 0.9, cr * 0.8));
+      else m.compose(pos.set(r[0], h * 0.62, -r[1]), q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), hs * 6), sc.set(cr, Math.min(cr, h * 0.4) * 1.05, cr));
+      im.setMatrixAt(i, m);
+      col.setHSL(conifer ? 0.36 + hs * 0.04 : 0.22 + hs * 0.1, conifer ? 0.35 : 0.42 + hs * 0.15, conifer ? 0.22 + hs * 0.05 : 0.3 + hs * 0.1);
+      im.setColorAt(i, col);
+    });
+    im.castShadow = true; out.push(im);
+  };
+  crowns(dec, TREE_GEO.leaf, false); crowns(con, TREE_GEO.cone, true);
+  return out;
 }
 
 // segment grid for collisions (tile-local), cell 16 m
@@ -282,7 +370,15 @@ export class TileManager {
     // paths and roads
     if (M && layers[L.PATH]) add(buildRibbons(layers[L.PATH].filter(f => !(f.flags & 4)), f => (f.flags & 8) ? 0.13 : 0.11, f => f.kind === 5 ? 3 : (f.kind === 2 ? 5 : 2.2)), MAT.path, { ro: 3 });
     if (M && layers[L.RAIL]) add(buildRibbons(layers[L.RAIL].filter(f => !(f.flags & 4)), 0.125, f => 3.0, 0xffffff, 4), MAT.rail, { ro: 3 });
+    const roadW = f => f.a / 10, pathW = f => f.kind === 5 ? 3 : (f.kind === 2 ? 5 : 2.2), railW = () => 3.0;
     const roads = (layers[L.ROAD] || []).filter(f => !(f.flags & 4));
+    if (M) {
+      const raised = ls => (ls || []).filter(f => !(f.flags & 4) && f.rings[0].z);
+      const deck = buildDecks([...raised(layers[L.ROAD]).map(f => ({ ...f, w: roadW(f) })), ...raised(layers[L.PATH]).map(f => ({ ...f, w: pathW(f) })), ...raised(layers[L.RAIL]).map(f => ({ ...f, w: 3.2 }))], f => f.w);
+      add(deck, MAT.concrete, { cs: true });
+      for (const im of buildTrees(layers[L.TREE])) g.add(im);
+    }
+    t.surf = buildSurfaces([[layers[L.ROAD] || [], roadW], [layers[L.PATH] || [], pathW], [layers[L.RAIL] || [], railW]]);
     const byTex = {};
     for (const r of roads) (byTex[ROAD_TEX(r.kind)] ||= []).push(r);
     if (M) for (const [tx, list] of Object.entries(byTex)) add(buildRibbons(list, f => ROAD_Y[f.kind] || 0.15, f => f.a / 10), MAT.road[tx], { ro: 4 });
@@ -293,6 +389,11 @@ export class TileManager {
       for (let i = 0; i < 4; i++) add(geos['house' + i], MAT.wallHouses[i], { cs: true });
       add(geos.apt, MAT.wallApt, { cs: true }); add(geos.comm, MAT.wallComm, { cs: true }); add(geos.tower, MAT.wallTower, { cs: true }); add(geos.roof, MAT.roof, { cs: true });
       coll = buildCollision(rings);
+    }
+    if (layers[L.TREE]) {        // tree trunks block cars and people
+      const tr = layers[L.TREE].map(f => { const x = f.rings[0][0], y = f.rings[0][1], s2 = 0.35; return [[x - s2, y - s2], [x + s2, y - s2], [x + s2, y + s2], [x - s2, y + s2]]; });
+      if (coll) { const extra = buildCollision(tr); for (const [k, l] of extra.grid) { const c = coll.grid.get(k); if (c) c.push(...l); else coll.grid.set(k, l); } }
+      else coll = buildCollision(tr);
     }
     this.scene.add(g);
     t.group = g; t.layers = layers; t.coll = coll; t.ox = ox; t.oy = oy;
@@ -339,6 +440,27 @@ export class TileManager {
       }
     }
     return { x, y, hit };
+  }
+  // height of the raised surface (bridge, ramp, overpass) under (x, y) that you can reach from height cur; 0 = ground
+  surfaceAt(x, y, cur = 0, step = 1.3) {
+    let best = 0;
+    const tiles = [this.tileAt(x, y)];
+    const lx0 = x - Math.floor(x / this.TS) * this.TS, ly0 = y - Math.floor(y / this.TS) * this.TS;
+    if (lx0 < 20) tiles.push(this.tileAt(x - 30, y)); if (lx0 > this.TS - 20) tiles.push(this.tileAt(x + 30, y));
+    if (ly0 < 20) tiles.push(this.tileAt(x, y - 30)); if (ly0 > this.TS - 20) tiles.push(this.tileAt(x, y + 30));
+    for (const t of tiles) {
+      if (!t || !t.surf) continue;
+      const lx = x - t.ox, ly = y - t.oy, S = t.surf, l = S.grid.get(Math.floor(lx / S.cell) * 100000 + Math.floor(ly / S.cell));
+      if (!l) continue;
+      for (const s of l) {
+        const dx = s[3] - s[0], dy = s[4] - s[1], L2 = dx * dx + dy * dy || 1e-9;
+        let u = ((lx - s[0]) * dx + (ly - s[1]) * dy) / L2; if (u < -0.02 || u > 1.02) continue; u = Math.max(0, Math.min(1, u));
+        if (Math.hypot(lx - s[0] - dx * u, ly - s[1] - dy * u) > s[6]) continue;
+        const z = s[2] + (s[5] - s[2]) * u;
+        if (z <= cur + step && z > best) best = z;
+      }
+    }
+    return best;
   }
   // nearest named road to a point (for the street name in the HUD)
   streetAt(x, y, maxD = 30) {
