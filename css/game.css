@@ -126,3 +126,20 @@ body.photo #gattr-logo { display: block; position: absolute; left: 10px; bottom:
 body.photo #gattr-data { display: block; position: absolute; right: 8px; bottom: calc(4px + env(safe-area-inset-bottom)); max-width: 60vw; font: 11px Roboto, Arial, sans-serif; color: #fff; text-shadow: 0 0 3px #000; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 body.photo #buttons { bottom: calc(30px + env(safe-area-inset-bottom)); }
 .key-in { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #c9c2b4; font: inherit; margin-top: 6px; }
+
+/* real street photo */
+#realbtn { position: absolute; left: 50%; top: calc(22% + 20px); transform: translateX(-50%); background: #0b7a75; border: 2px solid #fff; border-radius: 999px; padding: 10px 18px; font-weight: 800; box-shadow: 0 6px 20px rgba(0,0,0,.4); pointer-events: auto; }
+#real { position: fixed; inset: 0; z-index: 35; display: grid; place-items: center; background: rgba(5,10,15,.75); }
+.real-in { width: min(680px, 96vw); background: #10161d; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); }
+.real-top { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; }
+.real-top button { background: none; border: 0; font-size: 20px; }
+.real-photo { position: relative; background: #000; aspect-ratio: 1.6; display: grid; place-items: center; }
+.real-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.real-photo button { position: absolute; top: 50%; transform: translateY(-50%); width: 46px; height: 46px; border-radius: 50%; border: 0; background: rgba(0,0,0,.55); font-size: 20px; }
+.real-l { left: 10px; } .real-r { right: 10px; }
+.real-msg { position: absolute; color: #ddd; font-weight: 600; text-align: center; padding: 20px; }
+.real-foot { display: flex; justify-content: space-between; gap: 10px; padding: 6px 12px; font: 12px Roboto, Arial, sans-serif; color: #ccc; }
+.real-g { font-weight: 700; color: #fff; }
+.real-note { margin: 0; padding: 4px 14px 14px; font-size: 14px; opacity: .85; }
+/* light grade: warm wash and soft vignette over the 3D view (keeps the scene feeling lit by one sun) */
+#grade { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 70% 0%, rgba(255,214,150,.13), transparent 55%), radial-gradient(ellipse at 50% 55%, transparent 55%, rgba(0,0,0,.30) 100%); }

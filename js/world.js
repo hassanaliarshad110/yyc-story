@@ -41,7 +41,7 @@ export function buildWorldMeshes(scene, world) {
   const { geos } = buildBuildings(sky, false);
   for (const [k, geo] of Object.entries(geos)) {
     if (!geo) continue;
-    const m = new THREE.Mesh(geo, k === 'roof' ? MAT.roof : k === 'house' ? MAT.wallHouse : k === 'comm' ? MAT.wallComm : MAT.wallTower);
+    const m = new THREE.Mesh(geo, k === 'roof' ? MAT.roof : k.startsWith('house') ? MAT.wallHouses[+k.slice(5) || 0] : k === 'apt' ? MAT.wallApt : k === 'comm' ? MAT.wallComm : MAT.wallTower);
     m.castShadow = true; m.receiveShadow = true; g.add(m);
   }
   scene.add(g);

@@ -61,18 +61,23 @@ function cleanRing(r) {          // drop closing duplicate, return array of [x,y
 
 const tmpC = new THREE.Color();
 const KCOL = {   // building wall tints by kind
-  1: [0xd8cfc0, 0xc9b8a2, 0xe2ddd3, 0xb7b9b0, 0xa9b4bd, 0xcbbd9f, 0x9eaa98], 2: [0xcfc8bc], 3: [0xc9c4ba, 0xb0aca4, 0xd6cfc2], 4: [0xcab8a0, 0xbfb3a6, 0xd1c7b8, 0x9ca7ad],
+  1: [0xd8cfc0, 0xc9b8a2, 0xe2ddd3, 0xb7b9b0, 0xa9b4bd, 0xcbbd9f, 0x9eaa98, 0xf2efe8, 0x8f9aa3, 0xb9c4b0, 0xd9c7a8, 0x7d8a8f, 0xc7b29a, 0xe6dfcf], 2: [0xcfc8bc], 3: [0xc9c4ba, 0xb0aca4, 0xd6cfc2], 4: [0xcab8a0, 0xbfb3a6, 0xd1c7b8, 0x9ca7ad],
   5: [0xb9b5ae, 0xa7a49e], 6: [0xd5ccbd, 0xc4b9a8], 7: [0xc2a68a, 0xb59a7e], 8: [0xd3c7b4], 9: [0xc4c0b8], 10: [0xb4b2ad], 11: [0xd0d0d0], 12: [0xdedad2],
   13: [0x9fa6ad], 14: [0xc4beb3, 0xb3ada3], 15: [0xa8b8c8, 0x8fa3b6, 0xb6c2cc, 0x7e93a8], 16: [0xc9b78f], 17: [0xd9d6cf]
 };
-const ROOF = { 1: [0x5a5550, 0x4a4643, 0x6b5a4c, 0x3f4245, 0x705f52], 2: [0x5a5550, 0x4a4643], 4: [0x6d6a66, 0x5b5754] };
+const ROOF = { 1: [0x5a5550, 0x4a4643, 0x6b5a4c, 0x3f4245, 0x705f52, 0x2f3236, 0x7a6a5a, 0x4f5a4e, 0x8a5a44, 0x3d3a37], 2: [0x5a5550, 0x4a4643, 0x6b5a4c], 4: [0x6d6a66, 0x5b5754, 0x4a4643] };
 function pick(arr, h) { return arr[Math.floor(h * arr.length) % arr.length]; }
 function hash2(x, y) { const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return s - Math.floor(s); }
 
-function wallGroup(k, h) { if (k === 15 || (k === 3 && h > 25) || (k === 4 && h > 30) || k === 17) return 'tower'; if (k === 1 || k === 2 || k === 4) return 'house'; return 'comm'; }
+function wallGroup(k, h, hs) {
+  if (k === 15 || (k === 3 && h > 25) || (k === 4 && h > 30) || k === 17) return 'tower';
+  if (k === 4) return 'apt';
+  if (k === 1 || k === 2) return 'house' + (Math.floor(hs * 977) % 4);      // four house styles
+  return 'comm';
+}
 
 export function buildBuildings(feats, skylineSkip = true) {
-  const G = { house: new GeoBuilder(), comm: new GeoBuilder(), tower: new GeoBuilder(), roof: new GeoBuilder() };
+  const G = { house0: new GeoBuilder(), house1: new GeoBuilder(), house2: new GeoBuilder(), house3: new GeoBuilder(), apt: new GeoBuilder(), comm: new GeoBuilder(), tower: new GeoBuilder(), roof: new GeoBuilder() };
   const coll = [];
   for (const f of feats) {
     let pts = cleanRing(f.rings[0]);
@@ -86,7 +91,7 @@ export function buildBuildings(feats, skylineSkip = true) {
     const hs = hash2(cx, cy);
     tmpC.setHex(pick(KCOL[k] || KCOL[14], hs));
     const wc = tmpC.clone();
-    const grp = G[wallGroup(k, h)];
+    const grp = G[wallGroup(k, h, hs)];
     let per = 0;
     for (let i = 0; i < pts.length; i++) {
       const a = pts[i], b = pts[(i + 1) % pts.length];
@@ -285,7 +290,8 @@ export class TileManager {
     let coll = null;
     if (layers[L.BLD]) {
       const { geos, coll: rings } = M ? buildBuildings(layers[L.BLD]) : { geos: {}, coll: layers[L.BLD].map(f => { const p = cleanRing(f.rings[0]); if (ringArea(f.rings[0]) < 0) p.reverse(); return p; }).filter(p => p.length >= 3) };
-      add(geos.house, MAT.wallHouse, { cs: true }); add(geos.comm, MAT.wallComm, { cs: true }); add(geos.tower, MAT.wallTower, { cs: true }); add(geos.roof, MAT.roof, { cs: true });
+      for (let i = 0; i < 4; i++) add(geos['house' + i], MAT.wallHouses[i], { cs: true });
+      add(geos.apt, MAT.wallApt, { cs: true }); add(geos.comm, MAT.wallComm, { cs: true }); add(geos.tower, MAT.wallTower, { cs: true }); add(geos.roof, MAT.roof, { cs: true });
       coll = buildCollision(rings);
     }
     this.scene.add(g);

@@ -9,10 +9,10 @@ import { Transit } from './transit.js';
 import { Missions, P } from './missions.js';
 import { initHUD, tilePaths, drawMinimap, openMap, closeMap, mapOpen, toast, setObjective, setPrompt, nextPressed, $ } from './hud.js';
 import { initPhone, openPhone, closePhone, phoneOpen } from './phone.js';
+import { initRealView, openReal, closeReal, realOpen } from './realview.js';
 import { initInput, readInput, input, onAction } from './input.js';
 import { makeCar } from './actors.js';
 import { GOOGLE_KEY } from './config.js';
-import { PhotoCity } from './photo.js';
 
 const mobile = matchMedia('(pointer: coarse)').matches || innerWidth < 760;
 const saved = (() => { try { return JSON.parse(localStorage.getItem('yyc-settings')) || {}; } catch (e) { return {}; } })();
@@ -21,7 +21,7 @@ const game = window.game = { input,
   settings: { radius: saved.radius ?? (mobile ? 1 : 2), shadows: saved.shadows ?? !mobile, photo: saved.photo ?? true },
 };
 game.key = (() => { try { return localStorage.getItem('yyc-gkey') || GOOGLE_KEY; } catch (e) { return GOOGLE_KEY; } })();
-game.photoOn = !!game.key && game.settings.photo && !/[?&]map\b/.test(location.search);
+game.photoOn = false;          // the Google 3D city is not used in gameplay; the key is used for real street photos
 
 // ---------------------------------------------------------------- renderer and scene
 const canvas = $('#c');
@@ -73,7 +73,7 @@ async function boot() {
   buildWorldMeshes(scene, world); addMountains();
   if (game.photoOn) {
     document.body.classList.add('photo');
-    game.photo = new PhotoCity(scene, camera, renderer, world, game.key, { errorTarget: mobile ? 10 : 5 });
+    game.photo = null;
     renderer.shadowMap.enabled = false;
     scene.fog.near = 1500; scene.fog.far = 7000;
     for (const o of scene.children) if (o.name === 'world') o.visible = false;
@@ -88,7 +88,7 @@ async function boot() {
   transit = new Transit(scene, world, { bus: mobile ? 2 : 4, train: mobile ? 1 : 2 }); game.transit = transit;
   traffic.groundY = transit.groundY = game.groundY;
   missions = new Missions(game); game.missions = missions;
-  initHUD(world, game); initPhone(game); initInput(canvas);
+  initHUD(world, game); initPhone(game); initRealView(game); initInput(canvas);
   game.updateMoney();
   const has = missions.state.done.length > 0;
   $('#btn-story').textContent = has ? 'Continue the story' : 'Start the story';
@@ -159,6 +159,14 @@ game.addPothole = (x, y) => {
 };
 game.removePothole = g => scene.remove(g);
 game.camSnap = camSnap;
+// offer the real street photo of a place for a while after arriving
+game.offerReal = (place) => {
+  const b = $('#realbtn'); if (!game.key || !place) return;
+  b.hidden = false; b.textContent = '📷 See it for real: ' + (place.name || place.label);
+  b.onclick = () => { b.hidden = true; openReal(place); };
+  clearTimeout(game._realT); game._realT = setTimeout(() => { b.hidden = true; }, 20000);
+};
+game.openReal = openReal;
 
 // ---------------------------------------------------------------- actions
 onAction('vehicle', () => {
@@ -172,7 +180,7 @@ onAction('vehicle', () => {
 onAction('interact', () => { if (nextPressed()) return; if (!game.started) return; if (missions.interact()) return; });
 onAction('map', () => { if (!game.started) return; if (mapOpen()) closeMap(); else { if (phoneOpen()) closePhone(); openMap(); } });
 onAction('phone', () => { if (!game.started) return; if (phoneOpen()) closePhone(); else openPhone(); });
-onAction('back', () => { if (mapOpen()) closeMap(); else if (phoneOpen()) closePhone(); });
+onAction('back', () => { if (realOpen()) closeReal(); else if (mapOpen()) closeMap(); else if (phoneOpen()) closePhone(); });
 onAction('missions', () => { if (!game.started || missions.active) return; const i = missions.nextIndex(); if (i >= 0) missions.start(i); });
 
 // ---------------------------------------------------------------- camera
@@ -223,7 +231,7 @@ function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   const inp = readInput();
-  const blocked = game.paused || mapOpen() || phoneOpen();
+  const blocked = game.paused || mapOpen() || phoneOpen() || realOpen();
   if (game.started && !blocked) {
     game.clock = (game.clock + dt / 60) % 24;
     player.update(dt, inp, camH);

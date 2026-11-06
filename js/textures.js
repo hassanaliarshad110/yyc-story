@@ -24,6 +24,27 @@ export function facadeTexture(kind) {
     for (let y = 0; y < 64; y += 6) { g.fillStyle = y % 12 ? '#cfc9bf' : '#ddd8cf'; g.fillRect(0, y, 64, 1); }   // siding
     g.fillStyle = '#4d5964'; g.fillRect(18, 18, 28, 26);
     g.fillStyle = '#f3f3f3'; g.fillRect(16, 16, 32, 2); g.fillRect(16, 44, 32, 3); g.fillRect(31, 18, 2, 26);
+  } else if (kind === 'house_brick') {          // brick lower half, siding upper half
+    g.fillStyle = '#d9d4cc'; g.fillRect(0, 0, 64, 64);
+    for (let y = 0; y < 30; y += 5) { g.fillStyle = y % 10 ? '#cfc9bf' : '#ddd8cf'; g.fillRect(0, y, 64, 1); }
+    g.fillStyle = '#9a6a52'; g.fillRect(0, 30, 64, 34);
+    g.fillStyle = '#b98a72'; for (let y = 30; y < 64; y += 4) for (let x = (y / 4 % 2) * 4; x < 64; x += 8) g.fillRect(x, y, 7, 3);
+    g.fillStyle = '#4d5964'; g.fillRect(20, 12, 24, 22); g.fillStyle = '#f3f3f3'; g.fillRect(18, 10, 28, 2); g.fillRect(31, 12, 2, 22);
+  } else if (kind === 'house_stucco') {
+    g.fillStyle = '#e3dccd'; g.fillRect(0, 0, 64, 64);
+    for (let i = 0; i < 300; i++) { g.fillStyle = Math.random() < 0.5 ? '#d8d0bf' : '#ece6d8'; g.fillRect(Math.random() * 64, Math.random() * 64, 2, 2); }
+    g.fillStyle = '#3f4a55'; g.fillRect(16, 16, 32, 28); g.fillStyle = '#6b5240'; g.fillRect(14, 44, 36, 4); g.fillRect(14, 14, 36, 3);
+    g.fillStyle = '#f5f2ea'; g.fillRect(31, 16, 2, 28); g.fillRect(16, 29, 32, 2);
+  } else if (kind === 'house_stone') {           // stone base, board-and-batten above
+    g.fillStyle = '#c9cbc4'; g.fillRect(0, 0, 64, 64);
+    for (let x = 0; x < 64; x += 8) { g.fillStyle = '#b9bbb4'; g.fillRect(x, 0, 2, 40); }
+    g.fillStyle = '#8f8a80'; g.fillRect(0, 40, 64, 24);
+    for (let i = 0; i < 40; i++) { const v = 110 + Math.random() * 60 | 0; g.fillStyle = `rgb(${v},${v - 6},${v - 14})`; g.fillRect(Math.random() * 60, 40 + Math.random() * 20, 6 + Math.random() * 8, 4 + Math.random() * 3); }
+    g.fillStyle = '#2f3940'; g.fillRect(18, 10, 28, 24); g.fillStyle = '#eee'; g.fillRect(31, 10, 2, 24);
+  } else if (kind === 'apt') {                   // apartment block: balconies
+    g.fillStyle = '#d7d1c6'; g.fillRect(0, 0, 64, 64);
+    g.fillStyle = '#56646f'; g.fillRect(8, 10, 22, 34); g.fillRect(36, 14, 20, 24);
+    g.fillStyle = '#8e8a84'; g.fillRect(4, 42, 30, 4); g.fillStyle = '#2e3134'; for (let x = 5; x < 34; x += 3) g.fillRect(x, 34, 1, 8);
   } else if (kind === 'brick') {
     g.fillStyle = '#b8a493'; g.fillRect(0, 0, 64, 64);
     g.fillStyle = '#56636e'; g.fillRect(14, 14, 36, 30);

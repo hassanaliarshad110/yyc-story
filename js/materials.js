@@ -11,9 +11,11 @@ export function initMaterials() {
     return m;
   };
   MAT.wallHouse = wall('house');
+  MAT.wallHouses = [MAT.wallHouse, wall('house_brick'), wall('house_stucco'), wall('house_stone')];
+  MAT.wallApt = wall('apt');
   MAT.wallComm = wall('comm');
   MAT.wallTower = wall('tower');
-  MAT.walls = [MAT.wallHouse, MAT.wallComm, MAT.wallTower];
+  MAT.walls = [...MAT.wallHouses, MAT.wallApt, MAT.wallComm, MAT.wallTower];
   MAT.roof = new THREE.MeshLambertMaterial({ vertexColors: true });
   const gt = groundTexture('#ffffff', ['#d8d8d8', '#eeeeee', '#c8c8c8', '#f6f6f6']);
   MAT.ground = new THREE.MeshLambertMaterial({ vertexColors: true, map: gt, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
@@ -23,7 +25,7 @@ export function initMaterials() {
   MAT.rail = new THREE.MeshLambertMaterial({ map: railTexture(), polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
   const road = (k, col) => new THREE.MeshLambertMaterial({ map: roadTexture(k), color: col || 0xffffff, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
   MAT.road = { highway: road('highway'), major: road('major'), local: road('local'), runway: road('local', 0xb8b8b8) };
-  MAT.base = new THREE.MeshLambertMaterial({ color: 0xb3ae86, map: groundTexture('#ffffff', ['#e0dccb', '#f0ecd8', '#d2cfb8']) });
+  MAT.base = new THREE.MeshLambertMaterial({ color: 0x93a86e, map: groundTexture('#ffffff', ['#e0dccb', '#f0ecd8', '#d2cfb8']) });
   return MAT;
 }
 

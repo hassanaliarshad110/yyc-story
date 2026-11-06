@@ -14,7 +14,7 @@ export const P = {
   library: { x: 213, y: 16, name: 'Central Library' },
   cityHallStation: { x: 92, y: 113, name: 'City Hall / Bow Valley College CTrain Station' },
   saddletowne: { x: 7696.1, y: 8966.1, name: 'Saddletowne CTrain Station' },
-  home: { x: 7888, y: 9231, name: 'Home, Saddle Ridge' },
+  home: { x: 7888, y: 9231, name: 'Home, Saddle Ridge', real: false },   // a real house: no street photo of someone's home
   freshco: { x: 7910.7, y: 8701.5, name: 'Chalo! FreshCo, 850 Saddletowne Circle NE' },
   villageSquare: { x: 7268.8, y: 3417.7, name: 'Village Square Leisure Centre, 2623 56 St NE' },
   princes: { x: -862, y: 1062, name: "Prince's Island Park" },
@@ -122,7 +122,7 @@ export class Missions {
     if (this.goal) {
       const d = Math.hypot(p.x - this.goal.x, p.y - this.goal.y);
       setObjDist(d);
-      if (d < this.goal.r && p.mode !== 'ride') { const r = this.goal.res; this.clearGoal(); r(); }
+      if (d < this.goal.r && p.mode !== 'ride') { const g = this.goal, r = g.res; this.clearGoal(); if (g.name && g.real !== false) { this.seen(g); this.g.offerReal(g); } r(); }
     }
     this.marker.userData.arrow.position.y = 4 + Math.sin(performance.now() / 300) * 0.6;
     this.marker.rotation.y += dt;
@@ -132,10 +132,11 @@ export class Missions {
       for (const l of this.g.world.landmarks) {
         if (this.state.landmarks.includes(l.label)) continue;
         const r = l.full && !l.downtown ? 180 : 70;
-        if (Math.hypot(p.x - l.x, p.y - l.y) < r) { this.state.landmarks.push(l.label); this.save(); found(`📍 Landmark found: ${l.label} (${this.state.landmarks.length}/${this.g.world.landmarks.length})`); this.earn(2); }
+        if (Math.hypot(p.x - l.x, p.y - l.y) < r) { this.state.landmarks.push(l.label); this.save(); found(`📍 Landmark found: ${l.label} (${this.state.landmarks.length}/${this.g.world.landmarks.length})`); this.earn(2); this.g.offerReal({ x: l.x, y: l.y, name: l.label, radius: l.full && !l.downtown ? 300 : 120 }); }
       }
     }
   }
+  seen(g) { const v = this.state.visited ||= []; if (!v.some(p => p.name === g.name)) { v.push({ name: g.name, x: g.x, y: g.y }); this.save(); } }
   interact() { if (this.boardWait) { this.boardWait(); return true; } return false; }
 }
 function load() { try { return JSON.parse(localStorage.getItem('yyc-story')); } catch (e) { return null; } }
@@ -206,7 +207,7 @@ const MISSIONS = [
       const spot = g.findRoadSpot(P.home.x, P.home.y, 90, 200) || { x: P.home.x + 120, y: P.home.y };
       await say(ABBU, `There's a huge pothole on our street. It nearly took the tire off the car this morning. Can you report it to the City with the 311 app?`);
       const hole = g.addPothole(spot.x, spot.y);
-      await M.goto({ ...spot, name: 'the pothole' }, 'Find the pothole down the street', 10);
+      await M.goto({ ...spot, name: 'the pothole', real: false }, 'Find the pothole down the street', 10);
       let r = null;
       while (!r || r.cat !== 'pothole') {
         await say('Tip', `Open the Calgary 311 app, choose the right kind of problem, take a photo and submit.`);

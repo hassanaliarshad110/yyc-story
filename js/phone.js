@@ -18,7 +18,8 @@ export function openPhone() {
     <button class="app" data-app="help"><i style="background:#1e9e4a">🤝</i>Find help</button>
     <button class="app" data-app="map"><i style="background:#7a3fa0">🗺️</i>Map</button>
     <button class="app" data-app="missions"><i style="background:#d48a00">⭐</i>Missions</button>
-    <button class="app" data-app="settings"><i style="background:#555">⚙️</i>Settings</button></div>
+    <button class="app" data-app="settings"><i style="background:#555">⚙️</i>Settings</button>
+    <button class="app" data-app="real"><i style="background:#0b7a75">📷</i>Real photos</button></div>
     <p style="font-size:12px;color:#5b6573;margin-top:22px">In the real world: <b>9-1-1</b> emergencies · <b>3-1-1</b> City services · <b>2-1-1</b> community and social help</p>`);
   $('.phone-body').querySelectorAll('[data-app]').forEach(b => b.onclick = () => {
     const a = b.dataset.app;
@@ -28,6 +29,7 @@ export function openPhone() {
     if (a === 'map') { closePhone(); openMap(); }
     if (a === 'missions') appMissions();
     if (a === 'settings') appSettings();
+    if (a === 'real') appReal();
   });
 }
 
@@ -126,19 +128,12 @@ function appSettings() {
   show('Settings', `<div class="p-h">View distance</div><div class="chips">${[['1', 'Short (faster)'], ['2', 'Normal'], ['3', 'Far']].map(([v, t]) => `<button class="chip${String(q.radius) === v ? ' on' : ''}" data-r="${v}">${t}</button>`).join('')}</div>
     <div class="p-h">Shadows</div><div class="chips"><button class="chip${q.shadows ? ' on' : ''}" data-s="1">On</button><button class="chip${!q.shadows ? ' on' : ''}" data-s="0">Off</button></div>
     <div class="p-h">Time of day</div><div class="chips">${[['8', 'Morning'], ['13', 'Afternoon'], ['18.5', 'Evening'], ['22', 'Night']].map(([v, t]) => `<button class="chip" data-t="${v}">${t}</button>`).join('')}</div>
-    <div class="p-h">City look</div>
-    <div class="chips"><button class="chip${game.settings.photo && game.key ? ' on' : ''}" data-p="1">Photo-real (Google 3D)</button><button class="chip${!(game.settings.photo && game.key) ? ' on' : ''}" data-p="0">Map-drawn (works offline)</button></div>
-    <div style="font-size:12px;color:#5b6573">Google Maps Platform key: ${game.key ? 'set' : 'not set'}</div>
-    <input class="key-in" id="s-key" placeholder="Paste a Google Maps Platform API key" autocomplete="off">
-    <button class="p-btn alt" id="s-keysave">Save key and reload</button>
     <button class="p-btn alt" id="s-reset">Start the story again</button>
     <p style="font-size:12px;color:#5b6573;margin-top:16px"><b>YYC Story</b> · A game by Hassan Ali<br>${game.world.credits.data.map(esc).join('<br>')}<br>Map data downloaded ${esc((game.world.osm_date || '').slice(0, 10))}.</p>`);
   const b = $('.phone-body');
   b.querySelectorAll('[data-r]').forEach(x => x.onclick = () => { game.setRadius(+x.dataset.r); appSettings(); });
   b.querySelectorAll('[data-s]').forEach(x => x.onclick = () => { game.setShadows(x.dataset.s === '1'); appSettings(); });
   b.querySelectorAll('[data-t]').forEach(x => x.onclick = () => { game.clock = +x.dataset.t; toast('Time changed'); });
-  b.querySelectorAll('[data-p]').forEach(x => x.onclick = () => { game.settings.photo = x.dataset.p === '1'; try { localStorage.setItem('yyc-settings', JSON.stringify(game.settings)); } catch (e) { } location.reload(); });
-  $('#s-keysave').onclick = () => { const v = $('#s-key').value.trim(); try { if (v) localStorage.setItem('yyc-gkey', v); else localStorage.removeItem('yyc-gkey'); } catch (e) { } location.reload(); };
   $('#s-reset').onclick = () => { game.missions.reset(); closePhone(); location.reload(); };
 }
 
@@ -164,4 +159,13 @@ export function appShop(storeName, budget) {
     };
     render();
   });
+}
+
+// real street photos of the places you've been and the landmarks you've found
+function appReal() {
+  const st = game.missions.state, W = game.world;
+  const items = [...(st.visited || []), ...W.landmarks.filter(l => st.landmarks.includes(l.label)).map(l => ({ name: l.label, x: l.x, y: l.y, radius: l.full && !l.downtown ? 300 : 120 }))];
+  show('Real photos', `<p style="font-size:13px;color:#5b6573;margin-top:0">See the real street photo of places you've been. Find more landmarks to add them here.</p>
+    <div class="p-list">${items.length ? items.map((p, i) => `<button class="p-item" data-i="${i}"><b>📷 ${esc(p.name)}</b></button>`).join('') : '<p>Nothing yet: complete a mission or find a landmark.</p>'}</div>`);
+  $('.phone-body').querySelectorAll('[data-i]').forEach(b => b.onclick = () => { closePhone(); game.openReal(items[+b.dataset.i]); });
 }
