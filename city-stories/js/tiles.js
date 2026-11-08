@@ -229,7 +229,9 @@ export function buildB3D(buf, skipTall = true, groundAt = gl) {
   const dv = new DataView(buf.buffer || buf, buf.byteOffset || 0, buf.byteLength);
   if (dv.getUint32(0, true) !== 0x31425959) return { geos: {}, n: 0 };       // 'YYB1'
   const n = dv.getUint32(4, true); let o = 8, built = 0;
-  const X = [], Y = [], Z = [], walls = [], outlines = [];
+  const X = [], Y = [], Z = [], walls = [], outlines = [], cwalls = [];
+  // roof heights on a 2.5 m grid over the tile (and 50 m around it): what a helicopter can land on or must fly over
+  const HG = { c: 2.5, o: -50, n: 240, h: new Float32Array(240 * 240).fill(-1e9) };
   for (let b = 0; b < n; b++) {
     const kb = dv.getUint8(o), flags = dv.getUint8(o + 1), gbase = dv.getInt16(o + 2, true) / 10, nv = dv.getUint16(o + 4, true); o += 6;
     X.length = Y.length = Z.length = 0;
@@ -247,6 +249,23 @@ export function buildB3D(buf, skipTall = true, groundAt = gl) {
     // the outline and roof height, for landing helicopters and flying between towers
     { const E = []; for (let w = 0; w < nw; w++) { const q = wOff + w * 8; if (dv.getInt16(q + 4, true) / 10 === gbase) { const a = dv.getUint16(q, true), c = dv.getUint16(q + 2, true); E.push(X[a], Y[a], X[c], Y[c]); } }
       if (E.length) outlines.push({ mnx, mny, mxx, mxy, top: zmax + shift, E }); }
+    for (let w = 0; w < nw; w++) {                         // walls that reach the ground block people and cars
+      const q = wOff + w * 8; if (dv.getInt16(q + 4, true) / 10 !== gbase) continue;
+      const a = dv.getUint16(q, true), c = dv.getUint16(q + 2, true); if (Math.hypot(X[c] - X[a], Y[c] - Y[a]) > 0.3) cwalls.push([X[a], Y[a], X[c], Y[c]]);
+    }
+    for (let t = 0; t < nt; t++) {                         // rasterise the roof triangles
+      const q = tOff + t * 6, A = dv.getUint16(q, true), B = dv.getUint16(q + 2, true), C = dv.getUint16(q + 4, true);
+      const x0 = X[A], y0 = Y[A], x1 = X[B], y1 = Y[B], x2 = X[C], y2 = Y[C], den = (y1 - y2) * (x0 - x2) + (x2 - x1) * (y0 - y2);
+      if (Math.abs(den) < 1e-6) continue;
+      const i0 = Math.max(0, Math.floor((Math.min(x0, x1, x2) - HG.o) / HG.c)), i1 = Math.min(HG.n - 1, Math.floor((Math.max(x0, x1, x2) - HG.o) / HG.c));
+      const j0 = Math.max(0, Math.floor((Math.min(y0, y1, y2) - HG.o) / HG.c)), j1 = Math.min(HG.n - 1, Math.floor((Math.max(y0, y1, y2) - HG.o) / HG.c));
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+        const px = HG.o + (i + 0.5) * HG.c, py = HG.o + (j + 0.5) * HG.c;
+        const a = ((y1 - y2) * (px - x2) + (x2 - x1) * (py - y2)) / den, b = ((y2 - y0) * (px - x2) + (x0 - x2) * (py - y2)) / den, g = 1 - a - b;
+        if (a < -0.02 || b < -0.02 || g < -0.02) continue;
+        const z = a * Z[A] + b * Z[B] + g * Z[C] + shift, k2 = i * HG.n + j; if (z > HG.h[k2]) HG.h[k2] = z;
+      }
+    }
     if ((tall && skipTall) || k === 17) continue;          // the Calgary Tower has its own model
     built++;
     const hs = hash2(cx, cy), era = (flags >> 5) & 7, wg = wallGroup(k, h, hs, era), grp = G[wg];
@@ -296,7 +315,7 @@ export function buildB3D(buf, skipTall = true, groundAt = gl) {
       R.idx.push(i0, i1, i2);
     }
   }
-  return { geos: Object.fromEntries(Object.entries(G).map(([k, g]) => [k, g.n ? g.build() : null])), n: built, walls, outlines };
+  return { geos: Object.fromEntries(Object.entries(G).map(([k, g]) => [k, g.n ? g.build() : null])), n: built, walls, outlines, cwalls, hgrid: HG };
 }
 // Sentinel-2 ground imagery (tools/build_s2.py): one 8 km texture per region, multiplied by the fine ground texture up close
 export const S2 = { on: false, rg: 8000, mats: new Map() };
@@ -670,7 +689,7 @@ export function pavementIndex(roads) {
     if (f.flags & 4) continue;
     const r = f.rings[0], Z = r.z, hw = f.a / 20, n = r.length / 2;
     for (let i = 1; i < n; i++) {
-      const seg = [r[i * 2 - 2], r[i * 2 - 1], Z ? Z[i - 1] : null, r[i * 2], r[i * 2 + 1], Z ? Z[i] : null, hw, r];
+      const seg = [r[i * 2 - 2], r[i * 2 - 1], Z ? Z[i - 1] : null, r[i * 2], r[i * 2 + 1], Z ? Z[i] : null, hw, r, f.kind];
       const x0 = Math.floor((Math.min(seg[0], seg[3]) - hw) / cell), x1 = Math.floor((Math.max(seg[0], seg[3]) + hw) / cell);
       const y0 = Math.floor((Math.min(seg[1], seg[4]) - hw) / cell), y1 = Math.floor((Math.max(seg[1], seg[4]) + hw) / cell);
       for (let cx = x0; cx <= x1; cx++) for (let cy = y0; cy <= y1; cy++) { const k = cx * 100000 + cy; let l = grid.get(k); if (!l) grid.set(k, l = []); l.push(seg); }
@@ -689,6 +708,19 @@ export function pavementIndex(roads) {
         if (Math.abs(zo - z) < 2.5) return true;
       }
       return false;
+    },
+    // how far the drawn surface sits above the terrain here: road paint, or the raised sidewalk beside a main road
+    lift(x, y) {
+      const l = grid.get(Math.floor(x / cell) * 100000 + Math.floor(y / cell)); if (!l) return 0;
+      let best = 0;
+      for (const s of l) {
+        if (s[2] != null) continue;                         // bridges and ramps carry their own heights
+        const dx = s[3] - s[0], dy = s[4] - s[1], L2 = dx * dx + dy * dy || 1e-9;
+        const u = Math.max(0, Math.min(1, ((x - s[0]) * dx + (y - s[1]) * dy) / L2)), d = Math.hypot(x - s[0] - dx * u, y - s[1] - dy * u);
+        if (d <= s[6]) return ROAD_Y[s[8]] || 0.15;
+        if (s[8] >= 3 && s[8] <= 5 && d <= s[6] + 2.1) best = 0.13;
+      }
+      return best;
     }
   };
 }
@@ -895,6 +927,15 @@ export function buildTrees(feats) {
 }
 
 // segment grid for collisions (tile-local), cell 16 m
+export function buildSegCollision(segs) {
+  const cell = 16, grid = new Map();
+  for (const seg of segs) {
+    const x0 = Math.floor(Math.min(seg[0], seg[2]) / cell), x1 = Math.floor(Math.max(seg[0], seg[2]) / cell);
+    const y0 = Math.floor(Math.min(seg[1], seg[3]) / cell), y1 = Math.floor(Math.max(seg[1], seg[3]) / cell);
+    for (let cx = x0; cx <= x1; cx++) for (let cy = y0; cy <= y1; cy++) { const k = cx * 100000 + cy; let l = grid.get(k); if (!l) grid.set(k, l = []); l.push(seg); }
+  }
+  return { cell, grid };
+}
 export function buildCollision(rings) {
   const cell = 16, grid = new Map();
   for (const pts of rings) {
@@ -1031,7 +1072,7 @@ export class TileManager {
     if (M && layers[L.RAIL]) add(buildRibbons(layers[L.RAIL].filter(f => !(f.flags & 4)), 0.17, f => 3.0, 0xffffff, 4), MAT.rail, { ro: 5 });
     const roadW = f => f.a / 10, pathW = f => f.kind === 5 ? 3 : (f.kind === 2 ? 5 : 2.2), railW = () => 3.0;
     const roads = (layers[L.ROAD] || []).filter(f => !(f.flags & 4));
-    const ridx = pavementIndex(roads), rails = railStore(); t.rails = rails;
+    const ridx = pavementIndex(roads), rails = railStore(); t.rails = rails; t.pave = ridx;
     if (M) {
       const raised = ls => (ls || []).filter(f => !(f.flags & 4) && f.rings[0].z);
       const deck = buildDecks([...raised(layers[L.ROAD]).map(f => ({ ...f, w: roadW(f) })), ...raised(layers[L.PATH]).map(f => ({ ...f, w: pathW(f) })), ...raised(layers[L.RAIL]).map(f => ({ ...f, w: 3.2 }))], f => f.w, true, ridx, rails);
@@ -1055,7 +1096,8 @@ export class TileManager {
     // buildings
     let coll = null;
     if (M && job.bbuf) {      // the City's 3D buildings: real roofs and heights
-      const { geos, walls, outlines } = buildB3D(job.bbuf, true); t.walls3d = walls; t.roofs3d = outlines;
+      const { geos, walls, outlines, cwalls, hgrid } = buildB3D(job.bbuf, true); t.walls3d = walls; t.roofs3d = outlines; t.hgrid = hgrid;
+      coll = buildSegCollision(cwalls);
       const cs = !lite;
       for (let i = 0; i < 4; i++) add(geos['house' + i], MAT.wallHouses[i], { cs });
       add(geos.apt, MAT.wallApt, { cs }); add(geos.comm, MAT.wallComm, { cs }); add(geos.shop, MAT.wallShop, { cs }); add(geos.tower, MAT.wallTower, { cs }); add(geos.roof, MAT.roof, { cs });
@@ -1066,7 +1108,7 @@ export class TileManager {
       const cs = !lite;
       for (let i = 0; i < 4; i++) add(geos['house' + i], MAT.wallHouses[i], { cs });
       add(geos.apt, MAT.wallApt, { cs }); add(geos.comm, MAT.wallComm, { cs }); add(geos.shop, MAT.wallShop, { cs }); add(geos.tower, MAT.wallTower, { cs }); add(geos.roof, MAT.roof, { cs }); add(geos.trim, MAT.concrete, { cs }); if (D) { add(geos.doors, MAT.doors); add(geos.drive, MAT.drive, { ro: 2 }); }
-      coll = buildCollision(rings);
+      if (!job.bbuf) coll = buildCollision(rings);          // with the City's 3D buildings, their real walls are the obstacles
     }
     if (layers[L.TREE]) {        // tree trunks block cars and people
       const tr = layers[L.TREE].map(f => { const x = f.rings[0][0], y = f.rings[0][1], s2 = 0.35; return [[x - s2, y - s2], [x + s2, y - s2], [x + s2, y + s2], [x - s2, y + s2]]; });
@@ -1152,8 +1194,8 @@ export class TileManager {
   }
   // height of the surface under (x, y) you can reach from height cur: the ground, or a bridge / ramp / overpass deck
   // only: 1 roads, 2 paths, 3 rail (trains stay on their own decks)
-  surfaceAt(x, y, cur = 0, step = 1.3, only = 0) {
-    let best = ground(x, y);
+  surfaceAt(x, y, cur = 0, step = 1.3, only = 0, lift = false) {
+    const g0 = ground(x, y); let best = g0;
     for (const t of this.tilesNear(x, y)) {
       if (!t || !t.surf) continue;
       const lx = x - t.ox, ly = y - t.oy, S = t.surf, l = S.grid.get(Math.floor(lx / S.cell) * 100000 + Math.floor(ly / S.cell));
@@ -1167,6 +1209,7 @@ export class TileManager {
         if (z <= cur + step && z > best) best = z;
       }
     }
+    if (lift && best === g0) for (const t of this.tilesNear(x, y, 40)) { if (!t.pave) continue; const l = t.pave.lift(x - t.ox, y - t.oy); if (l) return g0 + l; }
     return best;
   }
   // buildings between two points (for the camera): the fraction along the line where the first wall is hit, or 1
@@ -1200,31 +1243,27 @@ export class TileManager {
   }
   // the roof height of the building at (x, y), or null (helicopters land on roofs)
   roofAt(x, y) {
-    // with the City's 3D buildings: the real roof height of whichever building outline (x, y) is in
-    let best = null, any3d = false;
+    // the City's 3D buildings: the highest roof triangle over (x, y), from each tile's 2.5 m roof grid
+    let best = -1e9, any = false;
     for (const t of this.tilesNear(x, y, 60)) {
-      if (!t.roofs3d) continue; any3d = true;
-      const lx = x - t.ox, ly = y - t.oy;
-      for (const b of t.roofs3d) {
-        if (lx < b.mnx || lx > b.mxx || ly < b.mny || ly > b.mxy) continue;
-        let ins = false; const E = b.E;
-        for (let i = 0; i < E.length; i += 4) { const xi = E[i], yi = E[i + 1], xj = E[i + 2], yj = E[i + 3]; if ((yi > ly) !== (yj > ly) && lx < (xj - xi) * (ly - yi) / (yj - yi + 1e-12) + xi) ins = !ins; }
-        if (ins && (best == null || b.top > best)) best = b.top;
-      }
+      const H = t.hgrid; if (!H) continue; any = true;
+      const i = Math.floor((x - t.ox - H.o) / H.c), j = Math.floor((y - t.oy - H.o) / H.c);
+      if (i < 0 || j < 0 || i >= H.n || j >= H.n) continue;
+      const z = H.h[i * H.n + j]; if (z > best) best = z;
     }
-    if (any3d) return best == null ? null : best + 0.3;
+    if (any) return best > -1e8 ? best : null;
+    // without them: the footprint the point is in
     const t = this.tileAt(x, y); if (!t || !t.layers || !t.layers[L.BLD]) return null;
     const lx = x - t.ox, ly = y - t.oy;
     for (const f of t.layers[L.BLD]) {
       const r = f.rings[0], n = r.length / 2; let ins = false;
       for (let i = 0, j = n - 1; i < n; j = i++) { const xi = r[i * 2], yi = r[i * 2 + 1], xj = r[j * 2], yj = r[j * 2 + 1]; if ((yi > ly) !== (yj > ly) && lx < (xj - xi) * (ly - yi) / (yj - yi + 1e-12) + xi) ins = !ins; }
-      if (ins) return ground(x, y) + Math.max(2.5, f.a / 10) + 0.3;
+      if (ins) return ground(x, y) + Math.max(2.5, f.a / 10);
     }
     return null;
   }
-  // if (x, y) is inside a building, the nearest point just outside it; else null
   outside(x, y) {
-    const t = this.tileAt(x, y); if (!t || !t.layers || !t.layers[L.BLD]) return null;
+    const t = this.tileAt(x, y); if (!t || !t.layers || !t.layers[L.BLD] || t.hgrid) return null;
     const lx = x - t.ox, ly = y - t.oy;
     for (const f of t.layers[L.BLD]) {
       const r = f.rings[0], n = r.length / 2; let ins = false;

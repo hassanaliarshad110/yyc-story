@@ -29,6 +29,9 @@ export const PLACES = {
   studioBell: { x: 339, y: -79, name: 'Studio Bell, National Music Centre' },
   fortCalgary: { x: 898, y: -67, name: 'Fort Calgary, 750 9 Avenue SE' },
   stampedePark: { x: 130, y: -697, name: 'Stampede Park' },
+  stampedeGate: { x: 316, y: -586, name: 'Stampede Park entrance arch' },
+  midway: { x: 498, y: -628, name: 'The Stampede midway' },
+  grandstand: { x: 420, y: -1162, name: 'Grandstand Show, Stampede Park' },
 };
 const SRC = {
   fares: ['Calgary Transit: fares and passes', 'https://www.calgarytransit.com/fares---passes.html'],
@@ -57,6 +60,8 @@ const SRC = {
   scoot: ['City of Calgary: shared e-scooters and e-bikes', 'https://www.calgary.ca/scootershare'],
   visit: ['Tourism Calgary', 'https://www.visitcalgary.com/'],
   stampede: ['Calgary Stampede', 'https://www.calgarystampede.com/'],
+  whiteHat: ['Tourism Calgary: White Hat ceremony', 'https://www.visitcalgary.com/request-white-hat-ceremony'],
+  erc: ['Calgary Stampede: Elbow River Camp', 'https://www.calgarystampede.com/stampede/attractions/elbow-river-camp'],
   parksCanada: ['Parks Canada: Banff National Park', 'https://parks.canada.ca/pn-np/ab/banff'],
 };
 const IMRAN = 'Imran (friend)', MAYA = 'Maya (best friend)', LINDA = 'Linda (daughter)', PRIYA = 'Priya (neighbour)';
@@ -79,7 +84,7 @@ export const CHARACTERS = {
   jean: { look: 'jean', name: 'Jean', role: T('Calgary resident', 'Résident de Calgary', 'ਕੈਲਗਰੀ ਦਾ ਵਸਨੀਕ', 'کیلگری کا رہائشی', 'Residente ng Calgary', 'من سكان كالغاري'),
     blurb: T('Jean has lived in Martindale for years. Deliver food from local restaurants, sort your carts, clear your sidewalk and catch the concert at the Saddledome.', 'Jean vit à Martindale depuis des années. Livrez des repas de restaurants du quartier, triez vos bacs, déneigez votre trottoir et allez au concert au Saddledome.', 'ਜੀਨ ਕਈ ਸਾਲਾਂ ਤੋਂ ਮਾਰਟਿੰਡੇਲ ਵਿੱਚ ਰਹਿੰਦਾ ਹੈ। ਸਥਾਨਕ ਰੈਸਟੋਰੈਂਟਾਂ ਤੋਂ ਖਾਣਾ ਪਹੁੰਚਾਓ, ਆਪਣੇ ਕੂੜੇਦਾਨ ਛਾਂਟੋ, ਫੁੱਟਪਾਥ ਸਾਫ਼ ਕਰੋ ਅਤੇ ਸੈਡਲਡੋਮ ਵਿੱਚ ਕੰਸਰਟ ਦੇਖੋ।', 'جین برسوں سے مارٹنڈیل میں رہتے ہیں۔ مقامی ریسٹورنٹس سے کھانا پہنچائیں، کوڑے کے ڈبے درست کریں، فٹ پاتھ صاف کریں اور سیڈل ڈوم میں کنسرٹ دیکھیں۔', 'Matagal nang nakatira si Jean sa Martindale. Maghatid ng pagkain mula sa mga lokal na restawran, ayusin ang mga basurahan, linisin ang bangketa at manood ng konsiyerto sa Saddledome.', 'يعيش جان في مارتنديل منذ سنوات. وصّل الطعام من المطاعم المحلية، ورتّب حاويات النفايات، ونظّف الرصيف من الثلج، واحضر الحفل في السادلدوم.') },
   leo: { look: 'leo', name: 'Leo', role: T('Visitor', 'Touriste', 'ਸੈਲਾਨੀ', 'سیاح', 'Turista', 'سائح'),
-    blurb: T('Leo is visiting Calgary for the first time. Explore the sights, learn how to get around, and plan day trips.', 'Leo visite Calgary pour la première fois. Découvrez les attraits, apprenez à vous déplacer et planifiez des excursions.', 'ਲੀਓ ਪਹਿਲੀ ਵਾਰ ਕੈਲਗਰੀ ਘੁੰਮਣ ਆਇਆ ਹੈ। ਮਸ਼ਹੂਰ ਥਾਵਾਂ ਦੇਖੋ, ਆਉਣ-ਜਾਣ ਦਾ ਤਰੀਕਾ ਸਿੱਖੋ ਅਤੇ ਇੱਕ ਦਿਨ ਦੀਆਂ ਸੈਰਾਂ ਦੀ ਯੋਜਨਾ ਬਣਾਓ।', 'لیو پہلی بار کیلگری کی سیر کو آیا ہے۔ مشہور جگہیں دیکھیں، آنے جانے کا طریقہ سیکھیں اور ایک دن کی سیر کی منصوبہ بندی کریں۔', 'Unang beses na bumibisita si Leo sa Calgary. Tuklasin ang mga pasyalan, alamin kung paano lumibot, at magplano ng mga day trip.', 'يزور ليو كالغاري لأول مرة. استكشف المعالم وتعلّم كيف تتنقّل وخطّط لرحلات اليوم الواحد.') },
+    blurb: T('Leo is visiting Calgary for the first time, right in the middle of the Stampede. Get your white hat, ride the midway, explore the sights and learn how to get around.', 'Leo visite Calgary pour la première fois, en plein Stampede. Recevez votre chapeau blanc, faites un tour au parc d\'attractions, découvrez les attraits et apprenez à vous déplacer.', 'ਲੀਓ ਪਹਿਲੀ ਵਾਰ ਕੈਲਗਰੀ ਆਇਆ ਹੈ, ਠੀਕ ਸਟੈਂਪੀਡ ਦੇ ਦਿਨਾਂ ਵਿੱਚ। ਆਪਣੀ ਚਿੱਟੀ ਟੋਪੀ ਲਓ, ਮੇਲੇ ਦੇ ਝੂਲਿਆਂ ਦਾ ਮਜ਼ਾ ਲਓ, ਮਸ਼ਹੂਰ ਥਾਵਾਂ ਦੇਖੋ ਅਤੇ ਆਉਣ-ਜਾਣ ਦਾ ਤਰੀਕਾ ਸਿੱਖੋ।', 'لیو پہلی بار کیلگری آیا ہے، عین اسٹیمپیڈ کے دنوں میں۔ اپنی سفید ٹوپی لیں، میلے کے جھولوں کا مزہ لیں، مشہور جگہیں دیکھیں اور آنے جانے کا طریقہ سیکھیں۔', 'Unang beses na bumibisita si Leo sa Calgary, sa gitna mismo ng Stampede. Kunin ang iyong puting sombrero, sumakay sa midway, tuklasin ang mga pasyalan at alamin kung paano lumibot.', 'يزور ليو كالغاري لأول مرة، في قلب أيام ستامبيد. احصل على قبعتك البيضاء، وجرّب ألعاب المدينة الترفيهية، واستكشف المعالم وتعلّم كيف تتنقّل.') },
 };
 
 // ---------------------------------------------------------------- helpers
@@ -525,12 +530,48 @@ const JEAN = [
 
 // ---------------------------------------------------------------- Leo: visitor
 const SOFIA_LOOK = { skin: 0xd9a77e, shirt: 0xd04030, pants: 0x2a3a5a, hair: 0x2a1a10, long: true, fem: true, scale: 0.95 };
+const SOFIA_HAT = { ...SOFIA_LOOK, hat: 0xf2efe6 };
 const LEO_STORY = [
+  {
+    id: 'leo-stampede', title: T('Stampede time!', 'C\'est le Stampede !', 'ਸਟੈਂਪੀਡ ਦਾ ਵੇਲਾ!', 'اسٹیمپیڈ کا وقت!', 'Panahon ng Stampede!', 'إنه وقت ستامبيد!'), startAt: 'hotel',
+    async run(M, g, P) {
+      M.npc(SOFIA_HAT, P.hotel.x + 2.5, P.hotel.y + 1.5, -1.6);
+      await say(SOFIA, `Welcome to Calgary, Leo! I'm Sofia, your guide. You picked the best ten days of the year: the Calgary Stampede is on!`);
+      if (g.player.char.setHat) g.player.char.setHat(0xf2efe6);
+      toast('🤠 Sofia gives you a white cowboy hat');
+      await say(SOFIA, `This is for you. Since about 1950, Calgary has welcomed its visitors with a white cowboy hat. Now you're an honorary Calgarian!`);
+      await say(SOFIA, `Let's go to Stampede Park. The easiest way is the CTrain: the Red Line stops right beside the park, at Victoria Park/Stampede station. Meet me at the big entrance arch.`);
+      await M.goto(P.stampedeGate, 'Get to the Stampede Park entrance arch (tip: the CTrain Red Line to Victoria Park/Stampede)', 20);
+      await card({ tag: 'Visiting Calgary', title: 'The Calgary Stampede', src: [SRC.stampede, SRC.whiteHat],
+        body: `<ul><li>The Stampede calls itself <b>"The Greatest Outdoor Show on Earth."</b> The first one was held in <b>1912</b>, and it now runs for <b>ten days</b> every July.</li><li>It starts with a big <b>parade</b> through downtown. Then come the <b>rodeo</b>, the <b>chuckwagon races</b>, the midway, concerts, and the <b>Grandstand Show</b> with fireworks every night.</li><li>All over the city, people host free <b>pancake breakfasts</b>, and almost everyone wears boots and a cowboy hat.</li><li>The <b>white hat</b> is Calgary's symbol of welcome. Tourism Calgary still holds <b>White Hat ceremonies</b> for visitors.</li></ul>` });
+      await say(SOFIA, `Smell those mini donuts? Let's walk the midway to the Sky Wheel.`);
+      await M.goto(P.midway, 'Walk through the midway to the Sky Wheel', 16);
+      await card({ tag: 'Stampede tips', title: 'Enjoy the midway safely', src: [SRC.stampede],
+        body: `<ul><li>July in Calgary can be <b>hot and sunny</b>: drink water, wear sunscreen and take breaks in the shade.</li><li>Crowds are big. Pick a <b>meeting spot</b> with your group, like the entrance arch, in case you get separated.</li><li>Lost or need help? Ask anyone in a Stampede staff or volunteer shirt. In an emergency, call <b>9-1-1</b>.</li><li>Leave the car at home: take the <b>CTrain</b> to Victoria Park/Stampede or Erlton/Stampede station.</li></ul>` });
+      const q1 = await quiz({ q: 'It\'s 30°C and you\'ve been on the midway all afternoon. What should you do?', opts: ['Drink water and rest in the shade', 'Keep going, you can drink later', 'Have one more ride in the sun'], a: 0, explain: 'Heat sneaks up on you at the Stampede. Drink water often, wear sunscreen and take breaks in the shade.' });
+      await say(SOFIA, `The Grandstand Show starts soon, on the track south of here. Let's find a spot in the crowd!`);
+      await M.goto(P.grandstand, 'Walk south to the Grandstand Show', 30);
+      if (g.clock > 5 && g.clock < 21) { toast('Later that evening…', 2500); g.clock = 22; }
+      M.cineStart();
+      M.cam(420, -1058, 3.75, 420, -1215, 35);
+      if (g.stampede) g.stampede.showFireworks(16);
+      await M.line(null, SOFIA, `Every night, the Grandstand Show ends with fireworks over Stampede Park.`);
+      await M.wait(4500);
+      await M.line(null, LEO, `Yahoo! This is amazing!`);
+      await M.wait(3500);
+      M.cineEnd();
+      await card({ tag: 'Visiting Calgary', title: 'Elbow River Camp', src: [SRC.erc],
+        body: `<ul><li>Families of the five <b>Treaty 7 First Nations</b> (Siksika, Kainai, Piikani, Tsuut'ina and Stoney Nakoda) have been part of the Stampede since <b>1912</b>.</li><li>At <b>Elbow River Camp</b>, beside the river on Stampede Park, they set up <b>26 tipis</b> and share their culture, food, dance and stories.</li><li>The camp was called "Indian Village" until <b>2018</b>, when the tipi owners chose the new name.</li></ul>` });
+      const q2 = await quiz({ q: 'The show ends at 11 p.m. What is the easiest way back to your hotel downtown?', opts: ['The CTrain from Victoria Park/Stampede station', 'Drive the car you parked downtown this morning', 'Walk along the middle of Macleod Trail'], a: 0, explain: 'The CTrain runs late during the Stampede, and Victoria Park/Stampede station is right beside the park. Your $4.00 ticket is good for 90 minutes, or use a $12.65 Day Pass.' });
+      M.earn([q1, q2].filter(Boolean).length * 2 + 2);
+      await say(SOFIA, `Get some rest, Leo. Tomorrow I'll show you the city from the Calgary Tower.`);
+    },
+  },
   {
     id: 'leo-tower', title: T('The best view in town', 'La plus belle vue de la ville', 'ਸ਼ਹਿਰ ਦਾ ਸਭ ਤੋਂ ਸੋਹਣਾ ਨਜ਼ਾਰਾ', 'شہر کا سب سے خوبصورت نظارہ', 'Ang pinakamagandang tanawin', 'أجمل إطلالة في المدينة'), startAt: 'hotel',
     async run(M, g, P) {
       M.npc(SOFIA_LOOK, P.hotel.x + 2.5, P.hotel.y + 1.5, -1.6);
-      await say(SOFIA, `Welcome to Calgary, Leo! I'm Sofia, your guide for the next few days. Let's start with the best view in town: the Calgary Tower, just down 9 Avenue.`);
+      await say(SOFIA, `Good morning, Leo! Today let's start with the best view in town: the Calgary Tower, just down 9 Avenue.`);
       await M.goto(P.tower, 'Walk to the Calgary Tower', 35);
       await card({ tag: 'Visiting Calgary', title: 'The Calgary Tower', src: [SRC.tower],
         body: `<ul><li>Opened in <b>1968</b>, the tower is <b>191 metres</b> tall. An elevator takes you up to the observation deck in about a minute.</li><li>Part of the deck has a <b>glass floor</b>: you look straight down on 9 Avenue and Centre Street.</li><li>On a clear day you can see the <b>Rocky Mountains</b> to the west.</li><li>The flame on top was lit for the <b>1988 Winter Olympics</b>, and it is still lit for special days.</li></ul>` });

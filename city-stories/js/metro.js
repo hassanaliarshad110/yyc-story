@@ -56,7 +56,7 @@ export class Metro {
     box.appendChild(panel); document.body.appendChild(box);
   }
   get picking() { return !!document.getElementById('metro'); }
-  go(o, to) {
+  go(o, to, onDone) {
     const g = this.g, T = g.transit, from = o.from, ui = this.ui;
     const v = T.add(o.L.p, Math.max(0, from.s - 140), { mission: true, keep: true });
     v.stops = [{ s: from.s, x: from.x, y: from.y, name: from.name }, { s: to.s, x: to.x, y: to.y, name: to.name }];
@@ -69,7 +69,7 @@ export class Metro {
         rideUI.hidden = true; ui.setPrompt(`Press E (✋) to board the ${o.label}`); ui.sfx.bell(); setTimeout(() => ui.sfx.door(), 500);
         this.boardWait = () => {
           ui.setPrompt(null); this.boardWait = null; v.holdAt = -1; v.wait = 1.5;
-          if (g.missions && g.missions.pay) { const youth = g.missions.key === 'natalia', fare = youth ? 2.65 : 4.0; g.missions.pay(fare); ui.toast(youth ? `Paid the youth fare: $${fare.toFixed(2)} (good for 90 minutes)` : `Paid the adult fare: $${fare.toFixed(2)} (good for 90 minutes)`); }
+          if (g.buses) g.buses.pay();
           g.player.mode = 'ride'; g.rideVehicle = v; g.player.sync(); g.music && g.music.radio(true);
           rideUI.hidden = false; txt.textContent = `Riding the ${o.label} to ${to.name}`; v.fast = 6;
           skip.onclick = () => { v.s = Math.max(v.s, to.s - 160); v.wait = 0; v.v = 9; v.fast = 1; ui.toast(`Skipped ahead: almost at ${to.name}`); };
@@ -81,6 +81,7 @@ export class Metro {
         v.keep = false; v.mission = false; v.holdAt = -1; this.trip = null;
         ui.toast(`🚆 ${to.name} station`); ui.sfx.bell();
         setTimeout(() => { v.done = true; }, 8000);
+        if (onDone) onDone();
       }
     };
   }

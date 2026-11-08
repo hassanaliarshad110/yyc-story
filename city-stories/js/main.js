@@ -30,7 +30,9 @@ import { music } from './music.js';
 window.__music = music;
 import { newHeli, idleHeli } from './heli.js';
 import { Concert } from './concert.js';
+import { Stampede, STAMPEDE } from './stampede.js';
 import { Metro } from './metro.js';
+import { Buses } from './buses.js';
 import { Signals, loadSigns } from './signals.js';
 import { HouseNumbers } from './numbers.js';
 import { People } from './people.js';
@@ -132,14 +134,16 @@ async function boot() {
   game.tiles = tiles; game.signs = new Signs(scene, tiles);
   game.parks = new ParkAssets(scene, { radius: mobile ? 300 : 420 });
   game.concert = new Concert(scene, 385, -772, Math.PI, { crowd: mobile ? 14 : 28 });     // on the lawn north of the Saddledome, facing it
+  game.stampede = new Stampede(scene, { mobile });                                            // it's Stampede time: the fair at Stampede Park and a street party at Olympic Plaza
   player = new Player(scene, tiles, game.look); game.player = player; player.parks = game.parks;
   player.onCrash = () => { if (performance.now() - (game._crash || 0) > 1500) { game._crash = performance.now(); toast('Bump! Careful.'); sfx.crash(); } };
   player.onStep = run => sfx.step(run);
   traffic = new Traffic(scene, tiles, world, { max: mobile ? 14 : 28, parked: mobile ? 16 : 32 }); game.traffic = traffic;
-  transit = new Transit(scene, world, { bus: mobile ? 2 : 4, train: mobile ? 1 : 2 }); game.transit = transit;
+  transit = new Transit(scene, world, { bus: mobile ? 5 : 9, train: mobile ? 1 : 2 }); game.transit = transit;
   transit.groundY = (x, y, hint, rail) => rail ? tiles.surfaceAt(x, y, 0, 1e9, 3) : tiles.surfaceAt(x, y, hint ?? ground(x, y), 1.5, 1);
   missions = new Missions(game); game.missions = missions;
   game.metro = new Metro(game, { toast, setPrompt, sfx }); game.music = music;
+  game.buses = new Buses(game, { toast, setPrompt, sfx });
   game.signals = new Signals(scene, traffic, { radius: mobile ? 180 : 260 }); game.billboards = new Billboards(scene); if (world.addr) game.numbers = new HouseNumbers(scene, tiles, { radius: 1 });
   game.people = new People(scene, tiles, { max: mobile ? 8 : 16, maxDowntown: mobile ? 18 : 40 });
   initHUD(world, game); initPhone(game); initRealView(game); initInput(canvas);
@@ -172,6 +176,7 @@ $('#btn-story').onclick = () => startGame('story');
 $('#btn-free').onclick = () => startGame('free');
 function startGame(mode) {
   $('#title').hidden = true; $('#hud').hidden = false; game.started = true; intro.stop(); music.title(false);      // no song in the game until you get in a car
+  setTimeout(() => game.buses.build(scene), 1200);
   game.clock = 21.0;                       // the game starts at night: the city lights are on and the Saddledome concert is playing
   try { document.documentElement.requestFullscreen && mobile && document.documentElement.requestFullscreen().catch(() => { }); } catch (e) { }
   const st = missions.state;
@@ -221,7 +226,7 @@ game.groundY = (x, y, hint) => {
 // ---------------------------------------------------------------- game helpers used by missions and HUD
 game.nav = new Navigator(); setTimeout(loadRoute, 4000);
 game.target = () => missions && missions.goal ? missions.goal : game.waypoint;
-game.setWaypoint = (x, y) => { game.waypoint = { x, y }; };
+game.setWaypoint = (x, y) => { game.waypoint = { x, y }; if (game.buses) { game.buses.stopGuide(); game.buses.offer(x, y); } };
 // people sleeping outside: a respectful check-in, and how to get them connected to help
 let checking = false;
 async function checkIn() {
@@ -313,8 +318,10 @@ onAction('horn', () => { if (game.started && player.mode === 'car') sfx.horn(pla
 onAction('interact', () => {
   if (nextPressed()) return; if (game.cine && missions.skipLine()) return; if (game.cine) return; if (!game.started) return; if (missions.interact()) return;
   if (game.metro.boardWait) { game.metro.boardWait(); return; }
+  if (game.buses.boardWait) { game.buses.boardWait(); return; }
   if (player.mode === 'foot' && game.people && game.people.near) { checkIn(); return; }
   if (player.mode === 'foot' && !player.seat && !game.metro.trip && !missions.boardWait && game.metro.stationAt(player.x, player.y)) { game.metro.open(player.x, player.y); return; }
+  if (player.mode === 'foot' && !player.seat && !game.buses.trip && !game.metro.trip && !missions.boardWait) { const bs = game.buses.stopAt(player.x, player.y); if (bs) { game.buses.open(bs); return; } }
   if (player.mode === 'foot') player.toggleSeat();
 });
 onAction('map', () => { if (!game.started) return; if (mapOpen()) closeMap(); else { if (phoneOpen()) closePhone(); openMap(); } });
@@ -409,7 +416,8 @@ function loop(now) {
     const radio = player.mode === 'car' || player.mode === 'heli';
     updateAudio(dt, { driving: player.mode === 'car' && !blocked, bike: player.onBike, speed: player.v, throttle: Math.max(0, inp.y), day: game.day ?? 1, cars: near, foot: player.mode === 'foot', heli: player.mode === 'heli', rotor: game.heli ? game.heli.rot : 0, radio });
     music.radio(radio);
-    music.concert(game.concert ? game.concert.update(dt, player.x, player.y, game.clock) : 0);
+    const cLvl = game.concert ? game.concert.update(dt, player.x, player.y, game.clock) : 0, sLvl = game.stampede ? game.stampede.update(dt, player.x, player.y, game.clock) : 0;
+    music.concert(Math.max(cLvl, sLvl));
     if (game.heli && player.mode !== 'heli') idleHeli(game.heli, dt);
   }
   music.update(dt);
@@ -450,8 +458,10 @@ function loop(now) {
     hudT = now;
     const icons = []; if (game.heli && player.mode !== 'heli') icons.push({ x: game.heli.x, y: game.heli.y, e: '🚁' });
     if (game.concert && (game.clock >= 19 || game.clock < 3)) icons.push({ x: game.concert.x, y: game.concert.y, e: '🎤' });
+    icons.push({ x: STAMPEDE.x, y: STAMPEDE.y + 200, e: '🎡' });
     if (game.billboards) { let best = null, bd = 3000; for (const b of game.billboards.items) { const d = Math.hypot(b.x - player.x, b.y - player.y); if (d < bd) { bd = d; best = b; } } if (best) icons.push({ x: best.x, y: best.y, e: '🪧' }); }
     const nv = game.nav.ver; game.nav.update(0.09, player, game.target()); if (nv !== game.nav.ver) refreshMap();
+    game.buses.tick();
     drawMinimap(player, tiles, camH, game.target(), icons, game.nav, !!(missions && missions.goal));
     if (player.mode === 'heli') { $('#speed').innerHTML = Math.round(player.speedKmh) + ' km/h <small style="opacity:.8">· ' + Math.round(player.gy - ground(player.x, player.y)) + ' m up</small>'; $('#speed').style.color = ''; }
     if (player.mode === 'car') { const st = tiles.streetAt(player.x, player.y, 25), lim = st ? SPEED_LIMIT[st.kind] : null, kmh = Math.round(player.dialKmh); $('#speed').innerHTML = kmh + ' km/h' + (lim ? ` <small style="opacity:.8">· limit ${lim}</small>` : ''); $('#speed').style.color = lim && kmh > lim + 5 ? '#ff6b5b' : ''; }
@@ -463,11 +473,13 @@ function loop(now) {
       const nearHeli = game.heli && Math.hypot(game.heli.x - player.x, game.heli.y - player.y) < 6;
       const c = !nearHeli && traffic.nearestCar(player.x, player.y, 5), seat = !c && !nearHeli && !player.seat && game.parks && game.parks.seatNear(player.x, player.y);
       const stn = !nearHeli && !c && !game.metro.trip && !game.metro.boardWait && game.metro.stationAt(player.x, player.y);
-      if (game.metro.boardWait) { /* the board prompt is already showing */ }
+      const bstop = !nearHeli && !c && !stn && !game.buses.trip && !game.buses.boardWait && game.buses.stopAt(player.x, player.y);
+      if (game.metro.boardWait || game.buses.boardWait) { /* the board prompt is already showing */ }
+      else if (bstop && !(game.people && game.people.near)) setPrompt(`Press E (✋) to catch a bus at ${bstop.name}`);
       else setPrompt(game.people && game.people.near ? 'Press E (✋) to check in on them' : nearHeli ? 'Press F (🚗) to fly the helicopter' : stn ? `Press E (✋) to take the CTrain from ${stn.name}` : c ? (c.mesh.userData.kind === 'bike' ? 'Press F (🚗) to ride the motorbike' : 'Press F (🚗) to get in the car') : player.seat ? 'Move or press E (✋) to get up' : seat ? (seat.kind === 'table' ? 'Press E (✋) to sit at the picnic table' : 'Press E (✋) to sit on the bench') : null);
     }
     else if (player.mode === 'car') setPrompt(null);
-    const tg = game.target(); if (tg && !missions.goal && game.waypoint) { const d = Math.hypot(tg.x - player.x, tg.y - player.y); if (d < 30) { game.waypoint = null; toast('You reached your waypoint'); } }
+    const tg = game.target(); if (tg && !missions.goal && game.waypoint && !game.waypoint.guide) { const d = Math.hypot(tg.x - player.x, tg.y - player.y); if (d < 30) { game.waypoint = null; toast('You reached your waypoint'); } }
   }
   if (now - locT > 700) {
     locT = now;

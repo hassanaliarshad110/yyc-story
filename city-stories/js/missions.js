@@ -56,7 +56,10 @@ export class Missions {
     this.list = STORIES[this.key];
     this.state = load(this.key) || { done: [], money: 40, landmarks: [], items: [], home: true };
     if (this.g.updateMoney) this.g.updateMoney();
+    this.wearHat();
   }
+  // Leo keeps the white hat Sofia gave him at the Stampede
+  wearHat() { const p = this.g.player; if (p && p.char && p.char.setHat) p.char.setHat(this.key === 'leo' && this.state.done.includes('leo-stampede') ? 0xf2efe6 : null); }
   save() { try { localStorage.setItem('yyc-story-' + this.key, JSON.stringify(this.state)); } catch (e) { } }
   reset() { try { localStorage.removeItem('yyc-story-' + this.key); } catch (e) { } }
   available(i) { return i === 0 || this.state.done.includes(this.list[i - 1].id) || this.state.done.includes(this.list[i].id); }

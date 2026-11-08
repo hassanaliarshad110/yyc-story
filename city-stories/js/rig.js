@@ -149,6 +149,21 @@ function humanGeo(J, st) {
 }
 const humanMat = new THREE.MeshLambertMaterial({ vertexColors: true });
 
+// ---- cowboy hats (shared shapes, one material per colour); brim curls up at the sides
+const HAT = (() => {
+  const brim = new THREE.CylinderGeometry(0.2, 0.2, 0.018, 18, 1), p = brim.attributes.position;
+  for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i), r = Math.hypot(x, z); if (r > 0.12) p.setY(i, p.getY(i) + Math.pow(Math.abs(x) / 0.2, 3) * 0.05); }
+  brim.scale(1, 1, 1.12); brim.computeVertexNormals();
+  const crown = new THREE.CylinderGeometry(0.085, 0.11, 0.13, 14, 1); crown.scale(1, 1, 1.18);
+  const band = new THREE.CylinderGeometry(0.112, 0.112, 0.025, 14, 1, true); band.scale(1, 1, 1.18);
+  return { brim, crown, band, bandMat: new THREE.MeshLambertMaterial({ color: 0x2a1a10, side: THREE.DoubleSide }) };
+})();
+const HAT_MATS = new Map();
+const hatMat = c => { if (!HAT_MATS.has(c)) HAT_MATS.set(c, new THREE.MeshLambertMaterial({ color: c, side: THREE.DoubleSide })); return HAT_MATS.get(c); };
+export const HAT_COLORS = [0xf2efe6, 0x5a3a22, 0x2a2a2a, 0x8a5a32, 0xc8a070, 0xf2efe6, 0x7a1c1c, 0xd8c8a8];
+const HAT_Y = { adult: 0.2, hero: 0.165 };
+export const setHatY = (k, y) => { HAT_Y[k] = y; };
+
 // ---- a character: Group with a SkinnedMesh and a skeleton, driven by animate()
 export class Character {
   constructor(style = {}) {
@@ -167,6 +182,18 @@ export class Character {
     if (style.scale) this.g.scale.setScalar(style.scale);
     this.cur = pStance(); this.phase = 0; this.t = Math.random() * 10; this.dy = 0;
     this.g.userData.char = this;
+    if (style.hat) this.setHat(style.hat);
+  }
+  // a cowboy hat on the head bone (colour, or null to take it off)
+  setHat(c) {
+    if (this.hat) { this.bones.head.remove(this.hat); this.hat = null; }
+    if (c == null) return;
+    const g = this.hat = new THREE.Group(), m = hatMat(c), hero = this.R.J !== J_ADULT;
+    const brim = new THREE.Mesh(HAT.brim, m), crown = new THREE.Mesh(HAT.crown, m), band = new THREE.Mesh(HAT.band, HAT.bandMat);
+    brim.position.y = 0; crown.position.y = 0.075; band.position.y = 0.03; g.add(brim, crown, band);
+    g.position.set(0, hero ? HAT_Y.hero : HAT_Y.adult, 0.01); g.rotation.x = -0.12;
+    for (const o of g.children) o.castShadow = true;
+    this.bones.head.add(g);
   }
   // st: { speed (m/s), run (bool), sit, talk, wave }
   animate(dt, st = {}) {

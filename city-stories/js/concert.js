@@ -1,7 +1,7 @@
 // A concert at the Scotiabank Saddledome every night: a stage with lights and a big screen, a dancing crowd,
 // and "Under One Sky" playing (louder the closer you get).
 import * as THREE from 'three';
-import { Character } from './rig.js';
+import { Character, HAT_COLORS } from './rig.js';
 import { ground } from './terrain.js';
 import { rotY } from './player.js';
 
@@ -54,7 +54,7 @@ export class Concert {
     // the crowd, facing the stage
     this.crowd = [];
     for (let i = 0; i < this.n; i++) {
-      const fem = H(i, 1) < 0.45, look = { skin: SKIN[Math.floor(H(i, 2) * SKIN.length)], shirt: TOPS[Math.floor(H(i, 3) * TOPS.length)], pants: BOTS[Math.floor(H(i, 4) * BOTS.length)], hair: 0x15100d, fem, long: fem && H(i, 5) < 0.6, hijab: fem && H(i, 6) < 0.18 ? 0x2a2a3a : undefined, scale: 0.92 + H(i, 7) * 0.14 };
+      const fem = H(i, 1) < 0.45, look = { skin: SKIN[Math.floor(H(i, 2) * SKIN.length)], shirt: TOPS[Math.floor(H(i, 3) * TOPS.length)], pants: BOTS[Math.floor(H(i, 4) * BOTS.length)], hair: 0x15100d, fem, long: fem && H(i, 5) < 0.6, hijab: fem && H(i, 6) < 0.18 ? 0x2a2a3a : undefined, scale: 0.92 + H(i, 7) * 0.14, hat: H(i, 13) < 0.7 && !(fem && H(i, 6) < 0.18) ? HAT_COLORS[Math.floor(H(i, 14) * HAT_COLORS.length)] : undefined };
       const ch = new Character(look);
       const row = Math.floor(i / 7), col = i % 7, ax = (col - 3) * 2.6 + (H(i, 8) - 0.5) * 1.4 + (row % 2) * 1.3, ay = 4 + row * 2.4 + (H(i, 9) - 0.5) * 1.0;
       const [wx, wy] = this.local(ax, ay);

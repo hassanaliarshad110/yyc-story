@@ -7,7 +7,7 @@ import { syncHeli } from './heli.js';
 
 export const dirOf = h => [Math.sin(h), Math.cos(h)];           // (east, north)
 export const rotY = h => Math.PI - h;
-export const TYRE_Y = 0.2, FOOT_Y = 0.1;                 // road ribbons sit a little above the ground: wheels and feet rest on top
+export const TYRE_Y = 0.2, FOOT_Y = 0.03;                 // road ribbons sit a little above the ground: wheels and feet rest on top
 const SEAT_Y = 0.0;                                       // how far the sitting pose is lifted onto a bench seat
 export function angDiff(a, b) { let d = (b - a) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; }
 
@@ -15,10 +15,10 @@ export const LOOKS = {
   ayaan: { name: 'Ayaan', hero: true, skin: 0xb07a52, shirt: 0x1f6fd1, pants: 0x2a2e38, hair: 0x15100d, bag: 0x333333 },
   zara: { name: 'Zara', skin: 0xb98260, shirt: 0xc8326b, pants: 0x283044, hair: 0x15100d, long: true, fem: true, bag: 0x5a3a7a, scale: 0.95 },
   ali: { name: 'Ali', hero: true, skin: 0xb07a52, shirt: 0x1f6fd1, pants: 0x2a2e38, hair: 0x15100d },
-  natalia: { name: 'Natalia', skin: 0xd9a77e, shirt: 0x7a3fa0, pants: 0x2b3a55, hair: 0x4a2e1a, long: true, fem: true, bag: 0xd0453a, scale: 0.92 },
-  chris: { name: 'Chris', skin: 0xe0b896, shirt: 0x6b5a46, pants: 0x4a4e57, hair: 0xd2d0cc, shoe: 0x3a2a20, scale: 0.97 },
-  jean: { name: 'Jean', skin: 0x8d5a3b, shirt: 0x2f8f5a, pants: 0x30343c, hair: 0x15100d },
-  leo: { name: 'Leo', skin: 0xe8c4a0, shirt: 0xe07020, pants: 0x3a4a3a, hair: 0xa0703a, bag: 0x2a4a6a },
+  natalia: { hero: true, name: 'Natalia', skin: 0xd9a77e, shirt: 0x7a3fa0, pants: 0x2b3a55, hair: 0x4a2e1a, long: true, fem: true, bag: 0xd0453a, scale: 0.92 },
+  chris: { hero: true, name: 'Chris', skin: 0xe0b896, shirt: 0x6b5a46, pants: 0x4a4e57, hair: 0xd2d0cc, shoe: 0x3a2a20, scale: 0.97 },
+  jean: { hero: true, name: 'Jean', skin: 0x8d5a3b, shirt: 0x2f8f5a, pants: 0x30343c, hair: 0x15100d },
+  leo: { hero: true, name: 'Leo', skin: 0xe8c4a0, shirt: 0xe07020, pants: 0x3a4a3a, hair: 0xa0703a, bag: 0x2a4a6a },
 };
 
 export class Player {
@@ -71,7 +71,7 @@ export class Player {
   }
   // stand on bridges and ramps; fall off edges
   height(dt) {
-    const target = this.tiles.surfaceAt(this.x, this.y, this.gy, this.mode === 'car' ? 1.0 : 0.8);
+    const target = this.tiles.surfaceAt(this.x, this.y, this.gy, this.mode === 'car' ? 1.0 : 0.8, 0, this.mode === 'foot');      // on foot: stand on the road paint and sidewalks
     const slope = this.mode === 'car' ? 0.25 + Math.abs(this.v) * dt * 0.35 : 0.05;   // driving downhill follows the road instead of hopping
     if (this.mode === 'car') {      // pitch from the surface under the front and back wheels
       const [dx, dy] = dirOf(this.h), wb = this.onBike ? 0.7 : 1.4;

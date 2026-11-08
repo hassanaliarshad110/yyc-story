@@ -5,8 +5,9 @@ import { LANG } from './i18n.js';
 let ids = null, man = null, cur = null;
 const ready = (async () => {
   try {
-    const [en, m] = await Promise.all([fetch('lang/en.json').then(r => r.json()), fetch('audio/manifest.json').then(r => r.ok ? r.json() : {})]);
-    ids = new Map(en.map((s, i) => [s, i])); man = m;
+    // audio/lines.json: the English text of each recorded line -> its file number (kept with the recordings, so adding text later never shifts them)
+    const [lines, m] = await Promise.all([fetch('audio/lines.json').then(r => r.json()), fetch('audio/manifest.json').then(r => r.ok ? r.json() : {})]);
+    ids = new Map(Object.entries(lines)); man = m;
   } catch (e) { ids = new Map(); man = {}; }
 })();
 export const voice = { on: (() => { try { return localStorage.getItem('yyc-voice') !== '0'; } catch (e) { return true; } })() };
