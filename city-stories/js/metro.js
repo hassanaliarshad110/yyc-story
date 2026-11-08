@@ -69,10 +69,10 @@ export class Metro {
         rideUI.hidden = true; ui.setPrompt(`Press E (✋) to board the ${o.label}`); ui.sfx.bell(); setTimeout(() => ui.sfx.door(), 500);
         this.boardWait = () => {
           ui.setPrompt(null); this.boardWait = null; v.holdAt = -1; v.wait = 1.5;
-          if (g.missions && g.missions.pay) { g.missions.pay(2.65); ui.toast('Paid the youth fare: $2.65 (good for 90 minutes)'); }
+          if (g.missions && g.missions.pay) { const youth = g.missions.key === 'natalia', fare = youth ? 2.65 : 4.0; g.missions.pay(fare); ui.toast(youth ? `Paid the youth fare: $${fare.toFixed(2)} (good for 90 minutes)` : `Paid the adult fare: $${fare.toFixed(2)} (good for 90 minutes)`); }
           g.player.mode = 'ride'; g.rideVehicle = v; g.player.sync(); g.music && g.music.radio(true);
           rideUI.hidden = false; txt.textContent = `Riding the ${o.label} to ${to.name}`; v.fast = 6;
-          skip.onclick = () => { v.s = Math.max(v.s, to.s - 160); v.wait = 0; v.v = 9; v.fast = 1; ui.toast('Skipped ahead: almost at ' + to.name); };
+          skip.onclick = () => { v.s = Math.max(v.s, to.s - 160); v.wait = 0; v.v = 9; v.fast = 1; ui.toast(`Skipped ahead: almost at ${to.name}`); };
         };
       } else {
         v.fast = 1; rideUI.hidden = true;

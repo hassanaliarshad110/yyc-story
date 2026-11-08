@@ -9,7 +9,7 @@ import { ground } from './terrain.js';
 import { wardAt, communityAt } from './world.js';
 import { dirOf } from './player.js';
 import { STORIES, PLACES, titleOf } from './stories.js';
-import { tr } from './i18n.js';
+import { tx, tr } from './i18n.js';
 
 // real places (metres from City Hall; from City of Calgary and OpenStreetMap data)
 export const P = {
@@ -103,7 +103,7 @@ export class Missions {
       v.nextStop = 0; v.holdAt = 0;
       setObjective(titleOf(this.active), `Wait for the ${label} at the stop`);
       const rideUI = document.getElementById('ride'), txt = document.getElementById('ride-text');
-      document.getElementById('ride').hidden = false; document.getElementById('ride-text').textContent = `The ${label} is on its way`;
+      document.getElementById('ride').hidden = false; document.getElementById('ride-text').textContent = tx(`The ${label} is on its way`);
       document.getElementById('ride-skip').onclick = () => { v.s = Math.max(v.s, best.a.s - 25); v.v = 5; v.gy = null; };
       v.onStop = (st, idx) => {
         if (idx === 0) {
@@ -111,13 +111,13 @@ export class Missions {
           setPrompt(`Press E (✋) to board the ${label}`); sfx.bell(); setTimeout(() => sfx.door(), 500);
           this.boardWait = () => {
             setPrompt(null); this.boardWait = null; v.holdAt = -1; v.wait = 1.5;
-            const fare = 2.65; this.pay(fare); toast(`Paid the youth fare: $${fare.toFixed(2)} (good for 90 minutes)`);
+            const youth = this.key === 'natalia', fare = youth ? 2.65 : 4.0; this.pay(fare); toast(youth ? `Paid the youth fare: $${fare.toFixed(2)} (good for 90 minutes)` : `Paid the adult fare: $${fare.toFixed(2)} (good for 90 minutes)`);
             g.player.mode = 'ride'; g.rideVehicle = v; g.player.sync();
-            rideUI.hidden = false; txt.textContent = `Riding the ${label} to ${to.name}`;
+            rideUI.hidden = false; txt.textContent = tx(`Riding the ${label} to ${to.name}`);
             v.fast = 6;                              // the ride runs at 6x speed; Skip jumps to your stop
             document.getElementById('ride-skip').onclick = () => {   // jump to just before your stop
               v.s = Math.max(v.s, best.b.s - 160); v.wait = 0; v.v = 9; v.fast = 1; v.gy = null;
-              toast('Skipped ahead: almost at ' + to.name);
+              toast(`Skipped ahead: almost at ${to.name}`);
             };
           };
         } else {

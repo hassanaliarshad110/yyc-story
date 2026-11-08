@@ -473,7 +473,7 @@ function loop(now) {
     $('#loc-comm').textContent = name;
     const st = tiles.streetAt(player.x, player.y, 35);
     $('#loc-street').textContent = st ? st.name : '';
-    if (name !== prevComm && prevComm !== null && cm) { const w = wardAt(world, player.x, player.y); toast(`Welcome to ${name}${w ? ' · Ward ' + w.n : ''}`, 2200); }
+    if (name !== prevComm && prevComm !== null && cm) { const w = wardAt(world, player.x, player.y); toast(w ? `Welcome to ${name} · Ward ${w.n}` : `Welcome to ${name}`, 2200); }
     prevComm = name;
   }
 }

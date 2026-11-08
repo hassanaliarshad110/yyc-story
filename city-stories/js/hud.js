@@ -1,5 +1,6 @@
 // On-screen interface: minimap, full map, dialogue, info cards, quizzes, toasts, objective.
 import { L, AREA_COL } from './tiles.js';
+import { tx, tr, rtl } from './i18n.js';
 import { communityAt } from './world.js';
 
 const $ = s => document.querySelector(s);
@@ -186,7 +187,7 @@ function initBigMapInput() {
     pts.delete(e.pointerId); if (pts.size < 2) pinch0 = null;
     if (moved < 6) {   // tap: waypoint
       const x = bm.cx + (e.clientX - innerWidth / 2) / bm.scale, y = bm.cy - (e.clientY - innerHeight / 2) / bm.scale;
-      game.setWaypoint(x, y); const cm = communityAt(world, x, y); toast('Waypoint set' + (cm ? ' in ' + cm.n : '') + ' · follow the purple line'); if (game.nav) game.nav.update(0, game.player, game.target()); drawMap();
+      game.setWaypoint(x, y); const cm = communityAt(world, x, y); toast(cm ? `Waypoint set in ${cm.n}: follow the purple line` : 'Waypoint set: follow the purple line'); if (game.nav) game.nav.update(0, game.player, game.target()); drawMap();
     }
   });
   c.addEventListener('wheel', e => { bm.scale = Math.max(0.006, Math.min(1.5, bm.scale * (e.deltaY > 0 ? 0.85 : 1.18))); drawMap(); e.preventDefault(); }, { passive: false });
@@ -195,30 +196,32 @@ function initBigMapInput() {
 
 // ---------------------------------------------------------------- messages
 let toastT = 0;
-export function toast(msg, ms = 2600) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms); }
+export function toast(msg, ms = 2600) { const t = $('#toast'); t.textContent = tx(msg); t.dir = rtl() ? 'rtl' : 'ltr'; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms); }
 
 let pendingNext = null;
 export function nextPressed() { if (pendingNext) { const f = pendingNext; pendingNext = null; f(); return true; } return false; }
 export function say(who, text) {
   return new Promise(res => {
-    const d = $('#dialog'); d.hidden = false; d.querySelector('.who').textContent = who; d.querySelector('.text').innerHTML = text;
+    const d = $('#dialog'); d.hidden = false; d.dir = rtl() ? 'rtl' : 'ltr'; d.querySelector('.who').textContent = tx(who); d.querySelector('.text').innerHTML = tx(text); d.querySelector('.next').textContent = tr('next');
     const done = () => { d.hidden = true; pendingNext = null; res(); };
     d.querySelector('.next').onclick = done; pendingNext = done; game.paused = true;
   }).then(() => { game.paused = false; });
 }
 export function card({ tag = 'City service', title, body, src }) {
+  tag = tag === 'City service' ? tr('cityService') : tx(tag); title = tx(title); body = tx(body);
   return new Promise(res => {
-    const c = $('#card'); c.hidden = false;
+    const c = $('#card'); c.hidden = false; c.dir = rtl() ? 'rtl' : 'ltr'; c.querySelector('.next').textContent = tr('gotIt');
     c.querySelector('.card-tag').textContent = tag; c.querySelector('h2').textContent = title; c.querySelector('.card-body').innerHTML = body;
-    c.querySelector('.card-src').innerHTML = src ? 'Source: ' + src.map(s => `<a href="${esc(s[1])}" target="_blank" rel="noopener">${esc(s[0])}</a>`).join(' · ') + ' <span>(checked Nov 2026)</span>' : '';
+    c.querySelector('.card-src').innerHTML = src ? tr('source') + ': ' + src.map(s => `<a href="${esc(s[1])}" target="_blank" rel="noopener">${esc(s[0])}</a>`).join(' · ') + ` <span>(${tr('checked')})</span>` : '';
     const done = () => { c.hidden = true; pendingNext = null; res(); };
     c.querySelector('.next').onclick = done; pendingNext = done; game.paused = true;
   }).then(() => { game.paused = false; });
 }
 export function quiz({ q, opts, a, explain }) {
+  q = tx(q); opts = opts.map(tx); explain = tx(explain);
   return new Promise(res => {
-    const z = $('#quiz'); z.hidden = false; z.querySelector('h2').textContent = q;
-    const ex = z.querySelector('.explain'); ex.textContent = ''; const nx = z.querySelector('.next'); nx.hidden = true;
+    const z = $('#quiz'); z.hidden = false; z.dir = rtl() ? 'rtl' : 'ltr'; z.querySelector('.card-tag').textContent = tr('quick'); z.querySelector('h2').textContent = q;
+    const ex = z.querySelector('.explain'); ex.textContent = ''; const nx = z.querySelector('.next'); nx.hidden = true; nx.textContent = tr('cont');
     const box = z.querySelector('.opts'); box.innerHTML = '';
     let first = null;
     opts.forEach((o, i) => {
@@ -235,8 +238,8 @@ export function quiz({ q, opts, a, explain }) {
 }
 export function setObjective(title, text) {
   const o = $('#objective'); if (!title) { o.hidden = true; return; }
-  o.hidden = false; o.querySelector('.obj-title').textContent = title; o.querySelector('.obj-text').textContent = text; o.querySelector('.obj-dist').textContent = '';
+  o.hidden = false; o.dir = rtl() ? 'rtl' : 'ltr'; o.querySelector('.obj-title').textContent = tx(title); o.querySelector('.obj-text').textContent = tx(text); o.querySelector('.obj-dist').textContent = '';
 }
-export function setObjDist(d) { const e = $('#objective .obj-dist'); if (e) e.textContent = d == null ? '' : d > 950 ? (d / 1000).toFixed(1) + ' km away' : Math.round(d / 10) * 10 + ' m away'; }
-export function setPrompt(t) { const p = $('#prompt'); if (!t) p.hidden = true; else { p.hidden = false; p.textContent = t; } }
-export function found(t) { const f = $('#found'); f.textContent = t; f.hidden = false; clearTimeout(found.t); found.t = setTimeout(() => f.hidden = true, 3200); }
+export function setObjDist(d) { const e = $('#objective .obj-dist'); if (e) e.textContent = d == null ? '' : d > 950 ? tr('kmAway').replace('{0}', (d / 1000).toFixed(1)) : tr('mAway').replace('{0}', Math.round(d / 10) * 10); }
+export function setPrompt(t) { const p = $('#prompt'); if (!t) p.hidden = true; else { p.hidden = false; p.textContent = tx(t); p.dir = rtl() ? 'rtl' : 'ltr'; } }
+export function found(t) { const f = $('#found'); f.textContent = tx(t); f.hidden = false; clearTimeout(found.t); found.t = setTimeout(() => f.hidden = true, 3200); }
