@@ -221,14 +221,15 @@ export function buildBuildings(feats, skylineSkip = true, roads = []) {
 
 // ---------------------------------------------------------------- City of Calgary 3D buildings (LiDAR roofs, tools/build_b3d.py)
 // one tile blob -> wall and roof geometry by material, like buildBuildings. skipTall: leave the 38 m+ towers to the skyline.
-const FLAT_ROOF = new THREE.Color(0x8d8a85), GLASS_ROOF = new THREE.Color(0x6c7884);
+const FLAT_ROOF = new THREE.Color(0x8d8a85), GLASS_ROOF = new THREE.Color(0x6c7884), BLACK_C = new THREE.Color(0x000000);
+const LIGHT_COLS = [0x3aa0ff, 0xb05aff, 0xff4a7a, 0xffb02a, 0x2affd0, 0xf2f6ff, 0xff6a2a, 0x5a7aff].map(c => new THREE.Color(c));
 export function buildB3D(buf, skipTall = true, groundAt = gl) {
-  const G = { house0: new GeoBuilder(), house1: new GeoBuilder(), house2: new GeoBuilder(), house3: new GeoBuilder(), apt: new GeoBuilder(), comm: new GeoBuilder(), shop: new GeoBuilder(), tower: new GeoBuilder(), roof: new GeoBuilder() };
+  const G = { house0: new GeoBuilder(), house1: new GeoBuilder(), house2: new GeoBuilder(), house3: new GeoBuilder(), apt: new GeoBuilder(), comm: new GeoBuilder(), shop: new GeoBuilder(), tower: new GeoBuilder(), roof: new GeoBuilder(), crown: new GeoBuilder(), wash: new GeoBuilder() };
   for (const k in G) G[k].lift = 0;
   const dv = new DataView(buf.buffer || buf, buf.byteOffset || 0, buf.byteLength);
   if (dv.getUint32(0, true) !== 0x31425959) return { geos: {}, n: 0 };       // 'YYB1'
   const n = dv.getUint32(4, true); let o = 8, built = 0;
-  const X = [], Y = [], Z = [], walls = [];
+  const X = [], Y = [], Z = [], walls = [], outlines = [];
   for (let b = 0; b < n; b++) {
     const kb = dv.getUint8(o), flags = dv.getUint8(o + 1), gbase = dv.getInt16(o + 2, true) / 10, nv = dv.getUint16(o + 4, true); o += 6;
     X.length = Y.length = Z.length = 0;
@@ -236,15 +237,18 @@ export function buildB3D(buf, skipTall = true, groundAt = gl) {
     const nt = dv.getUint16(o, true); o += 2; const tOff = o; o += nt * 6;
     const nw = dv.getUint16(o, true); o += 2; const wOff = o; o += nw * 8;
     const tall = kb & 0x80, k = kb & 0x7f;
-    if ((tall && skipTall) || k === 17) continue;          // the Calgary Tower has its own model
-    built++;
     // sit on the game's ground: the lowest wall foot, a little into the ground like the other buildings
-    let gmin = Infinity, cx = 0, cy = 0, zmax = -Infinity;
+    let gmin = Infinity, cx = 0, cy = 0, zmax = -Infinity, mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
     for (let w = 0; w < nw; w++) { const a = dv.getUint16(wOff + w * 8, true); if (dv.getInt16(wOff + w * 8 + 4, true) / 10 === gbase) gmin = Math.min(gmin, groundAt(X[a], Y[a])); }
-    for (let i = 0; i < nv; i++) { cx += X[i]; cy += Y[i]; zmax = Math.max(zmax, Z[i]); }
+    for (let i = 0; i < nv; i++) { cx += X[i]; cy += Y[i]; zmax = Math.max(zmax, Z[i]); mnx = Math.min(mnx, X[i]); mxx = Math.max(mxx, X[i]); mny = Math.min(mny, Y[i]); mxy = Math.max(mxy, Y[i]); }
     cx /= nv; cy /= nv;
     if (!isFinite(gmin)) gmin = groundAt(cx, cy);
     const foot = gbase + 0.4, shift = gmin - 0.1 - foot, h = zmax - foot, base = gmin - 0.5;
+    // the outline and roof height, for landing helicopters and flying between towers
+    { const E = []; for (let w = 0; w < nw; w++) { const q = wOff + w * 8; if (dv.getInt16(q + 4, true) / 10 === gbase) { const a = dv.getUint16(q, true), c = dv.getUint16(q + 2, true); E.push(X[a], Y[a], X[c], Y[c]); } }
+      if (E.length) outlines.push({ mnx, mny, mxx, mxy, top: zmax + shift, E }); }
+    if ((tall && skipTall) || k === 17) continue;          // the Calgary Tower has its own model
+    built++;
     const hs = hash2(cx, cy), era = (flags >> 5) & 7, wg = wallGroup(k, h, hs, era), grp = G[wg];
     tmpC.setHex(pick(KCOL[k] || KCOL[14], hs)); const wc = tmpC.clone();
     const house = k === 1 || k === 2 || k === 18 || k === 19;
@@ -264,20 +268,35 @@ export function buildB3D(buf, skipTall = true, groundAt = gl) {
       const i2 = grp.v(bx, tb, -by, nx, 0, nz, u1, v(tb), wc), i3 = grp.v(ax, ta, -ay, nx, 0, nz, u0, v(ta), wc);
       grp.idx.push(i0, i1, i2, i0, i2, i3);
       if (za === gbase && len > 1.5) walls.push([ax, ay, bx, by, la, Math.min(ta, tb), house ? 1 : 0]);
+      if (tall && len > 2) {          // night lights on towers: crown band near the top, floodlight wash from the street
+        const lc = LIGHT_COLS[Math.floor(hs * 97) % LIGHT_COLS.length], top = Math.min(ta, tb), ox = nx * 0.25, oz = nz * 0.25;
+        if (top > zmax + shift - 9) {
+          const C = G.crown, b0 = top - 5;
+          const j0 = C.v(ax + ox, b0, -ay + oz, nx, 0, nz, 0, 0, lc), j1 = C.v(bx + ox, b0, -by + oz, nx, 0, nz, 0, 0, lc), j2 = C.v(bx + ox, tb + 0.3, -by + oz, nx, 0, nz, 0, 0, lc), j3 = C.v(ax + ox, ta + 0.3, -ay + oz, nx, 0, nz, 0, 0, lc);
+          C.idx.push(j0, j1, j2, j0, j2, j3);
+        }
+        if (za === gbase) {
+          const Wd = G.wash, wc2 = LIGHT_COLS[Math.floor(hs * 31 + 3) % LIGHT_COLS.length], up = Math.min(top - la, 45);
+          const k0 = Wd.v(ax + ox, la, -ay + oz, nx, 0, nz, 0, 0, wc2), k1 = Wd.v(bx + ox, lb, -by + oz, nx, 0, nz, 0, 0, wc2), k2 = Wd.v(bx + ox, lb + up, -by + oz, nx, 0, nz, 0, 0, BLACK_C), k3 = Wd.v(ax + ox, la + up, -ay + oz, nx, 0, nz, 0, 0, BLACK_C);
+          Wd.idx.push(k0, k1, k2, k0, k2, k3);
+        }
+      }
     }
     // roof triangles (counter-clockwise from above)
     const R = G.roof;
     for (let t = 0; t < nt; t++) {
       const q = tOff + t * 6, A = dv.getUint16(q, true), B = dv.getUint16(q + 2, true), C = dv.getUint16(q + 4, true);
       const ux = X[B] - X[A], uy = Y[B] - Y[A], uz = Z[B] - Z[A], wx = X[C] - X[A], wy = Y[C] - Y[A], wz = Z[C] - Z[A];
-      let nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nzz = ux * wy - uy * wx; const l = Math.hypot(nx, ny, nzz) || 1; nx /= l; ny /= l; nzz /= l;
+      let nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nzz = ux * wy - uy * wx; const l = Math.hypot(nx, ny, nzz);
+      if (!(l > 1e-4)) continue;                  // a sliver with no area: its normal would be NaN and black out the night glow
+      nx /= l; ny /= l; nzz /= l;
       if (nzz < 0) { nx = -nx; ny = -ny; nzz = -nzz; }
       const col = nzz < 0.985 && (house || h < 14) ? pitchC : flatC;
       const i0 = R.v(X[A], Z[A] + shift, -Y[A], nx, nzz, -ny, X[A] / 8, Y[A] / 8, col), i1 = R.v(X[B], Z[B] + shift, -Y[B], nx, nzz, -ny, X[B] / 8, Y[B] / 8, col), i2 = R.v(X[C], Z[C] + shift, -Y[C], nx, nzz, -ny, X[C] / 8, Y[C] / 8, col);
       R.idx.push(i0, i1, i2);
     }
   }
-  return { geos: Object.fromEntries(Object.entries(G).map(([k, g]) => [k, g.n ? g.build() : null])), n: built, walls };
+  return { geos: Object.fromEntries(Object.entries(G).map(([k, g]) => [k, g.n ? g.build() : null])), n: built, walls, outlines };
 }
 // Sentinel-2 ground imagery (tools/build_s2.py): one 8 km texture per region, multiplied by the fine ground texture up close
 export const S2 = { on: false, rg: 8000, mats: new Map() };
@@ -1036,7 +1055,7 @@ export class TileManager {
     // buildings
     let coll = null;
     if (M && job.bbuf) {      // the City's 3D buildings: real roofs and heights
-      const { geos, walls } = buildB3D(job.bbuf, true); t.walls3d = walls;
+      const { geos, walls, outlines } = buildB3D(job.bbuf, true); t.walls3d = walls; t.roofs3d = outlines;
       const cs = !lite;
       for (let i = 0; i < 4; i++) add(geos['house' + i], MAT.wallHouses[i], { cs });
       add(geos.apt, MAT.wallApt, { cs }); add(geos.comm, MAT.wallComm, { cs }); add(geos.shop, MAT.wallShop, { cs }); add(geos.tower, MAT.wallTower, { cs }); add(geos.roof, MAT.roof, { cs });
@@ -1181,6 +1200,19 @@ export class TileManager {
   }
   // the roof height of the building at (x, y), or null (helicopters land on roofs)
   roofAt(x, y) {
+    // with the City's 3D buildings: the real roof height of whichever building outline (x, y) is in
+    let best = null, any3d = false;
+    for (const t of this.tilesNear(x, y, 60)) {
+      if (!t.roofs3d) continue; any3d = true;
+      const lx = x - t.ox, ly = y - t.oy;
+      for (const b of t.roofs3d) {
+        if (lx < b.mnx || lx > b.mxx || ly < b.mny || ly > b.mxy) continue;
+        let ins = false; const E = b.E;
+        for (let i = 0; i < E.length; i += 4) { const xi = E[i], yi = E[i + 1], xj = E[i + 2], yj = E[i + 3]; if ((yi > ly) !== (yj > ly) && lx < (xj - xi) * (ly - yi) / (yj - yi + 1e-12) + xi) ins = !ins; }
+        if (ins && (best == null || b.top > best)) best = b.top;
+      }
+    }
+    if (any3d) return best == null ? null : best + 0.3;
     const t = this.tileAt(x, y); if (!t || !t.layers || !t.layers[L.BLD]) return null;
     const lx = x - t.ox, ly = y - t.oy;
     for (const f of t.layers[L.BLD]) {

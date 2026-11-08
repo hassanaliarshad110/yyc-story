@@ -15,11 +15,13 @@
 
 <div id="hud" hidden>
   <div id="loc"><div id="loc-comm"></div><div id="loc-street"></div></div>
+  <button id="btn-menu" title="Main menu">☰ <span data-t="menu">Menu</span></button>
   <div id="objective" hidden><div class="obj-title"></div><div class="obj-text"></div><div class="obj-dist"></div></div>
   <div id="topright">
     <canvas id="minimap" width="200" height="200"></canvas>
     <div id="stats"><span id="money">$40.00</span><span id="clock">9:00</span></div>
     <div id="speed" hidden>0 km/h</div>
+    <button id="btn-music" hidden>🎵 Music: on</button>
   </div>
   <div id="prompt" hidden></div>
   <div id="stick"><div id="knob"></div></div>
@@ -50,13 +52,13 @@
 <div id="toast"></div>
 
 <div id="title">
-  <div id="intro-presents" class="intro-screen"><div class="presents" data-t="presents">Calgary Insight presents</div></div>
+  <div id="intro-presents" class="intro-screen"><div class="ci-wrap"><img class="ci-logo" src="img/ci-logo.svg" alt="Calgary Insight"><div class="ci-name">Calgary Insight</div><button id="btn-start" class="tap" data-t="tap">Tap to start</button><div class="presents" data-t="presents" hidden>Calgary Insight presents</div></div></div>
   <div id="intro-title" class="intro-screen" hidden>
     <div class="title-in">
       <div class="logo">YYC <span>CITY</span><br><small class="logo2">STORIES</small></div>
       <div class="sub" data-t="title">YYC City Stories</div>
       <div class="tagline" data-t="tagline">The real Calgary. Real City services. Your story.</div>
-      <button id="btn-tap" class="tap" data-t="tap">Tap to begin</button>
+      <button id="btn-tap" class="tap" data-t="start">Start ▸</button>
     </div>
   </div>
   <div id="intro-lang" class="intro-screen" hidden>

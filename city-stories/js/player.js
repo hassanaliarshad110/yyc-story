@@ -185,4 +185,6 @@ export class Player {
     return car;
   }
   get speedKmh() { return Math.abs(this.v) * 3.6; }
+  // what the car's speedometer shows: the game world is compact, so the dial reads half (top speed shows 100)
+  get dialKmh() { return this.speedKmh / 2; }
 }

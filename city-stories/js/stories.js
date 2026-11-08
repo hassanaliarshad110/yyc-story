@@ -63,7 +63,7 @@ function speedWatch(g, onStrike) {         // speeding and crashes during a road
   const id = setInterval(() => {
     const p = g.player; if (p.mode !== 'car') return;
     const st = g.tiles.streetAt(p.x, p.y, 25), lim = st ? SPEED_LIMIT[st.kind] : 50;
-    if (p.speedKmh > lim + 10) { over += 0.25; if (over > 1.5) { over = 0; strikes++; onStrike('speed', strikes, lim); } } else over = Math.max(0, over - 0.1);
+    if (p.dialKmh > lim + 10) { over += 0.25; if (over > 1.5) { over = 0; strikes++; onStrike('speed', strikes, lim); } } else over = Math.max(0, over - 0.1);
   }, 250);
   return { stop() { clearInterval(id); g.player.onCrash = prevCrash; }, get strikes() { return strikes; }, get crashes() { return crashes; } };
 }

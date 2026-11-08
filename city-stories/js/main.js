@@ -20,6 +20,7 @@ import { Sky } from './sky.js';
 import { EffectComposer } from '../vendor/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from '../vendor/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../vendor/jsm/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from '../vendor/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from '../vendor/jsm/postprocessing/OutputPass.js';
 import { loadTerrain, ground } from './terrain.js';
 import { loadBusinesses, Signs } from './business.js';
@@ -70,7 +71,10 @@ function glowSetup() {
   if (composer) return;
   composer = new EffectComposer(renderer); composer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1 : 1.5)); composer.setSize(innerWidth, innerHeight);
   composer.addPass(new RenderPass(scene, camera));
-  bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), 0.7, 0.5, 0.72); composer.addPass(bloom);
+  // any NaN pixel (a bad normal somewhere) would be smeared over the whole screen by the bloom: zero it first
+  composer.addPass(new ShaderPass({ uniforms: { tDiffuse: { value: null } }, vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform sampler2D tDiffuse; varying vec2 vUv; void main() { vec4 c = texture2D(tDiffuse, vUv); if (!(c.r >= 0.0 && c.r < 1e4) || !(c.g >= 0.0 && c.g < 1e4) || !(c.b >= 0.0 && c.b < 1e4)) c = vec4(0.0, 0.0, 0.0, 1.0); gl_FragColor = c; }' }));
+  bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), 0.35, 0.4, 0.86); composer.addPass(bloom);
   composer.addPass(new OutputPass());
 }
 game.setGlow = on => { game.settings.glow = on; saveSettings(); };
@@ -159,10 +163,13 @@ const intro = initIntro({
   get missions() { return missions; },
 });
 addEventListener('pointerdown', unlockAudio); addEventListener('keydown', unlockAudio);
+// back to the main menu (character choice) at any time; progress is saved as you go
+$('#btn-menu').onclick = () => { if (!confirmMenu()) return; location.hash = 'menu'; location.reload(); };
+function confirmMenu() { try { return window.confirm(tr('menuAsk')); } catch (e) { return true; } }
 $('#btn-story').onclick = () => startGame('story');
 $('#btn-free').onclick = () => startGame('free');
 function startGame(mode) {
-  $('#title').hidden = true; $('#hud').hidden = false; game.started = true; intro.stop();
+  $('#title').hidden = true; $('#hud').hidden = false; game.started = true; intro.stop(); music.title(false);      // no song in the game until you get in a car
   game.clock = 21.0;                       // the game starts at night: the city lights are on and the Saddledome concert is playing
   try { document.documentElement.requestFullscreen && mobile && document.documentElement.requestFullscreen().catch(() => { }); } catch (e) { }
   const st = missions.state;
@@ -289,9 +296,12 @@ onAction('vehicle', () => {
   } else if (player.mode === 'car') { const c = player.exit(); traffic.release(c); sfx.enter(); $('#speed').hidden = true; }
 });
 document.querySelectorAll('[data-act=radio]').forEach(b => b.classList.toggle('off', music.radioOff));
+const musicLabel = () => { const on = !music.radioOff, b = $('#btn-music'); b.textContent = on ? '🎵 Music: on' : '🔇 Music: off'; b.classList.toggle('off', !on); document.querySelectorAll('[data-act=radio]').forEach(x => x.classList.toggle('off', !on)); };
 onAction('radio', () => {
-  if (!game.started) return; const on = music.toggleRadio(); toast(on ? '📻 Radio on' : '📻 Radio off'); document.querySelectorAll('[data-act=radio]').forEach(b => b.classList.toggle('off', !on));
+  if (!game.started) return; const on = music.toggleRadio(); toast(on ? '🎵 Music on' : '🔇 Music off'); musicLabel();
 });
+$('#btn-music').onclick = e => { e.stopPropagation(); const on = music.toggleRadio(); toast(on ? '🎵 Music on' : '🔇 Music off'); musicLabel(); };
+musicLabel();
 onAction('heli', () => {                   // call the helicopter to where you are
   if (!game.started || player.mode !== 'foot') { toast('Get out first, then call the helicopter.'); return; }
   placeHeli(); sfx.blip();
@@ -409,13 +419,17 @@ function loop(now) {
   if (game.started && game.billboards) game.billboards.update(dt, player.x, player.y, (1 - (game.day ?? 1)) > 0.4);
   if (game.started && game.numbers && player.mode !== 'heli') game.numbers.update(dt, player.x, player.y);
   if (game.started && game.people) game.people.update(dt, player.x, player.y);
+  if (game.started && traffic) {      // police and ambulance light bars flash red and blue
+    const ph = Math.floor(now / 160) % 4;
+    for (const c of traffic.cars) { const b = c.mesh.userData.beacons; if (b) { b[0].visible = ph === 0 || ph === 2; b[1].visible = ph === 1 || ph === 3; } }
+  }
   updateCamera(dt);
   updateSky(player.x, player.y);
   sky.update(camera, game._skyArgs[0], game._skyArgs[1], game._sunDir, scene.fog.color, dt);
   if (game.photo) game.photo.update(player.x, player.y);
   const night = 1 - (game.day ?? 1);
   if (world.towerGlow) world.towerGlow(night, now / 1000);
-  if (game.settings.glow && night > 0.3) { glowSetup(); bloom.strength = Math.min(1, (night - 0.3) * 2) * 0.7; composer.render(dt); }
+  if (game.settings.glow && night > 0.3) { glowSetup(); bloom.strength = Math.min(1, (night - 0.3) * 2) * 0.32; composer.render(dt); }
   else renderer.render(scene, camera);
   if (!game.started) return;
   // HUD
@@ -426,7 +440,8 @@ function loop(now) {
     if (game.billboards) { let best = null, bd = 3000; for (const b of game.billboards.items) { const d = Math.hypot(b.x - player.x, b.y - player.y); if (d < bd) { bd = d; best = b; } } if (best) icons.push({ x: best.x, y: best.y, e: '🪧' }); }
     drawMinimap(player, tiles, camH, game.target(), icons);
     if (player.mode === 'heli') { $('#speed').innerHTML = Math.round(player.speedKmh) + ' km/h <small style="opacity:.8">· ' + Math.round(player.gy - ground(player.x, player.y)) + ' m up</small>'; $('#speed').style.color = ''; }
-    if (player.mode === 'car') { const st = tiles.streetAt(player.x, player.y, 25), lim = st ? SPEED_LIMIT[st.kind] : null, kmh = Math.round(player.speedKmh); $('#speed').innerHTML = kmh + ' km/h' + (lim ? ` <small style="opacity:.8">· limit ${lim}</small>` : ''); $('#speed').style.color = lim && kmh > lim + 5 ? '#ff6b5b' : ''; }
+    if (player.mode === 'car') { const st = tiles.streetAt(player.x, player.y, 25), lim = st ? SPEED_LIMIT[st.kind] : null, kmh = Math.round(player.dialKmh); $('#speed').innerHTML = kmh + ' km/h' + (lim ? ` <small style="opacity:.8">· limit ${lim}</small>` : ''); $('#speed').style.color = lim && kmh > lim + 5 ? '#ff6b5b' : ''; }
+    $('#btn-music').hidden = !(player.mode === 'car' || player.mode === 'heli');
     const hh = Math.floor(game.clock), mm = Math.floor((game.clock - hh) * 60);
     $('#clock').textContent = `${(hh % 12) || 12}:${String(mm).padStart(2, '0')} ${hh < 12 ? 'am' : 'pm'}`;
     // prompts

@@ -30,7 +30,30 @@ export function animatePerson(p, speed, dt) {
 }
 
 const CAR_COLOURS = [0xf2f2f2, 0x1c1c1c, 0x8a9199, 0xb3b9c0, 0x9b1b1b, 0x1d3f7a, 0x2f5d3a, 0xd9c7a2, 0x5a2e1e, 0x2b6cb0, 0xc97a14];
+// Calgary Police Service-style patrol car: white sedan, dark blue stripe and POLICE lettering, light bar on the roof
+let POLICE_TEX = null;
+function policeTex() {
+  if (POLICE_TEX) return POLICE_TEX;
+  const c = document.createElement('canvas'); c.width = 512; c.height = 96; const x = c.getContext('2d');
+  x.fillStyle = '#0d2a5c'; x.fillRect(0, 34, 512, 30); x.fillStyle = '#f5c400'; x.fillRect(0, 64, 512, 5);
+  x.font = '800 30px "Segoe UI", Roboto, Arial, sans-serif'; x.fillStyle = '#ffffff'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('POLICE', 256, 50);
+  POLICE_TEX = new THREE.CanvasTexture(c); POLICE_TEX.colorSpace = THREE.SRGBColorSpace; return POLICE_TEX;
+}
+function policeKit(g, L, W, roofY, decalY) {
+  const decal = new THREE.MeshBasicMaterial({ map: policeTex(), transparent: true, alphaTest: 0.1 }), red = new THREE.MeshBasicMaterial({ color: 0xff2020 }), blue = new THREE.MeshBasicMaterial({ color: 0x2a5cff }), bar = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+  for (const s of [1, -1]) { const d = new THREE.Mesh(new THREE.PlaneGeometry(L * 0.86, L * 0.86 * 96 / 512), decal); d.position.set(s * (W / 2 + 0.015), decalY, 0); d.rotation.y = s * Math.PI / 2; g.add(d); }
+  const b = new THREE.Mesh(new THREE.BoxGeometry(W * 0.62, 0.08, 0.3), bar); b.position.set(0, roofY, -0.15); g.add(b);
+  const lr = new THREE.Mesh(new THREE.BoxGeometry(W * 0.28, 0.12, 0.26), red), lb = new THREE.Mesh(new THREE.BoxGeometry(W * 0.28, 0.12, 0.26), blue);
+  lr.position.set(-W * 0.16, roofY + 0.09, -0.15); lb.position.set(W * 0.16, roofY + 0.09, -0.15); g.add(lr, lb);
+  g.userData.beacons = [lr, lb]; g.userData.police = true;
+}
 export function makeCar(kind = 'car', colour) {
+  if (kind === 'police') {
+    const v = vehiclesReady() && makeKarachiVehicle('papurola', 'white');
+    const car = v || makeCar('car', 0xf2f2f2);
+    const bb = new THREE.Box3().setFromObject(car), sz = bb.getSize(new THREE.Vector3());
+    policeKit(car, sz.z, sz.x * 0.97, bb.max.y + 0.02, bb.min.y + sz.y * 0.42); car.userData.kind = 'police'; return car;
+  }
   if (vehiclesReady()) {      // the Karachi models: mostly the sedan, some small hatchbacks, the odd ambulance, truck or bike
     const r = Math.random();
     const k = kind === 'bike' ? 'moto' : kind === 'family' ? 'papurola' : kind === 'truck' ? (r < 0.3 ? 'truck' : 'papurola') : r < 0.72 ? 'papurola' : r < 0.97 ? 'mehran' : 'amb';

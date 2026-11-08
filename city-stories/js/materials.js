@@ -13,7 +13,7 @@ export function initMaterials() {
   const wall = (kind) => {
     const n = NIGHT[kind] || NIGHT.comm;
     const m = new THREE.MeshLambertMaterial({ map: facadeTexture(kind), vertexColors: true, emissive: 0xffffff, emissiveMap: nightWindowsTexture(...n), emissiveIntensity: 0 });
-    m.userData.glow = kind === 'tower' ? 1.0 : kind === 'shop' ? 1.1 : kind === 'comm' ? 0.85 : 0.9;
+    m.userData.glow = kind === 'tower' ? 0.36 : kind === 'shop' ? 0.65 : kind === 'comm' ? 0.4 : 0.6;      // softer at night: windows, not floodlights
     return m;
   };
   MAT.wallHouse = wall('house');
@@ -33,6 +33,9 @@ export function initMaterials() {
   MAT.guardrail = new THREE.MeshLambertMaterial({ map: guardrailTexture(), alphaTest: 0.5, side: THREE.DoubleSide });
   MAT.lamp = new THREE.MeshLambertMaterial({ color: 0x9a9a92, emissive: 0xffd9a0, emissiveIntensity: 0 });
   MAT.leaves = new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true });
+  // night lighting on the towers: a coloured band around each crown, and coloured floodlights washing up the walls
+  MAT.crown = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+  MAT.wash = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
   // things the camera passes through (tree crowns, trunks) dissolve near the lens instead of filling the screen
   for (const m of [MAT.leaves, MAT.trunk]) nearFade(m, 1.5, 4.5);
   const gt = groundTexture('#ffffff', ['#d8d8d8', '#eeeeee', '#c8c8c8', '#f6f6f6']);
@@ -56,6 +59,8 @@ export function setNight(k) {
   const on = Math.max(0, Math.min(1, (k - 0.35) / 0.4));      // lights come on at dusk
   for (const m of MAT.walls) m.emissiveIntensity = on * (m.userData.glow || 1);
   if (MAT.lamp) MAT.lamp.emissiveIntensity = on * 2.2;
+  if (MAT.crown) { MAT.crown.opacity = on * 0.85; MAT.crown.visible = on > 0.02; }
+  if (MAT.wash) { MAT.wash.opacity = on * 0.55; MAT.wash.visible = on > 0.02; }
   if (MAT.beacon) MAT.beacon.userData.on = on;
 }
 

@@ -190,6 +190,7 @@ export async function loadSky3D(scene) {
     const add = (geo, mat) => { if (!geo) return; const m = new THREE.Mesh(geo, mat); m.castShadow = true; m.receiveShadow = true; tg.add(m); };
     for (let k = 0; k < 4; k++) add(geos['house' + k], MAT.wallHouses[k]);
     add(geos.apt, MAT.wallApt); add(geos.comm, MAT.wallComm); add(geos.shop, MAT.wallShop); add(geos.tower, MAT.wallTower); add(geos.roof, MAT.roof);
+    for (const [k, m] of [['crown', MAT.crown], ['wash', MAT.wash]]) if (geos[k]) { const me = new THREE.Mesh(geos[k], m); me.renderOrder = 6; tg.add(me); }
     g.add(tg);
   }
   scene.add(g);

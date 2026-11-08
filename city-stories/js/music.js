@@ -17,7 +17,7 @@ const kick = () => { if (S.want > 0 && el.paused) start(); };
 for (const ev of ['pointerdown', 'keydown', 'touchend']) addEventListener(ev, kick, true);
 
 export const music = {
-  title(on) { S.title = on; if (on && el.paused && el.currentTime === 0) { S.want = 1; start(); } },
+  title(on) { S.title = on; if (!on) S.fast = true; if (on && el.paused && el.currentTime === 0) { S.want = 1; start(); } },
   // the title screens: the song from the chorus onwards, until the game starts (call inside a tap)
   titleChorus() { S.title = true; if (el.paused) swap(); if (el.currentTime < CHORUS - 1) S.pendingSeek = CHORUS; S.want = 1; start(); },
   // call from the Start button's click, so the jump to the chorus and the play happen inside the tap
@@ -33,7 +33,8 @@ export const music = {
     let target = Math.max(S.title ? 0.7 : 0, left > 0 ? 0.7 * Math.min(1, left / 3) : 0, S.radio && !S.radioOff ? 0.5 : 0, S.concert * 0.85);
     if (isMuted() || document.hidden) target = 0;
     S.want = target;
-    S.cur += (target - S.cur) * Math.min(1, dt * (target > S.cur ? 1.5 : 1.0));
+    S.cur += (target - S.cur) * Math.min(1, dt * (target > S.cur ? 1.5 : S.fast ? 5 : 1.0));
+    if (S.fast && target > S.cur) S.fast = false;
     if (Math.abs(target - S.cur) < 0.003) S.cur = target;
     el.volume = Math.max(0, Math.min(1, S.cur));
     if (target > 0 && el.paused && performance.now() - S.lastTry > 1000) { S.lastTry = performance.now(); start(); }   // works on desktops; phones wait for the next tap
