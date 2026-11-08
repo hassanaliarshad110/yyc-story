@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0f1720">
+<title>YYC Story · Calgary</title>
+<link rel="stylesheet" href="css/game.css">
+<link rel="icon" href="img/icon.png">
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.js" } }</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud" hidden>
+  <div id="loc"><div id="loc-comm"></div><div id="loc-street"></div></div>
+  <div id="objective" hidden><div class="obj-title"></div><div class="obj-text"></div><div class="obj-dist"></div></div>
+  <div id="topright">
+    <canvas id="minimap" width="200" height="200"></canvas>
+    <div id="stats"><span id="money">$40.00</span><span id="clock">9:00</span></div>
+    <div id="speed" hidden>0 km/h</div>
+  </div>
+  <div id="prompt" hidden></div>
+  <div id="stick"><div id="knob"></div></div>
+  <div id="buttons">
+    <button data-act="phone" class="btn-round" title="Phone (P)">📱</button>
+    <button data-act="map" class="btn-round" title="Map (M)">🗺️</button>
+    <button data-act="vehicle" class="btn-round big" title="Get in / out of a car (F)">🚗</button>
+    <button data-act="interact" class="btn-round big" title="Talk / use (E)">✋</button>
+    <button data-act="none" data-hold="sprintBtn" class="btn-round" title="Run / boost (Shift)">⚡</button>
+    <button data-act="none" data-hold="brakeBtn" class="btn-round" title="Brake (Space)">🛑</button>
+  </div>
+  <div id="ride" hidden><div id="ride-text"></div><button id="ride-skip">Skip ahead ⏩</button></div>
+  <div id="found" hidden></div>
+  <div id="gattr-logo" aria-label="Google Maps">Google Maps</div>
+  <div id="gattr-data"></div>
+</div>
+
+<div id="dialog" hidden><div class="who"></div><div class="text"></div><button class="next">Next ▸</button></div>
+<div id="card" hidden><div class="card-in"><div class="card-tag"></div><h2></h2><div class="card-body"></div><div class="card-src"></div><button class="next">Got it</button></div></div>
+<div id="quiz" hidden><div class="card-in"><div class="card-tag">Quick question</div><h2></h2><div class="opts"></div><div class="explain"></div><button class="next" hidden>Continue</button></div></div>
+<div id="phone" hidden><div class="phone-in"><div class="phone-top"><span class="phone-title">Phone</span><button class="phone-x">✕</button></div><div class="phone-body"></div></div></div>
+<div id="bigmap" hidden><canvas id="bigmap-c"></canvas><div class="bm-bar"><b>Calgary</b><span class="bm-hint">Drag to move · pinch or scroll to zoom · tap a place to set a waypoint</span><button class="bm-x">Close ✕</button></div><div class="bm-legend"></div></div>
+<div id="toast"></div>
+
+<div id="title">
+  <div class="title-in">
+    <div class="logo">YYC <span>STORY</span></div>
+    <div class="sub">A new life in the real Calgary</div>
+    <p class="blurb">You're 15 and you've just landed in Calgary from Karachi. Every street, building, park and bus route here is the real city. Learn how Calgary works, one mission at a time.</p>
+    <div class="pick">
+      <button class="who-btn on" data-look="ayaan"><span class="av av-a"></span>Ayaan</button>
+      <button class="who-btn" data-look="zara"><span class="av av-z"></span>Zara</button>
+    </div>
+    <div class="start-btns">
+      <button id="btn-story" class="primary">Start the story</button>
+      <button id="btn-free">Free roam</button>
+      <button id="btn-continue" hidden>Continue</button>
+    </div>
+    <div id="loading">Loading the city…</div>
+    <div class="credits"><b>A game by Hassan Ali</b><br><span id="data-credits"></span></div>
+    <div class="controls-help">Keyboard: W A S D to move · Shift run / boost · F get in or out of a car · E talk or use · M map · P phone · drag the mouse to look around</div>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
