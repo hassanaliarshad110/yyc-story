@@ -195,3 +195,9 @@ body.photo #buttons { bottom: calc(30px + env(safe-area-inset-bottom)); }
 #cine .cine-sub .text { color: #fff; font-size: clamp(16px, 2.3vw, 21px); line-height: 1.4; margin-top: 2px; }
 #cine .cine-sub small { color: #9aa; font-size: 11px; }
 body.cine #buttons, body.cine #stick, body.cine #objective, body.cine #topright, body.cine #btn-menu, body.cine #prompt, body.cine #loc { visibility: hidden; }
+
+/* camera zoom */
+#zoombtns { display: flex; gap: 6px; pointer-events: auto; }
+#zoombtns button { width: 40px; height: 40px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .55); background: rgba(15, 23, 32, .6); color: #fff; font-size: 22px; font-weight: 800; line-height: 1; display: grid; place-items: center; }
+#zoombtns button:active { background: rgba(255, 210, 74, .55); }
+body.cine #zoombtns { display: none; }

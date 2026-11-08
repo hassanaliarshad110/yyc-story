@@ -1,6 +1,7 @@
 // Keyboard, mouse and touch controls (same scheme as the Karachi game): W/S/A/D or the stick move relative to the camera,
 // Shift runs (handbrake in a car, down in the helicopter), Space jumps (up in the helicopter), drag to look.
-export const input = { x: 0, y: 0, sprint: false, brake: false, camYaw: 0, camPitch: 0.32, zoom: 1, pressed: new Set(), touch: false };
+const ZMIN = 0.35, ZMAX = 4;
+export const input = { x: 0, y: 0, sprint: false, brake: false, camYaw: 0, camPitch: 0.32, zoom: (() => { try { return Math.min(4, Math.max(0.35, +localStorage.getItem('yyc-zoom') || 1)); } catch (e) { return 1; } })(), pressed: new Set(), touch: false };
 const keys = new Set();
 const actions = new Map();     // name -> callback
 export function onAction(name, cb) { actions.set(name, cb); }
@@ -25,9 +26,18 @@ export function initInput(canvas) {
   });
   canvas.addEventListener('pointerup', () => { drag = null; });
   canvas.addEventListener('wheel', e => {     // scroll up: zoom in, then keep scrolling to tilt the view up to the sky
-    if (e.deltaY < 0) { if (input.zoom > 0.6) input.zoom = clamp(input.zoom * 0.9, 0.6, 4); else input.camPitch = clamp(input.camPitch - 0.07, -1.15, 1.3); }
-    else { if (input.camPitch < 0.3) input.camPitch = clamp(input.camPitch + 0.07, -1.15, 0.32); else input.zoom = clamp(input.zoom * 1.1, 0.6, 4); }
+    if (e.deltaY < 0) { if (input.zoom > ZMIN) input.zoom = clamp(input.zoom * 0.9, ZMIN, ZMAX); else input.camPitch = clamp(input.camPitch - 0.07, -1.15, 1.3); }
+    else { if (input.camPitch < 0.3) input.camPitch = clamp(input.camPitch + 0.07, -1.15, 0.32); else input.zoom = clamp(input.zoom * 1.1, ZMIN, ZMAX); }
     input.lookTime = performance.now(); e.preventDefault(); }, { passive: false });
+  // zoom buttons (hold to keep zooming) and the + / - keys
+  const zoomBy = k => { input.zoom = clamp(input.zoom * k, ZMIN, ZMAX); try { localStorage.setItem('yyc-zoom', input.zoom.toFixed(2)); } catch (e) { } };
+  for (const [id, k] of [['zoom-in', 0.94], ['zoom-out', 1 / 0.94]]) {
+    const b = document.getElementById(id); if (!b) continue; let timer = null;
+    const stop = () => { clearInterval(timer); timer = null; };
+    b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); zoomBy(k); stop(); timer = setInterval(() => zoomBy(k), 60); });
+    for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, stop);
+  }
+  addEventListener('keydown', e => { if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return; if (e.key === '+' || e.key === '=') zoomBy(0.88); else if (e.key === '-' || e.key === '_') zoomBy(1 / 0.88); });
   // touch: left half joystick, right half look
   const stick = document.getElementById('stick'), knob = document.getElementById('knob');
   const touches = new Map();
@@ -39,7 +49,18 @@ export function initInput(canvas) {
     }
     e.preventDefault();
   }, { passive: false });
+  // two fingers on the look side: pinch to zoom the camera in and out
+  const pinchDist = () => { const L = [...touches.values()].filter(s => s.kind === 'look'); return L.length >= 2 ? Math.hypot(L[0].x - L[1].x, L[0].y - L[1].y) : 0; };
+  let pinch0 = 0, zoom0 = 1;
   canvas.addEventListener('touchmove', e => {
+    const lookN = [...touches.values()].filter(s => s.kind === 'look').length;
+    if (lookN >= 2) {
+      for (const t of e.changedTouches) { const s = touches.get(t.identifier); if (s && s.kind === 'look') { s.x = t.clientX; s.y = t.clientY; } }
+      const d = pinchDist(); if (!pinch0) { pinch0 = d; zoom0 = input.zoom; }
+      else if (d > 10) input.zoom = clamp(zoom0 * pinch0 / d, ZMIN, ZMAX);
+      e.preventDefault(); return;
+    }
+    pinch0 = 0;
     for (const t of e.changedTouches) {
       const s = touches.get(t.identifier); if (!s) continue;
       if (s.kind === 'stick') {
@@ -51,7 +72,7 @@ export function initInput(canvas) {
     }
     e.preventDefault();
   }, { passive: false });
-  const end = e => { for (const t of e.changedTouches) { const s = touches.get(t.identifier); if (s && s.kind === 'stick') { input.tx = 0; input.ty = 0; knob.style.transform = ''; stick.classList.remove('on'); } touches.delete(t.identifier); } };
+  const end = e => { pinch0 = 0; for (const t of e.changedTouches) { const s = touches.get(t.identifier); if (s && s.kind === 'stick') { input.tx = 0; input.ty = 0; knob.style.transform = ''; stick.classList.remove('on'); } touches.delete(t.identifier); } };
   canvas.addEventListener('touchend', end); canvas.addEventListener('touchcancel', end);
   document.querySelectorAll('[data-act]').forEach(b => {
     b.addEventListener('pointerdown', e => {

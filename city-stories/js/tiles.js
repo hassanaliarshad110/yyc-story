@@ -718,7 +718,7 @@ export function pavementIndex(roads) {
         const dx = s[3] - s[0], dy = s[4] - s[1], L2 = dx * dx + dy * dy || 1e-9;
         const u = Math.max(0, Math.min(1, ((x - s[0]) * dx + (y - s[1]) * dy) / L2)), d = Math.hypot(x - s[0] - dx * u, y - s[1] - dy * u);
         if (d <= s[6]) return ROAD_Y[s[8]] || 0.15;
-        if (s[8] >= 3 && s[8] <= 5 && d <= s[6] + 2.1) best = 0.13;
+        if (s[8] >= 3 && s[8] <= 6 && d <= s[6] + 2.1) best = 0.13;
       }
       return best;
     }
@@ -761,6 +761,38 @@ export function buildGuardrails(roads, ridx, rails) {
         if (!free[i - 1] || !free[i]) continue;
         const a = base + (i - 1) * 2; G.idx.push(a, a + 2, a + 3, a, a + 3, a + 1);
         if (rails) rails.add(P[i * 3 - 3], P[i * 3 - 2], P[i * 3 - 1], P[i * 3], P[i * 3 + 1], P[i * 3 + 2]);
+      }
+    }
+  }
+  return G.build();
+}
+// concrete curbs along both edges of city streets (and the CTrain where it runs at street level), broken where
+// another road crosses so they stop at the corners of every intersection
+export function buildCurbs(roads, ridx, rails) {
+  const G = new GeoBuilder(), top = new THREE.Color(0xdcd9d2), face = new THREE.Color(0x9a978f);
+  const lines = [];
+  for (const f of roads || []) if ([3, 4, 5, 6].includes(f.kind) && !(f.flags & 4) && !f.rings[0].z) lines.push([f, f.a / 20, ROAD_Y[f.kind] || 0.15]);
+  for (const f of rails || []) if (f.kind === 2 && !(f.flags & 4) && !f.rings[0].z) lines.push([f, 1.75, 0.17]);
+  const H = 0.18, W = 0.24;
+  for (const [f, hw, ry] of lines) {
+    const raw = f.rings[0], r = TER.on ? densify(raw, 6) : raw, n = r.length / 2; if (n < 2) continue;
+    for (const side of [1, -1]) {
+      const P = [];
+      for (let i = 0; i < n; i++) {
+        const x = r[i * 2], y = r[i * 2 + 1], px = i > 0 ? r[i * 2 - 2] : x, py = i > 0 ? r[i * 2 - 1] : y, qx = i < n - 1 ? r[i * 2 + 2] : x, qy = i < n - 1 ? r[i * 2 + 3] : y;
+        let dx = qx - px, dy = qy - py; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l;
+        const nx = -dy * side, ny = dx * side, ex = x + nx * hw, ey = y + ny * hw;
+        const free = !(ridx && (ridx.on(ex + nx * 0.1, ey + ny * 0.1, TER.on ? gl(ex, ey) : 0, raw, 0.3)));
+        P.push([ex, ey, nx, ny, free]);
+      }
+      for (let i = 1; i < n; i++) {
+        const a = P[i - 1], b = P[i]; if (!a[4] || !b[4]) continue;
+        // the face toward the road, then the top
+        const fnx = -a[2], fnz = a[3];
+        const i0 = G.v(a[0], ry - 0.03, -a[1], fnx, 0, fnz, 0, 0, face), i1 = G.v(b[0], ry - 0.03, -b[1], fnx, 0, fnz, 1, 0, face), i2 = G.v(b[0], ry + H, -b[1], fnx, 0, fnz, 1, 1, face), i3 = G.v(a[0], ry + H, -a[1], fnx, 0, fnz, 0, 1, face);
+        G.idx.push(i0, i1, i2, i0, i2, i3, i0, i2, i1, i0, i3, i2);
+        const j0 = G.v(a[0], ry + H, -a[1], 0, 1, 0, 0, 0, top), j1 = G.v(b[0], ry + H, -b[1], 0, 1, 0, 1, 0, top), j2 = G.v(b[0] + b[2] * W, ry + H, -(b[1] + b[3] * W), 0, 1, 0, 1, 1, top), j3 = G.v(a[0] + a[2] * W, ry + H, -(a[1] + a[3] * W), 0, 1, 0, 0, 1, top);
+        G.idx.push(j0, j1, j2, j0, j2, j3, j0, j2, j1, j0, j3, j2);
       }
     }
   }
@@ -1089,7 +1121,8 @@ export class TileManager {
     for (const r of roads) (byTex[ROAD_TEX(r.kind)] ||= []).push(r);
     if (M) for (const [tx, list] of Object.entries(byTex)) add(buildRibbons(list, f => ROAD_Y[f.kind] || 0.15, f => f.a / 10), MAT.road[tx], { ro: 4 });
     if (D) {      // sidewalks both sides of city streets
-      const sw = roads.filter(f => [3, 4, 5].includes(f.kind) && !f.rings[0].z);      // collectors and main roads; residential streets have rolled curbs and front walks instead
+      const sw = roads.filter(f => [3, 4, 5, 6].includes(f.kind) && !f.rings[0].z);      // sidewalks along main roads, collectors and residential streets
+      add(buildCurbs(roads, ridx, layers[L.RAIL]), MAT.concrete, { ro: 4 });
       add(buildRibbons(sw, 0.13, () => 1.8, 0xffffff, 4, f => f.a / 20 + 1.1), MAT.sidewalk, { ro: 2 });
       add(buildRibbons(sw, 0.13, () => 1.8, 0xffffff, 4, f => -(f.a / 20 + 1.1)), MAT.sidewalk, { ro: 2 });
     }
@@ -1242,6 +1275,46 @@ export class TileManager {
     return tMin;
   }
   // the roof height of the building at (x, y), or null (helicopters land on roofs)
+  // ---------------------------------------------------------------- never stuck: spots a person (or car) can stand on and leave
+  // inside a building: a roof is over this spot, well above the ground (and above whoever stands there)
+  insideBuilding(x, y, gy = ground(x, y)) { const r = this.roofAt(x, y); return r != null && r > gy + 2.2 && gy < ground(x, y) + 3; }
+  // the buildings around this spot have loaded (so a check here means something)
+  readyAt(x, y) { const t = this.tileAt(x, y); return !!(t && t.coll && (t.hgrid || t.layers)); }
+  standable(x, y, r = 0.45) { return !this.insideBuilding(x, y) && !this.collide(x, y, r).hit; }
+  // can you walk from (x, y) to somewhere `need` metres away? (a flood fill on a 0.8 m grid, so no wall slips between two cells)
+  reaches(x, y, r = 0.45, need = 24, cap = 3500) {
+    const S = 0.8, seen = new Set(['0,0']), q = [[0, 0]];
+    for (let h = 0; h < q.length && seen.size < cap; h++) {
+      const [i, j] = q[h];
+      if (Math.hypot(i * S, j * S) >= need) return true;
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const k = (i + di) + ',' + (j + dj); if (seen.has(k)) continue; seen.add(k);
+        if (this.standable(x + (i + di) * S, y + (j + dj) * S, r)) q.push([i + di, j + dj]);
+      }
+    }
+    return seen.size >= cap;            // a very big open area counts as free
+  }
+  // the nearest spot to (x, y) that is outside buildings, clear of walls and not boxed in; `pref` = the way you were heading
+  paveAt(x, y) { const t = this.tileAt(x, y); return t && t.pave ? t.pave.lift(x - t.ox, y - t.oy) : 0; }
+  safeSpot(x, y, { r = 0.45, pref = null, maxR = 120, street = true, car = false } = {}) {
+    if (this.standable(x, y, r) && this.reaches(x, y, r)) return { x, y, moved: false };
+    // first look for a sidewalk (or, failing that, the edge of a street) close by; then for any open ground
+    const passes = car ? [[l => l >= 0.14, 45], [() => true, maxR]] : street ? [[l => l > 0.1 && l < 0.14, 45], [l => l > 0, 45], [() => true, maxR]] : [[() => true, maxR]];
+    for (const [want, lim] of passes) {
+      for (let rad = 1; rad <= lim; rad += rad < 10 ? 1 : 2) {
+        const n = Math.max(8, Math.round(rad * 2)), c = [];
+        for (let k = 0; k < n; k++) {
+          const a = k / n * Math.PI * 2, px = x + Math.sin(a) * rad, py = y + Math.cos(a) * rad;
+          if (!want(this.paveAt(px, py)) || !this.standable(px, py, r + 0.15)) continue;
+          let d = 0; if (pref != null) { d = Math.abs(((a - pref) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) - Math.PI); }
+          c.push([d, px, py]);
+        }
+        c.sort((a, b) => a[0] - b[0]);
+        for (const [, px, py] of c.slice(0, 6)) if (this.reaches(px, py, r)) return { x: px, y: py, moved: true };
+      }
+    }
+    return { x, y, moved: false };
+  }
   roofAt(x, y) {
     // the City's 3D buildings: the highest roof triangle over (x, y), from each tile's 2.5 m roof grid
     let best = -1e9, any = false;

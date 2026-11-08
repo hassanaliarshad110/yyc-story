@@ -94,13 +94,20 @@ export class Missions {
     });
   }
   clearGoal() { this.goal = null; this.marker.visible = false; setObjective(null); }
+  // a spot outside any building near (x, y), once the buildings there have loaded
+  outside(x, y) { const T = this.g.tiles; if (!T || !T.readyAt(x, y) || !T.insideBuilding(x, y)) return [x, y]; const s = T.safeSpot(x, y, { maxR: 70 }); return [s.x, s.y]; }
   npc(look, x, y, h = 0) {
-    const p = new Character(look).g; p.position.set(x, ground(x, y), -y); p.rotation.y = Math.PI - h; this.g.scene.add(p); this.npcs.push(p); return p;
+    [x, y] = this.outside(x, y);
+    const p = new Character(look).g; p.position.set(x, ground(x, y), -y); p.rotation.y = Math.PI - h; this.g.scene.add(p); this.npcs.push(p);
+    // the buildings may still be loading: look again once they're in, and step outside if this spot is in one
+    if (this.g.tiles && !this.g.tiles.readyAt(x, y)) { let n = 0; const id = setInterval(() => { if (++n > 40 || !this.npcs.includes(p)) return clearInterval(id); if (!this.g.tiles.readyAt(x, y)) return; clearInterval(id); const [nx, ny] = this.outside(x, y); if (nx !== x || ny !== y) p.position.set(nx, ground(nx, ny), -ny); }, 500); }
+    return p;
   }
   clearNpcs() { for (const n of this.npcs) this.g.scene.remove(n); this.npcs = []; for (const a of this.actors) this.g.scene.remove(a.g); this.actors = []; }
   // ---------------------------------------------------------------- cutscenes
   // actors are people that walk and talk on their own; the player can be scripted too (pass game.player)
   actor(look, x, y, h = 0) {
+    [x, y] = this.outside(x, y);
     const ch = new Character(look), a = { ch, g: ch.g, x, y, h, to: null, sp: 1.4, act: null, res: null };
     ch.g.position.set(x, ground(x, y), -y); ch.g.rotation.y = Math.PI - h; this.g.scene.add(ch.g); this.actors.push(a); return a;
   }

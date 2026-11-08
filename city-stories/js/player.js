@@ -31,7 +31,7 @@ export class Player {
     if (this.person) this.scene.remove(this.person);
     this.look = look; this.char = new Character(LOOKS[look] || LOOKS.ayaan); this.person = this.char.g; this.scene.add(this.person);
   }
-  place(x, y, h = this.h) { this.x = x; this.y = y; this.h = h; this.v = 0; this.gy = ground(x, y); this.vy = 0; this.sync(); }
+  place(x, y, h = this.h) { this.x = x; this.y = y; this.h = h; this.v = 0; this.gy = ground(x, y); this.vy = 0; this.sync(); if (this.onPlace) this.onPlace(); }
   sync() {
     if (this.mode === 'car' && this.car) {
       this.car.x = this.x; this.car.y = this.y; this.car.h = this.h;

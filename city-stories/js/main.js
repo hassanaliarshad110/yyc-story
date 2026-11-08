@@ -138,6 +138,7 @@ async function boot() {
   player = new Player(scene, tiles, game.look); game.player = player; player.parks = game.parks;
   player.onCrash = () => { if (performance.now() - (game._crash || 0) > 1500) { game._crash = performance.now(); toast('Bump! Careful.'); sfx.crash(); } };
   player.onStep = run => sfx.step(run);
+  player.onPlace = () => { if (game.unstick) game.unstick.pending = true; };
   traffic = new Traffic(scene, tiles, world, { max: mobile ? 14 : 28, parked: mobile ? 16 : 32 }); game.traffic = traffic;
   transit = new Transit(scene, world, { bus: mobile ? 5 : 9, train: mobile ? 1 : 2 }); game.transit = transit;
   transit.groundY = (x, y, hint, rail) => rail ? tiles.surfaceAt(x, y, 0, 1e9, 3) : tiles.surfaceAt(x, y, hint ?? ground(x, y), 1.5, 1);
@@ -178,7 +179,11 @@ function startGame(mode) {
   $('#title').hidden = true; $('#hud').hidden = false; game.started = true; intro.stop(); music.title(false);      // no song in the game until you get in a car
   setTimeout(() => game.buses.build(scene), 1200);
   game.clock = 21.0;                       // the game starts at night: the city lights are on and the Saddledome concert is playing
-  try { document.documentElement.requestFullscreen && mobile && document.documentElement.requestFullscreen().catch(() => { }); } catch (e) { }
+  // full screen on phones; inside the Calgary Insight page, that page goes full screen (so the browser names calgaryinsight.ca)
+  if (mobile) {
+    if (window.parent !== window) { try { window.parent.postMessage({ type: 'yyc-fullscreen' }, '*'); } catch (e) { } }
+    else try { document.documentElement.requestFullscreen && document.documentElement.requestFullscreen().catch(() => { }); } catch (e) { }
+  }
   const st = missions.state;
   if (mode === 'story') {
     const i = missions.nextIndex();
@@ -192,7 +197,7 @@ function startGame(mode) {
 function placeStart(i) {
   const m = i != null ? missions.list[i] : null;
   const at = m && m.startAt ? P[m.startAt] : game.story === 'chris' ? P.kerbyHome : missions.state.home ? P.home : P.martinbrook;
-  player.mode = 'foot'; player.place(at.x + (m ? 6 : 0), at.y - (m ? 6 : 0), m ? 0 : Math.PI); camSnap();
+  player.mode = 'foot'; player.place(at.x + (m ? 6 : 0), at.y - (m ? 6 : 0), m ? 0 : Math.PI); camSnap(); game.unstick.pending = true;
   // a family car outside home
   if (missions.state.home && Math.hypot(player.x - P.home.x, player.y - P.home.y) < 200 && !game.familyCar) {
     const spot = game.findRoadSpot(P.home.x, P.home.y, 0, 60);
@@ -246,8 +251,31 @@ game.spawnCar = (x, y, h = 0, kind = 'family') => {
 game.teleport = (x, y, h = player.h) => {
   if (player.mode === 'heli' && player.heli) { const v = player.heli; v.x = x; v.y = y; v.h = h; v.v = 0; v.alt = Math.max(v.alt, ground(x, y) + 60); player.x = x; player.y = y; }
   else { player.seat = null; player.air = 0; player.place(x, y, h); }
-  tiles.update(x, y); camSnap();
+  tiles.update(x, y); camSnap(); game.unstick.pending = true;
 };
+// never stuck: whenever you land inside a building or boxed in by walls (a jump, a mission start, a bad spot on the map),
+// or you keep pushing and can't move, step out to the nearest open spot you can walk away from
+game.unstick = { t: 0, pending: true, push: 0, px: 0, py: 0, cool: 0 };
+function watchStuck(dt, inp) {
+  const U = game.unstick, p = player;
+  if (U.cool > 0) U.cool -= dt;
+  if (game.cine || p.auto || p.seat || !(p.mode === 'foot' || p.mode === 'car')) { U.push = 0; return; }
+  if ((U.t -= dt) > 0) return; U.t = 0.4;
+  if (!tiles.readyAt(p.x, p.y)) return;
+  const pushing = Math.hypot(inp.x || 0, inp.y || 0) > 0.3, moved = Math.hypot(p.x - U.px, p.y - U.py); U.px = p.x; U.py = p.y;
+  U.push = pushing && moved < 0.3 ? U.push + 0.4 : 0;
+  const onRoof = p.mode === 'foot' && p.gy > ground(p.x, p.y) + 3;
+  const inside = p.mode === 'foot' && !onRoof && tiles.insideBuilding(p.x, p.y, p.gy);
+  if (!(U.pending || inside || (U.push >= 1.6 && U.cool <= 0))) return;
+  const jumped = U.pending; U.pending = false; U.push = 0;
+  if (onRoof && !jumped) return;                          // you climbed or landed up there: that's fine
+  const s = tiles.safeSpot(p.x, p.y, { r: p.mode === 'car' ? 1.1 : 0.45, pref: p.h, car: p.mode === 'car' });
+  if (!s.moved && !(onRoof && jumped)) { U.cool = 4; return; }
+  const h = Math.atan2(s.x - p.x, s.y - p.y);           // face away from where you were stuck
+  if (p.mode === 'car') { p.x = s.x; p.y = s.y; p.h = h; p.v = 0; p.gy = ground(s.x, s.y); p.sync(); }
+  else p.place(s.x, s.y, h);
+  camSnap();
+}
 game.setWaypointRaw = p => { game.waypoint = p ? { x: p.x, y: p.y } : null; };
 game.updateMoney = () => { $('#money').textContent = '$' + (missions ? missions.money : 40).toFixed(2); };
 game.snapshot = () => { renderer.render(scene, camera); return canvas.toDataURL('image/jpeg', 0.7); };
@@ -402,6 +430,7 @@ function loop(now) {
   const inp = readInput();
   if (game.cine) { inp.x = 0; inp.y = 0; inp.sprint = false; inp.jump = false; }
   const blocked = game.paused || mapOpen() || phoneOpen() || realOpen();
+  if (game.started && player) watchStuck(dt, blocked ? { x: 0, y: 0 } : inp);       // runs during dialogs too, so you are never left inside a wall
   if (game.started && !blocked) {
     game.clock = (game.clock + dt / 60) % 24;
     player.update(dt, inp, camH);
