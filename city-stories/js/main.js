@@ -8,7 +8,7 @@ import { Player, dirOf, angDiff, LOOKS } from './player.js';
 import { Traffic } from './traffic.js';
 import { Transit } from './transit.js';
 import { Missions, P } from './missions.js';
-import { initHUD, tilePaths, drawMinimap, openMap, closeMap, mapOpen, toast, setObjective, setPrompt, nextPressed, say, card, $ } from './hud.js';
+import { initHUD, tilePaths, drawMinimap, openMap, closeMap, mapOpen, refreshMap, toast, setObjective, setPrompt, nextPressed, say, card, $ } from './hud.js';
 import { initPhone, openPhone, closePhone, phoneOpen } from './phone.js';
 import { initRealView, openReal, closeReal, realOpen } from './realview.js';
 import { initInput, readInput, input, onAction } from './input.js';
@@ -38,6 +38,7 @@ import { initIntro } from './intro.js';
 import { CHARACTERS } from './stories.js';
 import { tr } from './i18n.js';
 import { Billboards, loadBillboards } from './billboards.js';
+import { Navigator, loadRoute } from './route.js';
 
 const mobile = matchMedia('(pointer: coarse)').matches || innerWidth < 760;
 const saved = (() => { try { return JSON.parse(localStorage.getItem('yyc-settings')) || {}; } catch (e) { return {}; } })();
@@ -217,6 +218,7 @@ game.groundY = (x, y, hint) => {
   return game.photo.groundAt(x, y, hint == null ? 600 : hint + 4);
 };
 // ---------------------------------------------------------------- game helpers used by missions and HUD
+game.nav = new Navigator(); setTimeout(loadRoute, 4000);
 game.target = () => missions && missions.goal ? missions.goal : game.waypoint;
 game.setWaypoint = (x, y) => { game.waypoint = { x, y }; };
 // people sleeping outside: a respectful check-in, and how to get them connected to help
@@ -438,7 +440,8 @@ function loop(now) {
     const icons = []; if (game.heli && player.mode !== 'heli') icons.push({ x: game.heli.x, y: game.heli.y, e: '🚁' });
     if (game.concert && (game.clock >= 19 || game.clock < 3)) icons.push({ x: game.concert.x, y: game.concert.y, e: '🎤' });
     if (game.billboards) { let best = null, bd = 3000; for (const b of game.billboards.items) { const d = Math.hypot(b.x - player.x, b.y - player.y); if (d < bd) { bd = d; best = b; } } if (best) icons.push({ x: best.x, y: best.y, e: '🪧' }); }
-    drawMinimap(player, tiles, camH, game.target(), icons);
+    const nv = game.nav.ver; game.nav.update(0.09, player, game.target()); if (nv !== game.nav.ver) refreshMap();
+    drawMinimap(player, tiles, camH, game.target(), icons, game.nav, !!(missions && missions.goal));
     if (player.mode === 'heli') { $('#speed').innerHTML = Math.round(player.speedKmh) + ' km/h <small style="opacity:.8">· ' + Math.round(player.gy - ground(player.x, player.y)) + ' m up</small>'; $('#speed').style.color = ''; }
     if (player.mode === 'car') { const st = tiles.streetAt(player.x, player.y, 25), lim = st ? SPEED_LIMIT[st.kind] : null, kmh = Math.round(player.dialKmh); $('#speed').innerHTML = kmh + ' km/h' + (lim ? ` <small style="opacity:.8">· limit ${lim}</small>` : ''); $('#speed').style.color = lim && kmh > lim + 5 ? '#ff6b5b' : ''; }
     $('#btn-music').hidden = !(player.mode === 'car' || player.mode === 'heli');

@@ -52,7 +52,7 @@ export function tilePaths(t) {
 
 // ---------------------------------------------------------------- minimap
 const mmc = () => $('#minimap');
-export function drawMinimap(player, tiles, camH, target, icons = []) {
+export function drawMinimap(player, tiles, camH, target, icons = [], nav = null, mission = false) {
   const c = mmc(), g = c.getContext('2d'), W = c.width, H = c.height;
   const scale = player.mode === 'car' ? 0.16 : 0.32;     // pixels per metre
   g.save();
@@ -81,7 +81,12 @@ export function drawMinimap(player, tiles, camH, target, icons = []) {
   // far roads where tiles are not loaded
   g.strokeStyle = '#f2b46b'; g.lineWidth = 9; for (const k of ['r1', 'r2']) if (overview[k]) g.stroke(overview[k]);
   g.strokeStyle = '#fbe7a6'; g.lineWidth = 7; for (const k of ['r3', 'r4']) if (overview[k]) g.stroke(overview[k]);
+  const rp = nav && nav.path();
+  if (rp) { g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 11 / scale; g.stroke(rp); g.strokeStyle = mission ? '#ffc400' : '#b44cff'; g.lineWidth = 7 / scale; g.stroke(rp); }
   g.restore();
+  const gps = $('#gps');
+  if (rp && nav.remaining) { const m = nav.remaining; gps.hidden = false; gps.textContent = '➤ ' + (m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m / 10) * 10 + ' m'); gps.style.color = mission ? '#ffc400' : '#d9a8ff'; }
+  else gps.hidden = true;
   // target
   if (target) {
     const dx = (target.x - player.x) * scale, dy = -(target.y - player.y) * scale;
@@ -115,6 +120,7 @@ export function openMap() {
   $('#bigmap').hidden = false; resizeMap(); drawMap();
   $('.bm-legend').innerHTML = `<div><i style="background:#c8102e"></i>You</div><div><i style="background:#ffc400"></i>Mission / waypoint</div><div><i style="background:#1c8c40"></i>Grocery store</div><div><i style="background:#2856c8"></i>Library</div><div><i style="background:#e67814"></i>Recreation</div><div><i style="background:#7a3fa0"></i>Landmark</div>`;
 }
+export function refreshMap() { if (bm.open) drawMap(); }
 export function closeMap() { bm.open = false; $('#bigmap').hidden = true; }
 export function mapOpen() { return bm.open; }
 function resizeMap() { const c = $('#bigmap-c'); c.width = innerWidth * devicePixelRatio; c.height = innerHeight * devicePixelRatio; }
@@ -142,6 +148,8 @@ function drawMap() {
   g.strokeStyle = '#c8102e'; g.lineWidth = 2.2 / s; if (overview.ctrain) g.stroke(overview.ctrain);
   g.strokeStyle = 'rgba(122,63,160,.45)'; g.lineWidth = 1 / s; g.stroke(overview.comms);
   g.strokeStyle = '#6e3c8c'; g.lineWidth = 3 / s; g.stroke(overview.city);
+  const rp = game.nav && game.nav.path();
+  if (rp) { g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = Math.max(9, 7 * dpr / s); g.stroke(rp); g.strokeStyle = game.target() && game.waypoint && game.target() === game.waypoint ? '#b44cff' : '#ffc400'; g.lineWidth = Math.max(6, 4.5 * dpr / s); g.stroke(rp); }
   g.restore();
   const P = (x, y) => [W / 2 + (x - bm.cx) * s, H / 2 - (y - bm.cy) * s];
   // community names
@@ -178,7 +186,7 @@ function initBigMapInput() {
     pts.delete(e.pointerId); if (pts.size < 2) pinch0 = null;
     if (moved < 6) {   // tap: waypoint
       const x = bm.cx + (e.clientX - innerWidth / 2) / bm.scale, y = bm.cy - (e.clientY - innerHeight / 2) / bm.scale;
-      game.setWaypoint(x, y); const cm = communityAt(world, x, y); toast('Waypoint set' + (cm ? ' in ' + cm.n : '')); drawMap();
+      game.setWaypoint(x, y); const cm = communityAt(world, x, y); toast('Waypoint set' + (cm ? ' in ' + cm.n : '') + ' · follow the purple line'); if (game.nav) game.nav.update(0, game.player, game.target()); drawMap();
     }
   });
   c.addEventListener('wheel', e => { bm.scale = Math.max(0.006, Math.min(1.5, bm.scale * (e.deltaY > 0 ? 0.85 : 1.18))); drawMap(); e.preventDefault(); }, { passive: false });
