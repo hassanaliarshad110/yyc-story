@@ -1,0 +1,1 @@
+{"x0": -26000, "y0": -28000, "step": 15, "nx": 3201, "ny": 3467, "ref_m": 1044.6301291988277, "enc": "gzip-pred2d-int16-dm", "credit": "Ground heights: City of Calgary LiDAR bare-earth DEM (2022-2024, Open Calgary); outside the city, Copernicus DEM GLO-30 (European Union)"}

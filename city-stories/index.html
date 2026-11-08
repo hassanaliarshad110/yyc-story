@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0f1720">
+<title>YYC City Stories · Calgary</title>
+<link rel="stylesheet" href="css/game.css">
+<link rel="icon" href="img/icon.png">
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.js" } }</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="grade"></div>
+
+<div id="hud" hidden>
+  <div id="loc"><div id="loc-comm"></div><div id="loc-street"></div></div>
+  <div id="objective" hidden><div class="obj-title"></div><div class="obj-text"></div><div class="obj-dist"></div></div>
+  <div id="topright">
+    <canvas id="minimap" width="200" height="200"></canvas>
+    <div id="stats"><span id="money">$40.00</span><span id="clock">9:00</span></div>
+    <div id="speed" hidden>0 km/h</div>
+  </div>
+  <div id="prompt" hidden></div>
+  <div id="stick"><div id="knob"></div></div>
+  <div id="buttons">
+    <button data-act="phone" class="btn-round" title="Phone (P)">📱</button>
+    <button data-act="map" class="btn-round" title="Map (M)">🗺️</button>
+    <button data-act="horn" class="btn-round" title="Horn (H)">📯</button>
+    <button data-act="heli" class="btn-round" title="Call the helicopter (K)">🚁</button>
+    <button data-act="radio" class="btn-round" title="Radio on/off (R)">📻</button>
+    <button data-act="vehicle" class="btn-round big" title="Get in / out of a car (F)">🚗</button>
+    <button data-act="interact" class="btn-round big" title="Talk / use (E)">✋</button>
+    <button data-act="none" data-hold="upBtn" class="btn-round" title="Jump · fly up (Space)">⤴️</button>
+    <button data-act="none" data-hold="sprintBtn" class="btn-round" title="Run on/off · handbrake · fly down (Shift)">⚡</button>
+    <button data-act="none" data-hold="brakeBtn" class="btn-round" title="Brake (Space)">🛑</button>
+  </div>
+  <div id="ride" hidden><div id="ride-text"></div><button id="ride-skip">Skip ahead ⏩</button></div>
+  <div id="found" hidden></div>
+  <button id="realbtn" hidden></button>
+  <div id="gattr-logo" aria-label="Google Maps">Google Maps</div>
+  <div id="gattr-data"></div>
+</div>
+
+<div id="dialog" hidden><div class="who"></div><div class="text"></div><button class="next">Next ▸</button></div>
+<div id="card" hidden><div class="card-in"><div class="card-tag"></div><h2></h2><div class="card-body"></div><div class="card-src"></div><button class="next">Got it</button></div></div>
+<div id="quiz" hidden><div class="card-in"><div class="card-tag">Quick question</div><h2></h2><div class="opts"></div><div class="explain"></div><button class="next" hidden>Continue</button></div></div>
+<div id="phone" hidden><div class="phone-in"><div class="phone-top"><span class="phone-title">Phone</span><button class="phone-x">✕</button></div><div class="phone-body"></div></div></div>
+<div id="bigmap" hidden><canvas id="bigmap-c"></canvas><div class="bm-bar"><b>Calgary</b><span class="bm-hint">Drag to move · pinch or scroll to zoom · tap a place to set a waypoint</span><button class="bm-x">Close ✕</button></div><div class="bm-legend"></div></div>
+<div id="toast"></div>
+
+<div id="title">
+  <div id="intro-presents" class="intro-screen"><div class="presents" data-t="presents">Calgary Insight presents</div></div>
+  <div id="intro-title" class="intro-screen" hidden>
+    <div class="title-in">
+      <div class="logo">YYC <span>CITY</span><br><small class="logo2">STORIES</small></div>
+      <div class="sub" data-t="title">YYC City Stories</div>
+      <div class="tagline" data-t="tagline">The real Calgary. Real City services. Your story.</div>
+      <button id="btn-tap" class="tap" data-t="tap">Tap to begin</button>
+    </div>
+  </div>
+  <div id="intro-lang" class="intro-screen" hidden>
+    <div class="title-in">
+      <div class="logo small">YYC <span>CITY</span> <small class="logo2">STORIES</small></div>
+      <h2 class="pick-h">Choose your language · Choisissez votre langue · ਆਪਣੀ ਭਾਸ਼ਾ ਚੁਣੋ · اپنی زبان منتخب کریں · Piliin ang wika · اختر لغتك</h2>
+      <div class="langs"></div>
+    </div>
+  </div>
+  <div id="intro-who" class="intro-screen" hidden>
+    <div class="title-in wide">
+      <div class="logo small" data-t="title">YYC City Stories</div>
+      <h2 class="pick-h" data-t="playAs">Play as</h2>
+      <div class="chars"></div>
+      <p class="char-blurb"></p>
+      <div class="start-btns">
+        <button id="btn-story" class="primary" data-t="story">Start the story</button>
+        <button id="btn-free" data-t="free">Free roam</button>
+        <button id="btn-continue" hidden>Continue</button>
+        <button id="btn-lang" class="link" data-t="back">◂ Language</button>
+      </div>
+      <p class="lang-note"></p>
+      <div id="loading" data-t="loading">Loading the city…</div>
+      <div class="credits"><b data-t="by">A game by Hassan Ali</b><br><span id="data-credits"></span></div>
+      <div class="controls-help">Keyboard: W A S D to move · Shift run / boost · F get in or out of a car · E talk or use · M map · P phone · drag the mouse to look around</div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
