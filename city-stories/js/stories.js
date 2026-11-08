@@ -1,4 +1,4 @@
-// YYC City Stories: four people, four ways into Calgary. Each story is a list of missions that teach real City services.
+// YYC City Stories: five people, five ways into Calgary. Each story is a list of missions that teach real City services.
 // Ali is new to Calgary, Natalia is a student, Chris is a senior and Jean has lived here for years.
 import { say, card, quiz, toast, setObjective, setPrompt, found } from './hud.js';
 import { appHelp, appShop, randomAddressNear } from './phone.js';
@@ -20,6 +20,15 @@ export const PLACES = {
   saddledome: { x: 428.9, y: -878.0, name: 'Scotiabank Saddledome, 555 Saddledome Rise SE' },
   princesIsland: { x: -862, y: 1062, name: "Prince's Island Park" },
   saddletowneStn: { x: 7696.1, y: 8966.1, name: 'Saddletowne CTrain Station' },
+  hotel: { x: -560, y: -128, name: '9 Avenue SW', real: false },
+  tower: { x: -352, y: -112, name: 'Calgary Tower, 101 9 Avenue SW' },
+  stephenAve: { x: -610, y: -28, name: 'Stephen Avenue (8 Avenue SW)' },
+  cityHallStn: { x: 104, y: 16, name: 'City Hall' },
+  peaceBridge: { x: -1463, y: 962, name: 'Peace Bridge' },
+  centralLib: { x: 213, y: 16, name: 'Central Library, 800 3 Street SE' },
+  studioBell: { x: 339, y: -79, name: 'Studio Bell, National Music Centre' },
+  fortCalgary: { x: 898, y: -67, name: 'Fort Calgary, 750 9 Avenue SE' },
+  stampedePark: { x: 130, y: -697, name: 'Stampede Park' },
 };
 const SRC = {
   fares: ['Calgary Transit: fares and passes', 'https://www.calgarytransit.com/fares---passes.html'],
@@ -39,8 +48,24 @@ const SRC = {
   parking: ['Calgary Parking: MyParking app', 'https://www.calgaryparking.com/'],
   help: ['Calgary Police: vulnerable persons (Alpha House HELP team)', 'https://www.calgary.ca/cps/community-programs-and-resources/vulnerable-persons/vulnerable-persons.html'],
   h211: ['211 Alberta', 'https://ab.211.ca/'],
+  edAct: ['Alberta Education Act, section 31', 'https://kings-printer.alberta.ca/documents/Acts/E00P3.pdf'],
+  tower: ['Calgary Tower', 'https://www.calgarytower.com/'],
+  plus15: ['City of Calgary: Plus 15 network', 'https://www.calgary.ca/bike-walk-roll/plus-15-network.html'],
+  ffz: ['Calgary Transit: reviewing the Free Fare Zone', 'https://www.calgarytransit.com/news/reviewing-the-free-fare-zone.html'],
+  fares26: ['Calgary Transit: fares changing for 2026', 'https://www.calgarytransit.com/news/calgary-transit-fares-changing-for-2026.html'],
+  paths: ['City of Calgary: pathways and trails', 'https://www.calgary.ca/parks/pathways/pathways-in-calgary.html'],
+  scoot: ['City of Calgary: shared e-scooters and e-bikes', 'https://www.calgary.ca/scootershare'],
+  visit: ['Tourism Calgary', 'https://www.visitcalgary.com/'],
+  stampede: ['Calgary Stampede', 'https://www.calgarystampede.com/'],
+  parksCanada: ['Parks Canada: Banff National Park', 'https://parks.canada.ca/pn-np/ab/banff'],
 };
 const IMRAN = 'Imran (friend)', MAYA = 'Maya (best friend)', LINDA = 'Linda (daughter)', PRIYA = 'Priya (neighbour)';
+const NAT = 'Natalia', AMIRA = 'Amira (new student)', JORDAN = 'Jordan', PRINCIPAL = 'Ms. Okafor (principal)', BULLY = 'Older student', CLASSMATE = 'Classmate';
+const SOFIA = 'Sofia (tour guide)', LEO = 'Leo';
+const MAYA_LOOK = { skin: 0x8d5a3b, shirt: 0xe0a020, pants: 0x2a3a5a, hair: 0x15100d, long: true, fem: true, scale: 0.93 };
+const KID_LOOK = { skin: 0xc49a76, shirt: 0x58a0d8, pants: 0x34404c, hair: 0x6b4a2a, scale: 0.78, bag: 0x9b2a2a };
+const BULLY_LOOKS = [0, 1, 2].map(i => ({ skin: [0xb98260, 0xe0b090, 0x8d5a3b][i], shirt: [0x222222, 0x8a1c1c, 0x2e4a2e][i], pants: 0x23252b, hair: 0x15100d, scale: 0.97 }));
+const CLASS_LOOKS = [0, 1, 2].map(i => ({ skin: [0xe0b090, 0x8d5a3b, 0xc49a76][i], shirt: [0xc04a7a, 0x3a7ac0, 0xd0a030][i], pants: 0x2c3040, hair: [0x4a2e1a, 0x15100d, 0x15100d][i], long: i !== 1, fem: i !== 1, scale: 0.9 }));
 const T = (en, fr, pa, ur, tl, ar) => ({ en, fr, pa, ur, tl, ar });
 
 // ---------------------------------------------------------------- the characters
@@ -53,6 +78,8 @@ export const CHARACTERS = {
     blurb: T('Chris is 72 and lives near downtown. Discover the programs, passes and health services that help Calgary seniors stay active and safe.', 'Chris a 72 ans et vit près du centre-ville. Découvrez les programmes, laissez-passer et services de santé qui aident les aînés de Calgary à rester actifs et en sécurité.', 'ਕ੍ਰਿਸ 72 ਸਾਲਾਂ ਦਾ ਹੈ ਅਤੇ ਡਾਊਨਟਾਊਨ ਨੇੜੇ ਰਹਿੰਦਾ ਹੈ। ਉਹ ਪ੍ਰੋਗਰਾਮ, ਪਾਸ ਅਤੇ ਸਿਹਤ ਸੇਵਾਵਾਂ ਲੱਭੋ ਜੋ ਬਜ਼ੁਰਗਾਂ ਨੂੰ ਸਰਗਰਮ ਅਤੇ ਸੁਰੱਖਿਅਤ ਰੱਖਦੀਆਂ ਹਨ।', 'کرس 72 سال کے ہیں اور ڈاؤن ٹاؤن کے قریب رہتے ہیں۔ وہ پروگرام، پاس اور صحت کی سہولیات دریافت کریں جو بزرگوں کو فعال اور محفوظ رکھتی ہیں۔', 'Si Chris ay 72 taong gulang at nakatira malapit sa downtown. Tuklasin ang mga programa, pass at serbisyong pangkalusugan para sa mga nakatatanda sa Calgary.', 'كريس عمره 72 عامًا ويعيش قرب وسط المدينة. اكتشف البرامج والتصاريح والخدمات الصحية التي تساعد كبار السن في كالغاري على البقاء نشطين وآمنين.') },
   jean: { look: 'jean', name: 'Jean', role: T('Calgary resident', 'Résident de Calgary', 'ਕੈਲਗਰੀ ਦਾ ਵਸਨੀਕ', 'کیلگری کا رہائشی', 'Residente ng Calgary', 'من سكان كالغاري'),
     blurb: T('Jean has lived in Martindale for years. Deliver food from local restaurants, sort your carts, clear your sidewalk and catch the concert at the Saddledome.', 'Jean vit à Martindale depuis des années. Livrez des repas de restaurants du quartier, triez vos bacs, déneigez votre trottoir et allez au concert au Saddledome.', 'ਜੀਨ ਕਈ ਸਾਲਾਂ ਤੋਂ ਮਾਰਟਿੰਡੇਲ ਵਿੱਚ ਰਹਿੰਦਾ ਹੈ। ਸਥਾਨਕ ਰੈਸਟੋਰੈਂਟਾਂ ਤੋਂ ਖਾਣਾ ਪਹੁੰਚਾਓ, ਆਪਣੇ ਕੂੜੇਦਾਨ ਛਾਂਟੋ, ਫੁੱਟਪਾਥ ਸਾਫ਼ ਕਰੋ ਅਤੇ ਸੈਡਲਡੋਮ ਵਿੱਚ ਕੰਸਰਟ ਦੇਖੋ।', 'جین برسوں سے مارٹنڈیل میں رہتے ہیں۔ مقامی ریسٹورنٹس سے کھانا پہنچائیں، کوڑے کے ڈبے درست کریں، فٹ پاتھ صاف کریں اور سیڈل ڈوم میں کنسرٹ دیکھیں۔', 'Matagal nang nakatira si Jean sa Martindale. Maghatid ng pagkain mula sa mga lokal na restawran, ayusin ang mga basurahan, linisin ang bangketa at manood ng konsiyerto sa Saddledome.', 'يعيش جان في مارتنديل منذ سنوات. وصّل الطعام من المطاعم المحلية، ورتّب حاويات النفايات، ونظّف الرصيف من الثلج، واحضر الحفل في السادلدوم.') },
+  leo: { look: 'leo', name: 'Leo', role: T('Visitor', 'Touriste', 'ਸੈਲਾਨੀ', 'سیاح', 'Turista', 'سائح'),
+    blurb: T('Leo is visiting Calgary for the first time. Explore the sights, learn how to get around, and plan day trips.', 'Leo visite Calgary pour la première fois. Découvrez les attraits, apprenez à vous déplacer et planifiez des excursions.', 'ਲੀਓ ਪਹਿਲੀ ਵਾਰ ਕੈਲਗਰੀ ਘੁੰਮਣ ਆਇਆ ਹੈ। ਮਸ਼ਹੂਰ ਥਾਵਾਂ ਦੇਖੋ, ਆਉਣ-ਜਾਣ ਦਾ ਤਰੀਕਾ ਸਿੱਖੋ ਅਤੇ ਇੱਕ ਦਿਨ ਦੀਆਂ ਸੈਰਾਂ ਦੀ ਯੋਜਨਾ ਬਣਾਓ।', 'لیو پہلی بار کیلگری کی سیر کو آیا ہے۔ مشہور جگہیں دیکھیں، آنے جانے کا طریقہ سیکھیں اور ایک دن کی سیر کی منصوبہ بندی کریں۔', 'Unang beses na bumibisita si Leo sa Calgary. Tuklasin ang mga pasyalan, alamin kung paano lumibot, at magplano ng mga day trip.', 'يزور ليو كالغاري لأول مرة. استكشف المعالم وتعلّم كيف تتنقّل وخطّط لرحلات اليوم الواحد.') },
 };
 
 // ---------------------------------------------------------------- helpers
@@ -68,6 +95,20 @@ function speedWatch(g, onStrike) {         // speeding and crashes during a road
   return { stop() { clearInterval(id); g.player.onCrash = prevCrash; }, get strikes() { return strikes; }, get crashes() { return crashes; } };
 }
 const nearRoad = (g, x, y, a, b) => g.findRoadSpot(x, y, a, b) || { x: x + a, y };
+// an open patch of ground (no buildings within `clear` metres, away from roads) for a scene with several people
+function openSpot(g, x, y, dmin, dmax, clear = 7) {
+  const T = g.tiles, pcs = g.traffic ? g.traffic.pieces : [];
+  for (let k = 0; k < 220; k++) {
+    const r = dmin + (dmax - dmin) * ((k * 0.618034) % 1), a = k * 2.39996, px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+    let ok = true;
+    for (let j = 0; j < 9 && ok; j++) { const qx = px + (j ? Math.cos(j * 0.785) * clear : 0), qy = py + (j ? Math.sin(j * 0.785) * clear : 0); if (T.collide(qx, qy, 0.5).hit) ok = false; }
+    if (!ok) continue;
+    let near = false;
+    for (const p of pcs) { for (const q of p.pts) if (Math.abs(q[0] - px) < 10 && Math.abs(q[1] - py) < 10) { near = true; break; } if (near) break; }
+    if (!near) return { x: px, y: py };
+  }
+  return nearRoad(g, x, y, dmin, dmax);
+}
 
 // ---------------------------------------------------------------- Ali: new to Calgary
 const ALI = [
@@ -177,7 +218,7 @@ const NATALIA = [
   {
     id: 'nat-school', title: T('First day at school', 'Premier jour d\'école', 'ਸਕੂਲ ਦਾ ਪਹਿਲਾ ਦਿਨ', 'اسکول کا پہلا دن', 'Unang araw sa paaralan', 'اليوم الأول في المدرسة'), startAt: 'saddletowneStn',
     async run(M, g, P) {
-      M.npc({ skin: 0x8d5a3b, shirt: 0xe0a020, pants: 0x2a3a5a, hair: 0x15100d, long: true, fem: true, scale: 0.93 }, P.saddletowneStn.x + 3, P.saddletowneStn.y - 2, 0);
+      M.npc(MAYA_LOOK, P.saddletowneStn.x + 3, P.saddletowneStn.y - 2, 0);
       await say(MAYA, `Natalia! New semester at Nelson Mandela High! Walk with me, it's just south of the station.`);
       await M.goto(P.mandela, 'Walk to Nelson Mandela High School', 45);
       await card({ tag: 'Getting around as a student', title: 'Youth on transit', src: [SRC.fares],
@@ -187,21 +228,123 @@ const NATALIA = [
   {
     id: 'nat-stand', title: T('Stand up to the bullies', 'Tenir tête aux intimidateurs', 'ਧੱਕੇਸ਼ਾਹੀ ਦੇ ਖ਼ਿਲਾਫ਼ ਡਟੋ', 'دھونس کے خلاف ڈٹ جاؤ', 'Harapin ang mga bully', 'واجهي المتنمّرين'), startAt: 'mandela',
     async run(M, g, P) {
-      const s = nearRoad(g, P.mandela.x, P.mandela.y, 60, 140);
-      const kid = M.npc({ skin: 0xc49a76, shirt: 0x58a0d8, pants: 0x34404c, hair: 0x6b4a2a, scale: 0.78, bag: 0x9b2a2a }, s.x, s.y, 0);
-      const bullies = [[2, 1.5], [-2, 1.2], [0.5, -2.2]].map(([dx, dy], i) => M.npc({ skin: [0xb98260, 0xe0b090, 0x8d5a3b][i], shirt: [0x222222, 0x8a1c1c, 0x2e4a2e][i], pants: 0x23252b, hair: 0x15100d, scale: 0.95 }, s.x + dx, s.y + dy, Math.atan2(-dx, -dy)));
+      const s = openSpot(g, P.mandela.x, P.mandela.y, 50, 150);
+      const kid = M.actor(KID_LOOK, s.x, s.y, 0);
+      const bl = [[2.2, 1.6], [-2.1, 1.3], [0.6, 2.6]];
+      const bullies = bl.map(([dx, dy], i) => M.actor(BULLY_LOOKS[i], s.x + dx, s.y + dy, Math.atan2(-dx, -dy)));
+      bullies.forEach((b, i) => M.pose(b, i === 1 ? { wave: true } : { talk: true }));
       await say(MAYA, `Natalia, look over there! Those older kids are pushing a Grade 7 kid around and taking his stuff.`);
-      await M.goto({ x: s.x, y: s.y, name: 'the younger kid', real: false }, 'Go and help the younger kid', 6);
+      await M.goto({ x: s.x, y: s.y - 4, name: 'the younger kid', real: false }, 'Go and help the younger kid', 5);
       const a1 = await quiz({ q: 'The bullies laugh at you. What do you do first?', opts: ['Shove them as hard as you can', 'Stand next to the kid, stay calm and say firmly: "Stop. Leave him alone."', 'Walk away and pretend you didn\'t see', 'Film it to post online'], a: 1,
         explain: 'Standing <b>next to</b> the person being bullied and speaking up <b>calmly and firmly</b> takes the bully\'s audience away. Fighting can get you or the kid hurt.' });
-      const a2 = await quiz({ q: 'One bully steps closer to you. Now what?', opts: ['Take the kid and walk away together, toward teachers', 'Start a fight', 'Insult him back'], a: 0, explain: 'Get yourself and the kid <b>to safety</b> and to adults who can help.' });
-      for (const b of bullies) b.visible = false;
-      found(a1 && a2 ? '💪 You stood up the smart way! The bullies backed off.' : 'The bullies left, but think about the safest choice next time.');
-      if (a1 && a2) M.earn(5);
-      await say('Kid', `Th-thanks. They do this every day. I didn't know what to do.`);
+      const a2 = await quiz({ q: 'What do you say to the bullies?', opts: ['"You\'re all losers!"', '"This isn\'t funny. Leave him alone, or we\'re telling a teacher."', 'Nothing, just stare at them'], a: 1, explain: 'Short, calm and clear. Don\'t insult them: that turns it into a fight.' });
+      const a3 = await quiz({ q: 'One bully steps closer to you. Now what?', opts: ['Take the kid and walk away together, toward teachers', 'Start a fight', 'Insult him back'], a: 0, explain: 'Get yourself and the kid <b>to safety</b> and to adults who can help.' });
+      const good = a1 && a2 && a3;
+      // the scene plays out
+      M.cineStart();
+      const p = g.player, bx = s.x + 0.2, by = s.y + 1.2;
+      M.cam(s.x + 7, s.y - 5, 2.4, s.x, s.y + 0.8, 1.2);
+      bullies.forEach(b => M.pose(b, null));
+      if (!good) await M.line(null, MAYA, `Wait, Natalia! Fighting back or insulting them makes it worse. Watch: stay calm, stand next to him and speak up.`);
+      await M.walk(p, s.x + 0.4, s.y + 0.7, 1.6); M.face(p, s.x + 0.6, s.y + 2.4);
+      await M.line(p, NAT, `Hey. Stop. This isn't funny, and you know it.`);
+      await M.line(bullies[0], BULLY, `Relax. We're just joking around.`);
+      M.cam(s.x - 4, s.y + 6, 2.0, bx, by, 1.3);
+      await M.line(p, NAT, `A joke is when everyone is laughing. He isn't laughing.`);
+      await M.line(p, NAT, `Pushing someone and taking his stuff is bullying. And everyone watching knows it.`);
+      await M.line(bullies[1], BULLY, `So what are you going to do about it?`);
+      await M.line(p, NAT, `I'm walking him to the office, and we're telling a teacher. You can come and explain, or you can leave him alone. Your choice.`);
+      bullies.forEach((b, i) => M.walk(b, s.x + 30 + i * 3, s.y + 25 + i * 2, 1.5));
+      await M.line(bullies[2], BULLY, `Whatever. Let's go.`);
+      M.cam(s.x + 3.5, s.y - 3.5, 1.7, s.x, s.y + 0.3, 1.2);
+      M.face(p, s.x, s.y); M.face(kid, p.x, p.y);
+      await M.line(p, NAT, `You okay? You didn't do anything wrong. Come on, let's go together.`);
+      await M.line(kid, 'Kid', `Th-thanks. They do this every day. I didn't know what to do.`);
+      M.walk(kid, s.x - 6, s.y - 10, 1.2); await M.walk(p, s.x - 5, s.y - 9, 1.2);
+      M.cineEnd();
+      found(good ? '💪 You stood up the smart way! The bullies backed off.' : 'The bullies left, but think about the safest choice next time.');
+      if (good) M.earn(5);
       await card({ tag: 'Bullying', title: 'You don\'t have to handle it alone', src: [SRC.bully, SRC.khp],
         body: `<ul><li>Tell a <b>trusted adult</b>: a teacher, counsellor, coach or parent. Schools must act on bullying.</li><li><b>Alberta Bullying Helpline</b>: 1-888-456-2323, 24/7, in many languages.</li><li><b>Kids Help Phone</b>: call 1-800-668-6868 or text CONNECT to 686868, any time.</li><li>If someone is in danger, call <b>9-1-1</b>.</li></ul>` });
-      kid.visible = false;
+    },
+  },
+  {
+    id: 'nat-lunch', title: T('Nobody eats alone', 'Personne ne mange seul', 'ਕੋਈ ਇਕੱਲਾ ਨਹੀਂ ਖਾਂਦਾ', 'کوئی اکیلا نہیں کھاتا', 'Walang kumakaing mag-isa', 'لا أحد يأكل وحده'), startAt: 'mandela',
+    async run(M, g, P) {
+      const s = openSpot(g, P.mandela.x, P.mandela.y, 40, 160);
+      const maya = M.actor(MAYA_LOOK, s.x - 9, s.y - 6, 0.5);
+      const amira = M.actor({ skin: 0xc8956a, shirt: 0x2f6f8f, pants: 0x2a2e3c, hijab: 0x6a2a4a, fem: true, sleeve: 1, scale: 0.92 }, s.x, s.y, Math.PI);
+      const grp = [[7, 3], [8.2, 4.4], [6.4, 4.8]].map(([dx, dy], i) => M.actor(CLASS_LOOKS[i], s.x + dx, s.y + dy, Math.atan2(-dx, -dy) + 0.6));
+      grp.forEach(c => M.pose(c, { talk: true }));
+      await say(MAYA, `See the new girl by herself? That's Amira. She eats lunch alone every day, and that group keeps whispering about her.`);
+      await M.goto({ x: s.x - 3, y: s.y - 3, name: 'Amira', real: false }, 'Go over to Amira', 5);
+      const a1 = await quiz({ q: 'Amira is alone again, and some kids whisper about her clothes. What do you do?', opts: ['Invite her to eat with you and Maya', 'Ignore it, it\'s not your business', 'Laugh along so they like you'], a: 0, explain: 'Leaving someone out on purpose is bullying too. One invitation can change someone\'s whole year.' });
+      const a2 = await quiz({ q: 'A friend says: "If she sits with us, people will laugh at us too." You say…', opts: ['"Then let them. Being kind is never embarrassing."', '"You\'re right, forget it."'], a: 0, explain: 'Kindness is contagious. When one person goes first, others usually follow.' });
+      M.cineStart();
+      const p = g.player;
+      grp.forEach(c => M.pose(c, null));
+      M.cam(s.x - 6, s.y - 6, 2.0, s.x, s.y, 1.3);
+      M.walk(maya, s.x - 1.6, s.y - 1.2, 1.4); await M.walk(p, s.x - 0.8, s.y - 1.7, 1.4);
+      M.face(p, s.x, s.y); M.face(maya, s.x, s.y); M.face(amira, p.x, p.y);
+      await M.line(p, NAT, `Hi! I'm Natalia, and this is Maya. Do you want to eat lunch with us?`);
+      await M.line(amira, AMIRA, `Really? I just moved here from Syria. My English isn't very good yet.`);
+      await M.line(p, NAT, `Your English is great. And you speak two languages. That's one more than me!`);
+      M.pose(amira, { wave: true }); await M.wait(900); M.pose(amira, null);
+      M.cam(s.x + 2, s.y - 2, 2.2, s.x + 7, s.y + 4, 1.2);
+      await M.walk(p, s.x + 5.2, s.y + 2.2, 1.5); M.face(p, s.x + 7, s.y + 4); grp.forEach(c => M.face(c, p.x, p.y));
+      await M.line(p, NAT, `I heard what you were saying about her clothes.`);
+      await M.line(p, NAT, `Leaving someone out on purpose, or making fun of where they're from or what they wear, is bullying too.`);
+      await M.line(grp[0], CLASSMATE, `We didn't mean anything by it.`);
+      await M.line(p, NAT, `Everyone here was new once. Let's make her first week a good one. Come and sit with us.`);
+      await M.line(grp[1], CLASSMATE, `Okay... you're right. Sorry.`);
+      M.cam(s.x - 5, s.y + 5, 2.3, s.x + 1, s.y, 1.2);
+      grp.forEach((c, i) => M.walk(c, s.x + 1.8 + i * 0.9, s.y + 1.4 - i * 0.6, 1.3));
+      await M.walk(p, s.x - 0.4, s.y - 1.9, 1.5);
+      grp.forEach(c => M.face(c, s.x, s.y));
+      await M.line(grp[2], CLASSMATE, `Hi Amira. Want to sit with us?`);
+      M.pose(amira, { wave: true });
+      await M.line(amira, AMIRA, `Thank you. This is the best day since I came to Calgary.`);
+      M.cineEnd();
+      found(a1 && a2 ? '🤝 Nobody eats alone at this school now!' : 'Amira has friends now. Next time, be the first to say hello.');
+      if (a1 && a2) M.earn(4);
+      await card({ tag: 'Bullying', title: 'Leaving people out is bullying too', src: [SRC.bully, SRC.newcomers],
+        body: `<ul><li><b>Social bullying</b> means leaving someone out on purpose, spreading rumours or making fun of someone's culture, religion, language or clothes.</li><li>Be the first to say hello. Invite someone new to sit with you or join your group.</li><li>Many Calgary schools have <b>settlement workers</b> who help newcomer students and their families.</li><li>The <b>Alberta Bullying Helpline</b> (1-888-456-2323) helps in many languages, 24/7.</li></ul>` });
+    },
+  },
+  {
+    id: 'nat-chat', title: T('The group chat', 'Le clavardage de groupe', 'ਗਰੁੱਪ ਚੈਟ', 'گروپ چیٹ', 'Ang group chat', 'الدردشة الجماعية'), startAt: 'saddletowneStn',
+    async run(M, g, P) {
+      M.npc(MAYA_LOOK, P.saddletowneStn.x + 3, P.saddletowneStn.y - 2, 0);
+      await say(MAYA, `Natalia, did you see the class group chat? Someone posted an edited photo of Jordan, and everyone's laughing at it.`);
+      const a1 = await quiz({ q: 'What do you do with the photo?', opts: ['Don\'t share it. Take a screenshot as proof and report the post', 'Share it, it\'s funny', 'Reply with a laughing emoji'], a: 0, explain: 'Every share hurts Jordan again. Keep proof, and report the post in the app.' });
+      const a2 = await quiz({ q: 'What do you write in the group chat?', opts: ['"This isn\'t okay. Please delete it."', 'Nothing', '"lol"'], a: 0, explain: 'One clear message can stop a pile-on. You don\'t need to argue: say it once, then tell an adult.' });
+      const a3 = await quiz({ q: 'Who should you tell?', opts: ['A teacher or another trusted adult', 'Nobody. It\'s only online'], a: 0, explain: 'In Alberta, students must report bullying, even when it happens online.' });
+      await M.goto(P.mandela, 'Go to school and find Jordan', 45);
+      const s = openSpot(g, P.mandela.x, P.mandela.y, 40, 160);
+      const jordan = M.actor({ skin: 0xe0b090, shirt: 0x3a6a3a, pants: 0x2a2e38, hair: 0x6b4a2a, scale: 0.93 }, s.x + 9, s.y - 3, Math.PI * 0.8);
+      const grp = [[0, 3], [1.4, 4], [-1.3, 4.2], [0.2, 5.3]].map(([dx, dy], i) => M.actor(CLASS_LOOKS[i % 3], s.x + dx, s.y + dy, Math.atan2(-dx, -dy) + (i % 2 ? 0.8 : -0.8)));
+      grp.forEach(c => M.pose(c, { talk: true }));
+      const p = g.player;
+      M.cineStart(); grp.forEach(c => M.pose(c, null));
+      M.cam(s.x - 5, s.y - 4, 2.2, s.x, s.y + 3, 1.2);
+      await M.walk(p, s.x, s.y + 1.2, 1.5); M.face(p, s.x, s.y + 4); grp.forEach(c => M.face(c, p.x, p.y));
+      await M.line(p, NAT, `Hey. About that photo of Jordan in the group chat.`);
+      await M.line(grp[0], CLASSMATE, `It was just a joke. Everyone was posting.`);
+      await M.line(p, NAT, `Everyone posting is exactly why it hurts. One click, and the whole school saw it.`);
+      M.cam(s.x + 4, s.y - 2, 1.8, s.x, s.y + 1.5, 1.4);
+      await M.line(p, NAT, `Online bullying is still bullying. In Alberta, students have to report bullying, even when it happens online.`);
+      await M.line(p, NAT, `I told our teacher, and the post is being taken down. Can you delete what you shared?`);
+      await M.line(grp[1], CLASSMATE, `Yeah... you're right. I'm deleting it now.`);
+      M.cam(s.x + 4, s.y - 7, 2.0, s.x + 8, s.y - 3, 1.2);
+      await M.walk(p, s.x + 7.6, s.y - 1.8, 1.5); M.face(p, jordan.x, jordan.y); M.face(jordan, p.x, p.y);
+      await M.line(p, NAT, `Jordan, I'm sorry that happened. You didn't deserve it. We've got your back.`);
+      await M.line(jordan, JORDAN, `Thanks, Natalia. I thought nobody cared.`);
+      M.cineEnd();
+      const good = a1 && a2 && a3;
+      found(good ? '📵 You stopped the pile-on!' : 'The post came down, but remember: don\'t share, keep proof, report, tell.');
+      if (good) M.earn(4);
+      await card({ tag: 'Cyberbullying', title: 'Online is still real life', src: [SRC.edAct, SRC.khp],
+        body: `<ul><li>Alberta's Education Act says students must <b>refrain from, report and not tolerate bullying</b>, including bullying <b>by electronic means</b>, even outside school hours.</li><li><b>Don't reply, save the proof, block, report, tell</b> a trusted adult.</li><li>Sharing intimate images of someone without their consent is a <b>crime</b> in Canada. Tell an adult and contact police.</li><li><b>Kids Help Phone</b>: 1-800-668-6868 or text CONNECT to 686868.</li></ul>` });
     },
   },
   {
@@ -221,7 +364,52 @@ const NATALIA = [
         n.visible = false;
       }
       found('🏅 Anti-bullying champion!');
-      await card({ tag: 'The end of Natalia\'s story (for now)', title: 'A school where everyone belongs', body: `<p>You stood up to bullies safely, helped a younger student and taught three groups what to do. Keep exploring, and keep looking out for each other!</p><p style="margin-top:14px"><b>YYC City Stories — a game by Hassan Ali</b></p>` });
+    },
+  },
+  {
+    id: 'nat-assembly', title: T('Speak up at the assembly', 'Prendre la parole à l\'assemblée', 'ਸਭਾ ਵਿੱਚ ਆਵਾਜ਼ ਉਠਾਓ', 'اسمبلی میں آواز اٹھاؤ', 'Magsalita sa assembly', 'تحدّثي في التجمّع المدرسي'), startAt: 'mandela',
+    async run(M, g, P) {
+      await say(MAYA, `Natalia! The principal asked you to speak at the anti-bullying assembly. Everyone is outside waiting for you!`);
+      const s = openSpot(g, P.mandela.x, P.mandela.y, 40, 170, 10);
+      const principal = M.actor({ skin: 0x6b4430, shirt: 0x7a2a3a, pants: 0x2a2a30, hair: 0x15100d, long: true, fem: true }, s.x - 2.2, s.y + 0.4, Math.PI);
+      const crowd = [];
+      for (let r = 0; r < 3; r++) for (let c = 0; c < 5; c++) {
+        const x = s.x - 4 + c * 2 + (r % 2) * 0.6, y = s.y - 5 - r * 1.8, i = r * 5 + c;
+        const look = i === 2 ? { skin: 0xc8956a, shirt: 0x2f6f8f, pants: 0x2a2e3c, hijab: 0x6a2a4a, fem: true, sleeve: 1, scale: 0.92 } : i === 7 ? { skin: 0xe0b090, shirt: 0x3a6a3a, pants: 0x2a2e38, hair: 0x6b4a2a, scale: 0.93 } : i === 4 ? KID_LOOK : { ...CLASS_LOOKS[i % 3], shirt: [0x2a5a9a, 0xb04a2a, 0x2a8a6a, 0x8a2a8a, 0xc0a020][i % 5], scale: 0.86 + (i % 4) * 0.03 };
+        crowd.push(M.actor(look, x, y, 0));
+      }
+      await M.goto({ x: s.x, y: s.y + 0.8, name: 'the assembly', real: false }, 'Walk up to the front of the assembly', 4);
+      const a1 = await quiz({ q: 'How do you want to start your speech?', opts: ['With what we really saw at school this term', 'By naming and shaming the bullies', 'By telling everyone they are bad people'], a: 0, explain: 'Real stories make people listen. Shaming people makes them defensive, and it\'s bullying too.' });
+      const a2 = await quiz({ q: 'What is the most important thing for the crowd to remember?', opts: ['Bullies need an audience: stand with the person, speak up and tell an adult', 'Fight back hard so they never try again', 'Stay out of it'], a: 0, explain: 'Most bullying happens in front of others. When bystanders act, it usually stops.' });
+      const p = g.player;
+      M.cineStart();
+      M.walk(p, s.x, s.y, 1.2).then(() => M.face(p, s.x, s.y - 10)); M.face(principal, s.x, s.y - 10);
+      M.cam(s.x + 1.5, s.y - 11, 2.6, s.x, s.y - 2, 1.4);
+      await M.line(principal, PRINCIPAL, `Students, please welcome Natalia from Grade 10.`);
+      crowd.forEach(c => M.pose(c, { wave: true })); await M.wait(1500); crowd.forEach(c => M.pose(c, null));
+      M.face(principal, s.x, s.y);
+      M.cam(s.x - 2.5, s.y - 4.5, 1.7, s.x, s.y, 1.45);
+      await M.line(p, NAT, `Hi everyone. This term I saw a Grade 7 kid pushed around, a new student eating lunch alone, and a photo that went around our group chat.`);
+      await M.line(p, NAT, `Every time, lots of people saw it. And most of us did nothing. I used to be one of them.`);
+      M.cam(s.x + 5, s.y - 8, 3.2, s.x - 1, s.y - 2, 1.2);
+      await M.line(p, NAT, `Here's what I learned. Bullies need an audience. When we stop laughing and stand next to the person instead, it usually stops.`);
+      await M.line(p, NAT, `You don't have to fight. Stay calm, say "Stop," get the person to safety, and tell an adult.`);
+      M.cam(s.x - 1.5, s.y - 3.2, 1.6, s.x, s.y, 1.5);
+      await M.line(p, NAT, `If it happens online: don't reply, save the proof, block, report, and tell someone.`);
+      await M.line(p, NAT, `And if you're the one being bullied: it's not your fault. You can call Kids Help Phone any time, day or night.`);
+      M.cam(s.x, s.y + 5, 3.6, s.x, s.y - 6, 0.9);
+      await M.line(p, NAT, `Let's make this a school where nobody walks alone. Who's with me?`);
+      crowd.forEach(c => M.pose(c, { wave: true }));
+      await M.line(crowd[1], 'Students', `We're with you!`);
+      await M.line(crowd[2], AMIRA, `Me too!`);
+      await M.line(crowd[7], JORDAN, `Me too!`);
+      crowd.forEach(c => M.pose(c, null));
+      M.cam(s.x + 3, s.y - 3, 1.8, s.x - 1, s.y + 0.2, 1.4); M.face(principal, p.x, p.y); M.face(p, principal.x, principal.y);
+      await M.line(principal, PRINCIPAL, `Thank you, Natalia. That took real courage.`);
+      M.cineEnd();
+      if (a1 && a2) M.earn(6);
+      found('🎤 The whole school heard you!');
+      await card({ tag: 'The end of Natalia\'s story (for now)', title: 'A school where everyone belongs', body: `<p>You stood up to bullies safely, helped a new student feel welcome, stopped an online pile-on, taught younger kids what to do and spoke up in front of the whole school. Keep looking out for each other!</p><p style="margin-top:14px"><b>YYC City Stories — a game by Hassan Ali</b></p>` });
     },
   },
 ];
@@ -335,5 +523,83 @@ const JEAN = [
   },
 ];
 
-export const STORIES = { ali: ALI, natalia: NATALIA, chris: CHRIS, jean: JEAN };
+// ---------------------------------------------------------------- Leo: visitor
+const SOFIA_LOOK = { skin: 0xd9a77e, shirt: 0xd04030, pants: 0x2a3a5a, hair: 0x2a1a10, long: true, fem: true, scale: 0.95 };
+const LEO_STORY = [
+  {
+    id: 'leo-tower', title: T('The best view in town', 'La plus belle vue de la ville', 'ਸ਼ਹਿਰ ਦਾ ਸਭ ਤੋਂ ਸੋਹਣਾ ਨਜ਼ਾਰਾ', 'شہر کا سب سے خوبصورت نظارہ', 'Ang pinakamagandang tanawin', 'أجمل إطلالة في المدينة'), startAt: 'hotel',
+    async run(M, g, P) {
+      M.npc(SOFIA_LOOK, P.hotel.x + 2.5, P.hotel.y + 1.5, -1.6);
+      await say(SOFIA, `Welcome to Calgary, Leo! I'm Sofia, your guide for the next few days. Let's start with the best view in town: the Calgary Tower, just down 9 Avenue.`);
+      await M.goto(P.tower, 'Walk to the Calgary Tower', 35);
+      await card({ tag: 'Visiting Calgary', title: 'The Calgary Tower', src: [SRC.tower],
+        body: `<ul><li>Opened in <b>1968</b>, the tower is <b>191 metres</b> tall. An elevator takes you up to the observation deck in about a minute.</li><li>Part of the deck has a <b>glass floor</b>: you look straight down on 9 Avenue and Centre Street.</li><li>On a clear day you can see the <b>Rocky Mountains</b> to the west.</li><li>The flame on top was lit for the <b>1988 Winter Olympics</b>, and it is still lit for special days.</li></ul>` });
+      const ok = await quiz({ q: 'How tall is the Calgary Tower?', opts: ['191 metres', '91 metres', '500 metres'], a: 0, explain: 'The tower is 191 metres tall, and it opened in 1968.' });
+      if (ok) M.earn(2);
+      await say(SOFIA, `Tip: come back at sunset. You get the city lights and the mountains at the same time.`);
+    },
+  },
+  {
+    id: 'leo-downtown', title: T('Getting around downtown', 'Se déplacer au centre-ville', 'ਡਾਊਨਟਾਊਨ ਵਿੱਚ ਘੁੰਮਣਾ', 'ڈاؤن ٹاؤن میں گھومنا', 'Paglibot sa downtown', 'التنقّل في وسط المدينة'), startAt: 'tower',
+    async run(M, g, P) {
+      await say(SOFIA, `Now let's walk Stephen Avenue, one block north. It's a pedestrian street full of restaurants, shops and old sandstone buildings.`);
+      await M.goto(P.stephenAve, 'Walk to Stephen Avenue (8 Avenue SW)', 35);
+      await card({ tag: 'Visiting Calgary', title: 'The Plus 15: walk downtown indoors', src: [SRC.plus15],
+        body: `<ul><li>The <b>Plus 15</b> is a network of enclosed walkways about 15 feet above the street, linking downtown buildings.</li><li>It has <b>86 bridges</b> and over <b>16 kilometres</b> of heated walkways: perfect on a cold day.</li><li>It is open weekdays from 6 a.m. to 9 p.m. and weekends and holidays from 9 a.m. to 7 p.m.</li></ul>` });
+      await say(SOFIA, `Next, let's catch the CTrain on 7 Avenue. Meet me at City Hall station.`);
+      await M.goto(P.cityHallStn, 'Walk east to City Hall station', 40);
+      await card({ tag: 'Calgary Transit', title: 'Transit for visitors', src: [SRC.fares26, SRC.ffz],
+        body: `<ul><li>A single adult fare is <b>$4.00</b> and is good for <b>90 minutes</b> on buses and the CTrain.</li><li>Riding a lot today? An adult <b>Day Pass</b> is <b>$12.65</b> for unlimited rides until the end of service.</li><li>Buy tickets in the <b>My Fare</b> app or at the machines in any CTrain station.</li><li>The CTrain has been free along 7 Avenue between Downtown West/Kerby and City Hall stations (the <b>Free Fare Zone</b>). The City is reviewing it in 2026, so check the signs on the platform.</li></ul>` });
+      const ok = await quiz({ q: 'You plan to take five rides today. What should you buy?', opts: ['A Day Pass', 'Five single tickets', 'A monthly pass'], a: 0, explain: 'Five single rides cost $20.00. A Day Pass is $12.65 for unlimited rides that day.' });
+      if (ok) M.earn(2);
+    },
+  },
+  {
+    id: 'leo-river', title: T('Walk the river', 'Marcher le long de la rivière', 'ਦਰਿਆ ਕਿਨਾਰੇ ਸੈਰ', 'دریا کنارے سیر', 'Maglakad sa tabi ng ilog', 'نزهة على ضفة النهر'), startAt: 'princesIsland',
+    async run(M, g, P) {
+      await say(SOFIA, `Calgary is a city of rivers and pathways. Walk west along the Bow River to the Peace Bridge, the red bridge you can see from here.`);
+      await M.goto(P.peaceBridge, 'Walk along the Bow River to the Peace Bridge', 40);
+      await card({ tag: 'Visiting Calgary', title: 'The pathway city', src: [SRC.paths],
+        body: `<ul><li>Calgary has about <b>1,000 kilometres</b> of paved pathways, the most extensive urban pathway and bikeway network in North America.</li><li>The pathways follow the <b>Bow and Elbow rivers</b> and link parks across the city.</li><li>The <b>Peace Bridge</b> is a red, tube-shaped bridge for people walking and cycling over the Bow River.</li><li>On the pathway, pass on the left, ring your bell or call out "passing on your left," and leave at least a metre of space.</li></ul>` });
+      await card({ tag: 'Getting around', title: 'Shared e-scooters and e-bikes', src: [SRC.scoot],
+        body: `<ul><li>Shared e-scooters and e-bikes are for riders <b>18 and older</b>, and their top speed is <b>20 km/h</b>.</li><li>Ride on bike lanes, pathways, empty sidewalks and quiet streets. People walking always have the right of way.</li><li>One rider per scooter: carrying a passenger can get you a <b>$75</b> fine.</li><li>Park it in a way that doesn't block the sidewalk.</li></ul>` });
+      const ok = await quiz({ q: 'Where can you ride a shared e-scooter in Calgary?', opts: ['On bike lanes, pathways, empty sidewalks and quiet streets', 'On any road, at any speed', 'Only indoors in the Plus 15'], a: 0, explain: 'Shared e-scooters go up to 20 km/h on bike lanes, pathways, empty sidewalks and quieter streets. Riders must be 18 or older.' });
+      if (ok) M.earn(2);
+    },
+  },
+  {
+    id: 'leo-east', title: T('East Village and Stampede Park', 'East Village et le parc du Stampede', 'ਈਸਟ ਵਿਲੇਜ ਅਤੇ ਸਟੈਂਪੀਡ ਪਾਰਕ', 'ایسٹ ولیج اور اسٹیمپیڈ پارک', 'East Village at Stampede Park', 'إيست فيلدج وحديقة ستامبيد'), startAt: 'cityHallStn',
+    async run(M, g, P) {
+      await say(SOFIA, `East Village is just past City Hall. First stop: the Central Library. Even if you're only visiting, it's worth seeing.`);
+      await M.goto(P.centralLib, 'Walk to the Central Library', 35);
+      await card({ tag: 'Visiting Calgary', title: 'East Village', src: [SRC.lib, SRC.visit],
+        body: `<ul><li>The <b>Central Library</b> opened in <b>2018</b>. Its wooden arch entrance and bright reading rooms are free to visit.</li><li><b>Studio Bell</b>, next door, is home to the National Music Centre.</li><li>The <b>RiverWalk</b> pathway follows the Bow River past East Village.</li></ul>` });
+      await M.goto(P.studioBell, 'Walk to Studio Bell', 35);
+      await say(SOFIA, `Now east to where Calgary began: Fort Calgary, where the Bow and Elbow rivers meet.`);
+      await M.goto(P.fortCalgary, 'Walk to Fort Calgary', 45);
+      await card({ tag: 'History', title: 'Where Calgary began', src: [SRC.visit],
+        body: `<ul><li>The North-West Mounted Police built a fort here in <b>1875</b>, where the <b>Bow and Elbow rivers</b> meet.</li><li>Long before that, this meeting of the rivers was a gathering place for the <b>Blackfoot</b> and other First Nations. The Blackfoot name for this place is <b>Mohkinstsis</b>.</li></ul>` });
+      await say(SOFIA, `Last stop today: Stampede Park, home of the Calgary Stampede.`);
+      await M.goto(P.stampedePark, 'Walk south to Stampede Park', 50);
+      await card({ tag: 'Visiting Calgary', title: 'The Calgary Stampede', src: [SRC.stampede],
+        body: `<ul><li>Every July, the <b>Calgary Stampede</b> runs for <b>ten days</b>: rodeo, chuckwagon races, a midway, concerts and pancake breakfasts all over the city.</li><li>The <b>Scotiabank Saddledome</b>, next door, hosts hockey games and concerts all year.</li><li>Take the CTrain to <b>Victoria Park/Stampede</b> station and skip the parking.</li></ul>` });
+    },
+  },
+  {
+    id: 'leo-plan', title: T('Plan your trip', 'Planifiez votre voyage', 'ਆਪਣੀ ਯਾਤਰਾ ਦੀ ਯੋਜਨਾ ਬਣਾਓ', 'اپنے سفر کی منصوبہ بندی کریں', 'Planuhin ang iyong biyahe', 'خطّط لرحلتك'), startAt: 'stampedePark',
+    async run(M, g, P) {
+      await say(SOFIA, `You've seen downtown. Before you go further, let's make sure you can explore safely on your own.`);
+      const q1 = await quiz({ q: 'You find a broken streetlight or want to know a City service. Who do you contact?', opts: ['311, the City\'s help line and app', '9-1-1', 'Nobody, you\'re only visiting'], a: 0, explain: '<b>311</b> is for City information and non-emergency problems. <b>9-1-1</b> is only for emergencies.' });
+      const q2 = await quiz({ q: 'The sky is sunny, but you\'re heading out for the whole day. What do you pack?', opts: ['Layers and a jacket: Calgary weather can change fast', 'Just a T-shirt', 'Nothing, it never rains here'], a: 0, explain: 'Calgary is famous for fast weather changes, including warm "chinook" winds in winter. Dress in layers.' });
+      const q3 = await quiz({ q: 'You want to visit Banff National Park, about an hour and a half west. What do you need?', opts: ['A Parks Canada pass', 'Nothing at all', 'A Calgary Transit Day Pass'], a: 0, explain: 'National parks need a <b>Parks Canada pass</b>. Check road conditions in winter before you drive.' });
+      M.earn([q1, q2, q3].filter(Boolean).length * 2);
+      await card({ tag: 'Visiting Calgary', title: 'More to explore', src: [SRC.visit, SRC.parksCanada],
+        body: `<ul><li>In the city: the <b>Calgary Zoo</b>, <b>Heritage Park</b>, <b>TELUS Spark</b> science centre and the views from <b>Nose Hill Park</b>.</li><li>Day trips: <b>Banff National Park</b> and <b>Kananaskis</b> are in the Rocky Mountains, west of the city.</li><li>Use your phone's <b>Nearby</b> and <b>Go to address</b> apps, or tap the big map, and follow the purple line.</li></ul>` });
+      await say(SOFIA, `That's my tour, Leo. The rest of the city is yours. Enjoy Calgary!`);
+      await card({ tag: 'The end of Leo\'s story', title: 'Enjoy Calgary!', body: `<p>You saw the city from the Calgary Tower, walked Stephen Avenue and the Plus 15, learned the CTrain and the pathways, found where Calgary began and planned your next trip. Keep exploring: every street and building is the real Calgary.</p><p style="margin-top:14px"><b>YYC City Stories — a game by Hassan Ali</b></p>` });
+    },
+  },
+];
+
+export const STORIES = { ali: ALI, natalia: NATALIA, chris: CHRIS, jean: JEAN, leo: LEO_STORY };
 export const titleOf = m => (typeof m.title === 'string' ? m.title : (m.title[LANG.code] || m.title.en));

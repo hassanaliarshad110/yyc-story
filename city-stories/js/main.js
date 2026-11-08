@@ -39,6 +39,7 @@ import { CHARACTERS } from './stories.js';
 import { tr } from './i18n.js';
 import { Billboards, loadBillboards } from './billboards.js';
 import { Navigator, loadRoute } from './route.js';
+import { setHalloweenNight } from './halloween.js';
 
 const mobile = matchMedia('(pointer: coarse)').matches || innerWidth < 760;
 const saved = (() => { try { return JSON.parse(localStorage.getItem('yyc-settings')) || {}; } catch (e) { return {}; } })();
@@ -310,7 +311,7 @@ onAction('heli', () => {                   // call the helicopter to where you a
 });
 onAction('horn', () => { if (game.started && player.mode === 'car') sfx.horn(player.onBike); });
 onAction('interact', () => {
-  if (nextPressed()) return; if (!game.started) return; if (missions.interact()) return;
+  if (nextPressed()) return; if (game.cine && missions.skipLine()) return; if (game.cine) return; if (!game.started) return; if (missions.interact()) return;
   if (game.metro.boardWait) { game.metro.boardWait(); return; }
   if (player.mode === 'foot' && game.people && game.people.near) { checkIn(); return; }
   if (player.mode === 'foot' && !player.seat && !game.metro.trip && !missions.boardWait && game.metro.stationAt(player.x, player.y)) { game.metro.open(player.x, player.y); return; }
@@ -322,9 +323,18 @@ onAction('back', () => { if (realOpen()) closeReal(); else if (mapOpen()) closeM
 onAction('missions', () => { if (!game.started || missions.active) return; const i = missions.nextIndex(); if (i >= 0) missions.start(i); });
 
 // ---------------------------------------------------------------- camera
-let camH = 0, camDist = 7, camPos = new THREE.Vector3(), camBack = null;
+let camH = 0, camDist = 7, camPos = new THREE.Vector3(), camBack = null; const tmpV = new THREE.Vector3();
 function camSnap() { camH = player.h; camPos.set(NaN, 0, 0); game._gyKnown = false; }
+game.camSnap = () => camSnap();
 function updateCamera(dt) {
+  if (game.cineCam) {
+    const c = game.cineCam, k = camPos.x === camPos.x ? Math.min(1, dt * 2.2) : 1;
+    if (!game._cineT) game._cineT = new THREE.Vector3(...c.t);
+    camPos.lerp(tmpV.set(...c.p), k); if (camPos.x !== camPos.x) camPos.set(...c.p);
+    game._cineT.lerp(tmpV.set(...c.t), k);
+    camera.position.copy(camPos); camera.lookAt(game._cineT); return camH;
+  }
+  game._cineT = null;
   if (game.debugCam) { const d = game.debugCam, gy = player.gy; camera.position.set(d[0], d[2] + gy, -d[1]); camera.lookAt(d[3], d[5] + gy, -d[4]); return camH; }
   let fx = player.x, fy = player.y, fh = player.h, dist = 5.5, hgt = 2.0, look = 1.5;
   if (player.mode === 'car') { dist = player.onBike ? 6.5 : 8.5; hgt = 2.4; look = 1.3; }
@@ -370,7 +380,7 @@ function updateSky(px, py) {
   sun.position.set(px + Math.sin(az) * 300, 120 + e * 380, -py + Math.cos(az) * 300);
   sun.target.position.set(px, player ? player.gy : 0, -py); sun.position.y += player ? player.gy : 0;
   sun.color.setHSL(0.1, 0.6, 0.6 + day * 0.35);
-  setNight(1 - day); game.day = day;
+  setNight(1 - day); setHalloweenNight(1 - day); game.day = day;
   game._sunDir = (game._sunDir || new THREE.Vector3()).copy(sun.position).sub(sun.target.position).normalize();
   game._skyArgs = [day, dusk];
   if (game.mountains) { game.mountains.material.opacity = 0.3 + day * 0.5; game.mountains.position.set(px, 0, -py); }
@@ -380,9 +390,10 @@ function updateSky(px, py) {
 let last = performance.now(), hudT = 0, locT = 0, prevComm = null;
 function loop(now) {
   requestAnimationFrame(loop);
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const dt = Math.min(game.dtMax || 0.05, (now - last) / 1000); last = now;
   input.onFoot = !!player && player.mode === 'foot';
   const inp = readInput();
+  if (game.cine) { inp.x = 0; inp.y = 0; inp.sprint = false; inp.jump = false; }
   const blocked = game.paused || mapOpen() || phoneOpen() || realOpen();
   if (game.started && !blocked) {
     game.clock = (game.clock + dt / 60) % 24;

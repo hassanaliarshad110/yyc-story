@@ -2,6 +2,7 @@
 // Each address gets a small dark plate with white digits on the wall that faces its street.
 import * as THREE from 'three';
 import { ground } from './terrain.js';
+import { buildHalloween, HALLOWEEN } from './halloween.js';
 
 const CH = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-', COLS = 8, ROWS = 5, CW = 64, CHH = 96;
 let MAT = null;
@@ -55,7 +56,7 @@ export class HouseNumbers {
   update(dt, px, py) {
     this.t -= dt; if (this.t > 0 || this.busy) return; this.t = 0.6;
     const TS = this.tiles.TS, ix = Math.floor(px / TS), iy = Math.floor(py / TS);
-    for (const [k, m] of this.built) { const [x, y] = k.split('_').map(Number); if (Math.abs(x - ix) > this.R + 1 || Math.abs(y - iy) > this.R + 1 || !this.tiles.tiles.get(k) || this.tiles.tiles.get(k).group !== m.userData.group) { this.scene.remove(m); if (m.geometry) m.geometry.dispose(); this.built.delete(k); } }
+    for (const [k, m] of this.built) { const [x, y] = k.split('_').map(Number); if (Math.abs(x - ix) > this.R + 1 || Math.abs(y - iy) > this.R + 1 || !this.tiles.tiles.get(k) || this.tiles.tiles.get(k).group !== m.userData.group) { this.scene.remove(m); if (m.geometry) m.geometry.dispose(); if (m.userData.hw) HALLOWEEN.groups.delete(m.userData.hw); this.built.delete(k); } }
     for (let dx = -this.R; dx <= this.R; dx++) for (let dy = -this.R; dy <= this.R; dy++) {
       const k = (ix + dx) + '_' + (iy + dy); if (this.built.has(k)) continue;
       const t = this.tiles.tiles.get(k); if (!t || !t.group || t.lite) continue;
@@ -79,6 +80,7 @@ export class HouseNumbers {
       idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
     };
     const n = dv.getUint32(4, true); let o = 8;
+    const spots = [], lit = new Set();
     for (let i = 0; i < n; i++) {
       const x = dv.getInt16(o, true) / 10, y = dv.getInt16(o + 2, true) / 10, rx = dv.getInt16(o + 4, true) / 10, ry = dv.getInt16(o + 6, true) / 10, len = dv.getUint8(o + 8); o += 9;
       let lab = ''; for (let j = 0; j < len; j++) lab += String.fromCharCode(dv.getUint8(o + j)); o += len;
@@ -104,6 +106,7 @@ export class HouseNumbers {
       const { w, nx, ny, ex, ey, el } = best;
       const u = Math.max(Math.min(0.5, 1.2 / el), Math.min(1 - Math.min(0.5, 1.2 / el), best.u));
       const px = w[0] + (w[2] - w[0]) * u + nx * 0.06, py = w[1] + (w[3] - w[1]) * u + ny * 0.06;
+      if (w[6]) { spots.push({ x: px, y: py, nx, ny, ex, ey, len: el, u0: u, z0: w[4], z1: lit.has(w) ? 0 : w[5] }); lit.add(w); }
       const z = Math.min(w[4] + (w[6] ? 2.3 : 3.0), w[5] - 0.35); if (z < w[4] + 1) continue;
       // text runs left to right as seen from the street (the wall's own direction, roof on its left)
       const ux = ex, uy = ey, ch = 0.26, cw = ch * 0.6, pw = cw * lab.length + 0.12;
@@ -117,6 +120,8 @@ export class HouseNumbers {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx);
-    const m = new THREE.Mesh(g, atlas()); m.position.set(t.ox, 0, -t.oy); m.name = 'numbers'; return m;
+    const m = new THREE.Mesh(g, atlas()); m.position.set(t.ox, 0, -t.oy); m.name = 'numbers';
+    if (spots.length) { const hw = buildHalloween(spots, gl); m.add(hw); m.userData.hw = hw; }
+    return m;
   }
 }

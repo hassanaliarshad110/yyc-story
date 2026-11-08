@@ -9,7 +9,10 @@ import { ground } from './terrain.js';
 import { wardAt, communityAt } from './world.js';
 import { dirOf } from './player.js';
 import { STORIES, PLACES, titleOf } from './stories.js';
-import { tx, tr } from './i18n.js';
+import { tx, tr, rtl } from './i18n.js';
+import { speak, stopVoice } from './voice.js';
+const $cine = () => document.getElementById('cine');
+const angDiff = (a, b) => { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
 
 // real places (metres from City Hall; from City of Calgary and OpenStreetMap data)
 export const P = {
@@ -44,7 +47,7 @@ export class Missions {
   constructor(game) {
     this.g = game; this.marker = makeMarker(); this.marker.visible = false; game.scene.add(this.marker);
     Object.assign(P, PLACES);
-    this.active = null; this.goal = null; this.npcs = [];
+    this.active = null; this.goal = null; this.npcs = []; this.actors = [];
     this.setStory(game.story || 'ali');
   }
   // each character has its own missions and its own saved progress
@@ -69,7 +72,7 @@ export class Missions {
     toast(`${tr('mission')} ${i + 1}: ${titleOf(m)}`, 3200);
     try { await m.run(this, this.g, P); this.complete(m); }
     catch (e) { if (e !== 'cancel') console.error(e); }
-    finally { this.active = null; this.clearGoal(); this.clearNpcs(); }
+    finally { this.active = null; this.clearGoal(); this.clearNpcs(); if (this.g.cine) this.cineEnd(); }
   }
   complete(m) {
     if (!this.state.done.includes(m.id)) this.state.done.push(m.id);
@@ -91,7 +94,56 @@ export class Missions {
   npc(look, x, y, h = 0) {
     const p = new Character(look).g; p.position.set(x, ground(x, y), -y); p.rotation.y = Math.PI - h; this.g.scene.add(p); this.npcs.push(p); return p;
   }
-  clearNpcs() { for (const n of this.npcs) this.g.scene.remove(n); this.npcs = []; }
+  clearNpcs() { for (const n of this.npcs) this.g.scene.remove(n); this.npcs = []; for (const a of this.actors) this.g.scene.remove(a.g); this.actors = []; }
+  // ---------------------------------------------------------------- cutscenes
+  // actors are people that walk and talk on their own; the player can be scripted too (pass game.player)
+  actor(look, x, y, h = 0) {
+    const ch = new Character(look), a = { ch, g: ch.g, x, y, h, to: null, sp: 1.4, act: null, res: null };
+    ch.g.position.set(x, ground(x, y), -y); ch.g.rotation.y = Math.PI - h; this.g.scene.add(ch.g); this.actors.push(a); return a;
+  }
+  walk(a, x, y, sp = 1.4) {
+    const p = this.g.player;
+    if (a === p) return new Promise(res => { p.auto = { x, y, sp, res }; });
+    return new Promise(res => { if (a.res) a.res(); a.to = { x, y }; a.sp = sp; a.res = res; });
+  }
+  face(a, x, y) { const h = Math.atan2(x - a.x, y - a.y); if (a === this.g.player) a.faceH = h; else a.faceH = h; }
+  pose(a, st) { a.act = st || null; }
+  wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+  cineStart() { const g = this.g; g.cine = true; document.body.classList.add('cine'); setPrompt(null); $cine().hidden = false; $cine().querySelector('.cine-sub').hidden = true; }
+  cineEnd() {
+    const g = this.g, p = g.player; g.cine = false; g.cineCam = null; document.body.classList.remove('cine'); $cine().hidden = true;
+    if (p.auto && p.auto.res) p.auto.res(); p.auto = null; p.act = null; p.faceH = null; stopVoice(); if (g.camSnap) g.camSnap();
+  }
+  // camera at (ax, ay) h1 metres up, looking at (bx, by) h2 metres up
+  cam(ax, ay, h1, bx, by, h2) {           // pulled in a little from where the story places it, for closer framing
+    const k = 0.62; ax = bx + (ax - bx) * k; ay = by + (ay - by) * k; h1 = h2 + (h1 - h2) * 0.8;
+    this.g.cineCam = { p: [ax, ground(ax, ay) + h1, -ay], t: [bx, ground(bx, by) + h2, -by] };
+  }
+  // one spoken line in a cutscene: subtitles at the bottom, the speaker gestures, the game keeps running
+  line(a, who, text, ms) {
+    const box = $cine().querySelector('.cine-sub'); box.hidden = false; box.dir = rtl() ? 'rtl' : 'ltr';
+    box.querySelector('.who').textContent = tx(who); box.querySelector('.text').innerHTML = tx(text);
+    if (a) { a.act = { talk: true }; }
+    const dur = speak(text), shown = tx(text).replace(/<[^>]+>/g, '');
+    const wait = ms || Math.max(2600, dur ? dur * 1000 + 450 : 900 + shown.length * 55);
+    return new Promise(res => {
+      let done = false; const end = () => { if (done) return; done = true; clearTimeout(t); if (a && a.act && a.act.talk) a.act = null; box.onclick = null; this._skip = null; stopVoice(); res(); };
+      const t = setTimeout(end, wait); box.onclick = end; this._skip = end;
+    });
+  }
+  skipLine() { if (this._skip) { this._skip(); return true; } return false; }
+  updateActors(dt) {
+    for (const a of this.actors) {
+      let sp = 0;
+      if (a.to) {
+        const dx = a.to.x - a.x, dy = a.to.y - a.y, d = Math.hypot(dx, dy);
+        if (d < 0.2) { a.to = null; const r = a.res; a.res = null; if (r) r(); }
+        else { const st = Math.min(d, a.sp * dt); a.x += dx / d * st; a.y += dy / d * st; sp = a.sp; a.h += angDiff(a.h, Math.atan2(dx, dy)) * Math.min(1, dt * 8); }
+      } else if (a.faceH != null) a.h += angDiff(a.h, a.faceH) * Math.min(1, dt * 6);
+      a.ch.animate(dt, { speed: sp, ...(a.act || {}) });
+      a.g.position.set(a.x, ground(a.x, a.y), -a.y); a.g.rotation.y = Math.PI - a.h;
+    }
+  }
   ride(route, from, to, label) {
     const g = this.g, T = g.transit;
     const best = T.findPath(route, [from.x, from.y], [to.x, to.y]);
@@ -134,6 +186,7 @@ export class Missions {
   // ---------------------------------------------------------------- per-frame
   update(dt) {
     const p = this.g.player;
+    this.updateActors(dt);
     if (this.goal) {
       const d = Math.hypot(p.x - this.goal.x, p.y - this.goal.y);
       setObjDist(d);

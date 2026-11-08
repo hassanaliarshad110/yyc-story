@@ -1,0 +1,9 @@
+YYC City Stories, a game by Hassan Ali.
+
+Map, buildings, addresses, trees and transit: City of Calgary Open Data (Open Government Licence – City of Calgary),
+OpenStreetMap contributors (ODbL), Copernicus Sentinel-2 imagery.
+
+Voices for the story dialogue were generated with free, open text-to-speech models:
+- English and French: Kokoro (Apache License 2.0).
+- Urdu, Punjabi, Tagalog and Arabic: Meta MMS-TTS (CC BY-NC 4.0, non-commercial use).
+This game is free and non-commercial, made for public awareness of City of Calgary services.

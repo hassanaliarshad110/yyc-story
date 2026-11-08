@@ -163,8 +163,8 @@ body.photo #buttons { bottom: calc(30px + env(safe-area-inset-bottom)); }
 .langs button { padding: 16px 10px; border-radius: 12px; border: 2px solid var(--line); background: rgba(255, 255, 255, .06); color: #fff; font-size: 20px; font-weight: 800; }
 .langs button:hover, .langs button:focus { border-color: var(--gold); }
 .title-in.wide { width: min(760px, 94vw); }
-.chars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-@media (max-width: 640px) { .chars { grid-template-columns: repeat(2, 1fr); } }
+.chars { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+@media (max-width: 640px) { .chars { grid-template-columns: repeat(3, 1fr); } }
 .char-btn { background: rgba(255, 255, 255, .06); border: 2px solid var(--line); border-radius: 14px; padding: 12px 8px; color: #fff; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .char-btn.on { border-color: var(--gold); background: rgba(255, 196, 0, .14); }
 .char-btn b { font-size: 18px; }
@@ -185,3 +185,13 @@ body.photo #buttons { bottom: calc(30px + env(safe-area-inset-bottom)); }
 .ci-logo { width: clamp(110px, 26vw, 170px); height: auto; border-radius: 28px; box-shadow: 0 10px 40px rgba(14, 165, 233, .25); animation: fadeUp .8s ease both; }
 .ci-name { font-size: clamp(22px, 5vw, 30px); font-weight: 800; letter-spacing: .04em; color: #e9eef5; animation: fadeUp .8s .15s ease both; }
 #intro-presents .presents { margin-top: 4px; }
+
+/* cutscenes: letterbox bars, subtitles, no controls */
+#cine { position: fixed; inset: 0; z-index: 18; pointer-events: none; }
+#cine .cine-bar { position: absolute; left: 0; right: 0; height: 11vh; background: #000; transition: transform .6s ease; }
+#cine .cine-bar.top { top: 0; } #cine .cine-bar.bot { bottom: 0; }
+#cine .cine-sub { position: absolute; left: 50%; bottom: calc(2vh + env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(820px, 94vw); text-align: center; pointer-events: auto; cursor: pointer; text-shadow: 0 2px 4px #000; }
+#cine .cine-sub .who { color: var(--gold); font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; }
+#cine .cine-sub .text { color: #fff; font-size: clamp(16px, 2.3vw, 21px); line-height: 1.4; margin-top: 2px; }
+#cine .cine-sub small { color: #9aa; font-size: 11px; }
+body.cine #buttons, body.cine #stick, body.cine #objective, body.cine #topright, body.cine #btn-menu, body.cine #prompt, body.cine #loc { visibility: hidden; }

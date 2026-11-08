@@ -1,6 +1,7 @@
 // On-screen interface: minimap, full map, dialogue, info cards, quizzes, toasts, objective.
 import { L, AREA_COL } from './tiles.js';
 import { tx, tr, rtl } from './i18n.js';
+import { speak, stopVoice } from './voice.js';
 import { communityAt } from './world.js';
 
 const $ = s => document.querySelector(s);
@@ -203,7 +204,8 @@ export function nextPressed() { if (pendingNext) { const f = pendingNext; pendin
 export function say(who, text) {
   return new Promise(res => {
     const d = $('#dialog'); d.hidden = false; d.dir = rtl() ? 'rtl' : 'ltr'; d.querySelector('.who').textContent = tx(who); d.querySelector('.text').innerHTML = tx(text); d.querySelector('.next').textContent = tr('next');
-    const done = () => { d.hidden = true; pendingNext = null; res(); };
+    speak(text);
+    const done = () => { d.hidden = true; pendingNext = null; stopVoice(); res(); };
     d.querySelector('.next').onclick = done; pendingNext = done; game.paused = true;
   }).then(() => { game.paused = false; });
 }

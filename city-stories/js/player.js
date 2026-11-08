@@ -18,6 +18,7 @@ export const LOOKS = {
   natalia: { name: 'Natalia', skin: 0xd9a77e, shirt: 0x7a3fa0, pants: 0x2b3a55, hair: 0x4a2e1a, long: true, fem: true, bag: 0xd0453a, scale: 0.92 },
   chris: { name: 'Chris', skin: 0xe0b896, shirt: 0x6b5a46, pants: 0x4a4e57, hair: 0xd2d0cc, shoe: 0x3a2a20, scale: 0.97 },
   jean: { name: 'Jean', skin: 0x8d5a3b, shirt: 0x2f8f5a, pants: 0x30343c, hair: 0x15100d },
+  leo: { name: 'Leo', skin: 0xe8c4a0, shirt: 0xe07020, pants: 0x3a4a3a, hair: 0xa0703a, bag: 0x2a4a6a },
 };
 
 export class Player {
@@ -86,6 +87,13 @@ export class Player {
   collide(x, y, r) { return this.gy - ground(this.x, this.y) > 3.5 ? { x, y, hit: false } : this.tiles.collide(x, y, r); }
   // on foot, the Karachi way: W/S/A/D (or the stick) move relative to the camera and you turn to face where you go
   walk(dt, inp, camH) {
+    if (this.auto) {                 // scripted walk in a cutscene
+      const a = this.auto, dx = a.x - this.x, dy = a.y - this.y, d = Math.hypot(dx, dy);
+      if (d < 0.2) { this.v = 0; this.auto = null; if (a.res) a.res(); }
+      else { const st = Math.min(d, a.sp * dt); this.x += dx / d * st; this.y += dy / d * st; this.v = a.sp; this.h += angDiff(this.h, Math.atan2(dx, dy)) * Math.min(1, dt * 10); }
+      this.char.animate(dt, { speed: this.v, ...(this.act || {}) });
+      return;
+    }
     let sp = 2.6, running = false;
     const [fx, fy] = dirOf(camH), rx = fy, ry = -fx;                 // forward and right of the camera
     let mx = fx * inp.y + rx * inp.x, my = fy * inp.y + ry * inp.x;
@@ -98,7 +106,9 @@ export class Player {
     this.x = c.x; this.y = c.y;
     if (inp.jump && !(this.air > 0)) { this.vy = 5.6; this.air = 0.001; }
     inp.jump = false;
-    const step = this.char.animate(dt, { speed: this.v, run: running });
+    if (!moving && this.faceH != null) this.h += angDiff(this.h, this.faceH) * Math.min(1, dt * 6);
+    if (moving) this.faceH = null;
+    const step = this.char.animate(dt, { speed: this.v, run: running, ...(moving ? {} : this.act || {}) });
     if (step && this.onStep) this.onStep(running);
   }
   // driving, the Karachi way: steering turns the car at a fixed rate scaled by speed, Shift is the handbrake

@@ -1,5 +1,7 @@
 // The in-game phone: Calgary 311, Transit, Find help, Map, Missions, Settings.
 import { isMuted, setMuted, engineVolume, setEngineVolume } from './sound.js';
+import { voice, setVoice } from './voice.js';
+import { HALLOWEEN, setHalloween } from './halloween.js';
 import { businessesNear, searchBusinesses, BIZ_CAT } from './business.js';
 import { $, esc, toast, openMap } from './hud.js';
 import { communityAt, wardAt, nearest } from './world.js';
@@ -138,16 +140,20 @@ function appSettings() {
     <div class="p-h">Shadows</div><div class="chips"><button class="chip${q.shadows ? ' on' : ''}" data-s="1">On</button><button class="chip${!q.shadows ? ' on' : ''}" data-s="0">Off</button></div>
     <div class="p-h">Night glow (lights bloom after dark)</div><div class="chips"><button class="chip${q.glow ? ' on' : ''}" data-gl="1">On</button><button class="chip${!q.glow ? ' on' : ''}" data-gl="0">Off (faster)</button></div>
     <div class="p-h">Sound</div><div class="chips"><button class="chip${!isMuted() ? ' on' : ''}" data-snd="1">On</button><button class="chip${isMuted() ? ' on' : ''}" data-snd="0">Off</button></div>
+    <div class="p-h">Voices in the stories</div><div class="chips"><button class="chip${voice.on ? ' on' : ''}" data-vo="1">On</button><button class="chip${!voice.on ? ' on' : ''}" data-vo="0">Off</button></div>
+    <div class="p-h">Halloween decorations</div><div class="chips"><button class="chip${HALLOWEEN.on ? ' on' : ''}" data-hw="1">On</button><button class="chip${!HALLOWEEN.on ? ' on' : ''}" data-hw="0">Off</button></div>
     <div class="p-h">Engine volume</div><div class="chips">${[['0', 'Off'], ['0.5', 'Quiet'], ['1', 'Normal']].map(([v, t]) => `<button class="chip${String(engineVolume()) === v ? ' on' : ''}" data-ev="${v}">${t}</button>`).join('')}</div>
     <div class="p-h">Time of day</div><div class="chips">${[['8', 'Morning'], ['13', 'Afternoon'], ['18.5', 'Evening'], ['22', 'Night']].map(([v, t]) => `<button class="chip" data-t="${v}">${t}</button>`).join('')}</div>
     <button class="p-btn alt" id="s-reset">Start the story again</button>
-    <p style="font-size:12px;color:#5b6573;margin-top:16px"><b>YYC Story</b> · A game by Hassan Ali<br>${game.world.credits.data.map(esc).join('<br>')}<br>Map data downloaded ${esc((game.world.osm_date || '').slice(0, 10))}.</p>`);
+    <p style="font-size:12px;color:#5b6573;margin-top:16px"><b>YYC City Stories</b> · A game by Hassan Ali<br>${game.world.credits.data.map(esc).join('<br>')}<br>Map data downloaded ${esc((game.world.osm_date || '').slice(0, 10))}.</p>`);
   const b = $('.phone-body');
   b.querySelectorAll('[data-r]').forEach(x => x.onclick = () => { game.setRadius(+x.dataset.r); appSettings(); });
   b.querySelectorAll('[data-s]').forEach(x => x.onclick = () => { game.setShadows(x.dataset.s === '1'); appSettings(); });
   b.querySelectorAll('[data-gl]').forEach(x => x.onclick = () => { game.setGlow(x.dataset.gl === '1'); appSettings(); });
   b.querySelectorAll('[data-ev]').forEach(x => x.onclick = () => { setEngineVolume(+x.dataset.ev); appSettings(); });
   b.querySelectorAll('[data-snd]').forEach(x => x.onclick = () => { setMuted(x.dataset.snd === '0'); appSettings(); });
+  b.querySelectorAll('[data-vo]').forEach(x => x.onclick = () => { setVoice(x.dataset.vo === '1'); appSettings(); });
+  b.querySelectorAll('[data-hw]').forEach(x => x.onclick = () => { setHalloween(x.dataset.hw === '1'); appSettings(); });
   b.querySelectorAll('[data-t]').forEach(x => x.onclick = () => { game.clock = +x.dataset.t; toast('Time changed'); });
   $('#s-reset').onclick = () => { game.missions.reset(); closePhone(); location.reload(); };
 }
