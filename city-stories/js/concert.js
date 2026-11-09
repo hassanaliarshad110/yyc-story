@@ -86,6 +86,6 @@ export class Concert {
       this.wash[0].color.setHSL((this.t * 0.1) % 1, 1, 0.5); this.wash[1].color.setHSL((this.t * 0.1 + 0.5) % 1, 1, 0.5);
       if ((this.st = (this.st || 0) - dt) <= 0) { this.st = 0.12; this.drawScreen(this.t); }
     }
-    return Math.max(0, Math.min(1, 1 - (d - 40) / 460));
+    const v = Math.max(0, Math.min(1, 1 - (d - 30) / 170)); return v * v;      // full in front of the stage, silent 200 m away
   }
 }

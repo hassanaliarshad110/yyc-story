@@ -14,6 +14,8 @@ export const PARK_SPOTS = {
   grandstand: { x: 420, y: -1160, name: 'Grandstand Show, Stampede Park' },
   plaza: { x: -60, y: 70, name: 'Olympic Plaza street party' },
 };
+// the stage music is full in front of a stage and fades out completely 200 m away
+export const stageVolume = d => { const v = Math.max(0, Math.min(1, 1 - (d - 30) / 170)); return v * v; };
 export const isShowTime = clock => clock >= 10 || clock < 2;       // stages play from 10 a.m. to 2 a.m.
 export const isFireworks = clock => clock >= 21.5 || clock < 1;
 
@@ -446,7 +448,7 @@ export class Stampede {
       const near = dPark < 900;
       if (near) {
         if (dPark < 600 || (this._ct = (this._ct || 0) + 1) % 3 === 0) this.crowd.update(dPark < 600 ? dt : dt * 3, px, py);
-        for (const s of this.stages) { const d = Math.hypot(px - s.x, py - s.y); s.update(dt, d < 500, night, live); if (live) level = Math.max(level, 1 - (d - 25) / 300); }
+        for (const s of this.stages) { const d = Math.hypot(px - s.x, py - s.y); s.update(dt, d < 500, night, live); if (live) level = Math.max(level, stageVolume(d)); }
         // the Ferris wheel and swing ride
         const f = this.ferris; f.a += dt * 0.09; f.wheel.rotation.x = f.a;
         this.gondolas.forEach((gd, k) => { const a = f.a + k / this.gondolas.length * Math.PI * 2; gd.position.set(0, f.HUB + Math.cos(a) * f.R, Math.sin(a) * f.R); });
@@ -464,7 +466,7 @@ export class Stampede {
       const d = Math.hypot(px - this.plazaStage.x, py - this.plazaStage.y), near = d < 400;
       if (near) { this.plazaCrowd.update(dt, px, py); for (const c of this.cooks) c.animate(dt, { talk: true }); }
       this.plazaStage.update(dt, near, night, live);
-      if (live) level = Math.max(level, 1 - (d - 20) / 220);
+      if (live) level = Math.max(level, stageVolume(d));
     }
     return (this.level = Math.max(0, Math.min(1, level)));
   }

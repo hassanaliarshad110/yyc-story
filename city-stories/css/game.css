@@ -222,3 +222,10 @@ body.cine #zoombtns { display: none; }
 #mv .mv-btns { margin-top: 24px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 #mv .mv-btns button { pointer-events: auto; border: 0; border-radius: 22px; padding: 11px 22px; font-size: 16px; font-weight: 700; background: #c8102e; color: #fff; }
 #mv .mv-btns .mv-free { background: rgba(255,255,255,.14); }
+/* concert sing-along lyrics */
+#lyrics { position: fixed; left: 50%; bottom: 36%; transform: translateX(-50%); width: min(64vw, 640px); text-align: center; pointer-events: none; z-index: 30; transition: opacity .4s; text-shadow: 0 2px 6px rgba(0, 0, 0, .85), 0 0 2px #000; }
+#lyrics .lyr-now { display: inline-block; background: rgba(10, 14, 22, .45); border-radius: 12px; padding: 4px 14px; color: #fff; font-weight: 800; font-size: clamp(17px, 3.4vw, 30px); line-height: 1.25; }
+#lyrics .lyr-next { background: none; padding: 0; border: 0; color: rgba(255, 255, 255, .62); font-weight: 600; font-size: clamp(13px, 2.4vw, 20px); margin-top: 6px; }
+#lyrics .lyr-now.pop { animation: lyrpop .35s ease-out; }
+@keyframes lyrpop { from { transform: translateY(8px); opacity: .2; } to { transform: none; opacity: 1; } }
+body.cine #lyrics { display: none; }

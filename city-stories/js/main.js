@@ -25,6 +25,8 @@ import { OutputPass } from '../vendor/jsm/postprocessing/OutputPass.js';
 import { loadTerrain, ground } from './terrain.js';
 import { loadBusinesses, Signs } from './business.js';
 import { loadParks, ParkAssets, parksCredit } from './parks.js';
+import { loadFields, Fields } from './fields.js';
+import { loadLyrics, updateLyrics } from './lyrics.js';
 import { GOOGLE_KEY } from './config.js';
 import { music } from './music.js';
 window.__music = music;
@@ -128,11 +130,12 @@ async function boot() {
     status('Loading Google 3D city…');
   }
   status('Loading people and cars…');
-  await Promise.all([loadHero(), loadVehicles(), loadBusinesses(), loadParks(), loadSigns(), loadBillboards()]);
+  await Promise.all([loadHero(), loadVehicles(), loadBusinesses(), loadParks(), loadSigns(), loadBillboards(), loadFields(), loadLyrics()]);
   tiles = new TileManager(scene, world, { radius: game.photoOn ? Math.max(1, game.settings.radius - 1) : game.settings.radius, meshes: !game.photoOn, onTile: (t, added) => { if (added) tilePaths(t); traffic && traffic.onTile(t, added); } });
   tiles.far = mobile ? 1 : 2; if (!game.photoOn) scene.fog.far = fogFar();
   game.tiles = tiles; game.signs = new Signs(scene, tiles);
   game.parks = new ParkAssets(scene, { radius: mobile ? 300 : 420 });
+  game.fields = new Fields(scene, { radius: mobile ? 320 : 450 });      // soccer, football, rugby and cricket fields
   game.concert = new Concert(scene, 385, -772, Math.PI, { crowd: mobile ? 14 : 28 });     // on the lawn north of the Saddledome, facing it
   game.stampede = new Stampede(scene, { mobile });                                            // it's Stampede time: the fair at Stampede Park and a street party at Olympic Plaza
   player = new Player(scene, tiles, game.look); game.player = player; player.parks = game.parks;
@@ -447,6 +450,7 @@ function loop(now) {
     music.radio(radio);
     const cLvl = game.concert ? game.concert.update(dt, player.x, player.y, game.clock) : 0, sLvl = game.stampede ? game.stampede.update(dt, player.x, player.y, game.clock) : 0;
     music.concert(Math.max(cLvl, sLvl));
+    updateLyrics(Math.max(cLvl, sLvl), music.el, !!game.cine || game.paused);
     if (game.heli && player.mode !== 'heli') idleHeli(game.heli, dt);
   }
   music.update(dt);
@@ -465,6 +469,7 @@ function loop(now) {
   tiles.pumpFor(tiles.queue.length > 8 ? (mobile ? 10 : 14) : (mobile ? 5 : 8), player.x, player.y);
   if (game.started) game.signs.update(dt, player.x, player.y);
   if (game.started && game.parks) game.parks.update(dt, player.x, player.y);
+  if (game.started && game.fields) game.fields.update(dt, player.x, player.y);
   if (game.started && game.signals) game.signals.update(dt, player.x, player.y);
   if (game.started && game.billboards) game.billboards.update(dt, player.x, player.y, (1 - (game.day ?? 1)) > 0.4);
   if (game.started && game.numbers && player.mode !== 'heli') game.numbers.update(dt, player.x, player.y);

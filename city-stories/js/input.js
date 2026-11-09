@@ -41,38 +41,52 @@ export function initInput(canvas) {
   // touch: left half joystick, right half look
   const stick = document.getElementById('stick'), knob = document.getElementById('knob');
   const touches = new Map();
+  // one finger: the left side is the movement stick, the right side looks around.
+  // two fingers anywhere: pinch to zoom (a stick finger that just landed, or hasn't moved yet, joins the pinch)
+  let pinching = false, pinch0 = 0, zoom0 = 1;
+  const stopStick = () => { input.tx = 0; input.ty = 0; knob.style.transform = ''; stick.classList.remove('on'); };
+  const pinchPair = () => {
+    const A = [...touches.values()]; if (A.length < 2) return null;
+    const [p, q] = A.slice(-2), now = performance.now();
+    const fresh = s => s.kind === 'look' || now - s.t0 < 450 || Math.hypot(s.x - s.x0, s.y - s.y0) < 18;
+    return pinching || (fresh(p) && fresh(q)) ? [p, q] : null;
+  };
   canvas.addEventListener('touchstart', e => {
     input.touch = true; document.body.classList.add('touch');
     for (const t of e.changedTouches) {
-      if (t.clientX < innerWidth * 0.45) { touches.set(t.identifier, { kind: 'stick', x0: t.clientX, y0: t.clientY }); stick.style.left = (t.clientX - 60) + 'px'; stick.style.top = (t.clientY - 60) + 'px'; stick.classList.add('on'); }
-      else touches.set(t.identifier, { kind: 'look', x: t.clientX, y: t.clientY });
+      const s = { x0: t.clientX, y0: t.clientY, x: t.clientX, y: t.clientY, t0: performance.now() };
+      if (t.clientX < innerWidth * 0.45) { s.kind = 'stick'; stick.style.left = (t.clientX - 60) + 'px'; stick.style.top = (t.clientY - 60) + 'px'; stick.classList.add('on'); }
+      else s.kind = 'look';
+      touches.set(t.identifier, s);
     }
+    if (touches.size >= 2 && pinchPair()) { pinching = true; pinch0 = 0; stopStick(); }
     e.preventDefault();
   }, { passive: false });
-  // two fingers on the look side: pinch to zoom the camera in and out
-  const pinchDist = () => { const L = [...touches.values()].filter(s => s.kind === 'look'); return L.length >= 2 ? Math.hypot(L[0].x - L[1].x, L[0].y - L[1].y) : 0; };
-  let pinch0 = 0, zoom0 = 1;
   canvas.addEventListener('touchmove', e => {
-    const lookN = [...touches.values()].filter(s => s.kind === 'look').length;
-    if (lookN >= 2) {
-      for (const t of e.changedTouches) { const s = touches.get(t.identifier); if (s && s.kind === 'look') { s.x = t.clientX; s.y = t.clientY; } }
-      const d = pinchDist(); if (!pinch0) { pinch0 = d; zoom0 = input.zoom; }
-      else if (d > 10) input.zoom = clamp(zoom0 * pinch0 / d, ZMIN, ZMAX);
+    for (const t of e.changedTouches) { const s = touches.get(t.identifier); if (s) { s.px = s.x; s.py = s.y; s.x = t.clientX; s.y = t.clientY; } }
+    if (pinching) {
+      const P = pinchPair();
+      if (P) { const d = Math.hypot(P[0].x - P[1].x, P[0].y - P[1].y); if (!pinch0) { pinch0 = d; zoom0 = input.zoom; } else if (d > 10) { input.zoom = clamp(zoom0 * pinch0 / d, ZMIN, ZMAX); try { localStorage.setItem('yyc-zoom', input.zoom.toFixed(2)); } catch (err) { } } }
       e.preventDefault(); return;
     }
-    pinch0 = 0;
     for (const t of e.changedTouches) {
-      const s = touches.get(t.identifier); if (!s) continue;
+      const s = touches.get(t.identifier); if (!s || s.kind === 'idle') continue;
       if (s.kind === 'stick') {
         let dx = (t.clientX - s.x0) / 55, dy = (t.clientY - s.y0) / 55; const l = Math.hypot(dx, dy); if (l > 1) { dx /= l; dy /= l; }
         input.tx = dx; input.ty = -dy; knob.style.transform = `translate(${dx * 40}px,${-input.ty * 40}px)`;
       } else {
-        input.camYaw -= (t.clientX - s.x) * 0.008; input.camPitch = clamp(input.camPitch + (t.clientY - s.y) * 0.005, -1.15, 1.3); s.x = t.clientX; s.y = t.clientY; input.lookTime = performance.now();
+        input.camYaw -= (t.clientX - s.px) * 0.008; input.camPitch = clamp(input.camPitch + (t.clientY - s.py) * 0.005, -1.15, 1.3); input.lookTime = performance.now();
       }
     }
     e.preventDefault();
   }, { passive: false });
-  const end = e => { pinch0 = 0; for (const t of e.changedTouches) { const s = touches.get(t.identifier); if (s && s.kind === 'stick') { input.tx = 0; input.ty = 0; knob.style.transform = ''; stick.classList.remove('on'); } touches.delete(t.identifier); } };
+  const end = e => {
+    for (const t of e.changedTouches) { const s = touches.get(t.identifier); if (s && s.kind === 'stick') stopStick(); touches.delete(t.identifier); }
+    if (touches.size < 2) { pinch0 = 0; if (!touches.size) pinching = false; }
+    // after a pinch, a finger left on the screen doesn't steer until it is lifted
+    if (pinching && touches.size === 1) for (const s of touches.values()) s.kind = 'idle';
+    if (!touches.size) pinching = false;
+  };
   canvas.addEventListener('touchend', end); canvas.addEventListener('touchcancel', end);
   document.querySelectorAll('[data-act]').forEach(b => {
     b.addEventListener('pointerdown', e => {
