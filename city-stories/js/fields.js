@@ -157,3 +157,35 @@ export class Fields {
     for (const [k, b] of this.built) if (!want.has(k)) { this.dispose(b); this.built.delete(k); }
   }
 }
+
+// ---------------------------------------------------------------- the fields on the maps (paths in map coordinates: x, -north)
+let MP = null;
+export const FIELD_ICON = ['⚽', '🏈', '🏉', '🏏', '🏏', '🏑'];
+export function fieldMapPaths() {
+  if (MP || !D) return MP;
+  MP = { turf: new Path2D(), lines: new Path2D(), rope: new Path2D(), strip: new Path2D(), list: D.field };
+  for (const f of D.field) {
+    const [t, cx, cy, len, wid, ang] = f, ca = Math.cos(ang), sa = Math.sin(ang);
+    const W = (u, v) => [cx + u * ca - v * sa, -(cy + u * sa + v * ca)];
+    const rect = (p, hu, hv) => { const c = [W(-hu, -hv), W(hu, -hv), W(hu, hv), W(-hu, hv)]; p.moveTo(...c[0]); for (let i = 1; i < 4; i++) p.lineTo(...c[i]); p.closePath(); };
+    if (t === 3) { const r = f[7]; if (r) { for (let k = 0; k < r.length; k += 2) k ? MP.rope.lineTo(r[k], -r[k + 1]) : MP.rope.moveTo(r[k], -r[k + 1]); MP.rope.closePath(); } }
+    else if (t === 4) rect(MP.strip, Math.max(len, 22.5) / 2, 1.6);
+    else { rect(MP.turf, len / 2, wid / 2); rect(MP.lines, len / 2, wid / 2); MP.lines.moveTo(...W(0, -wid / 2)); MP.lines.lineTo(...W(0, wid / 2)); }
+  }
+  return MP;
+}
+// draw them on a map canvas that is already scaled to metres (s = pixels per metre)
+export function drawFieldsOnMap(g, s) {
+  const P = fieldMapPaths(); if (!P) return;
+  g.fillStyle = '#86c46e'; g.fill(P.turf);
+  g.fillStyle = 'rgba(134,196,110,.55)'; g.fill(P.rope);
+  g.strokeStyle = '#ffffff'; g.lineWidth = Math.max(1.2, 1.4 / s); g.stroke(P.lines); g.stroke(P.rope);
+  g.fillStyle = '#d8b98a'; g.fill(P.strip);
+}
+// emoji markers for the fields near (x, y), as [x, y, emoji]
+export function fieldIcons(x, y, r) {
+  if (!D) return [];
+  const out = [];
+  for (const f of D.field) if (f[0] !== 4 && Math.abs(f[1] - x) < r && Math.abs(f[2] - y) < r) out.push([f[1], f[2], FIELD_ICON[f[0]]]);
+  return out;
+}

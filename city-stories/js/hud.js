@@ -3,6 +3,7 @@ import { L, AREA_COL } from './tiles.js';
 import { tx, tr, rtl } from './i18n.js';
 import { speak, stopVoice } from './voice.js';
 import { communityAt } from './world.js';
+import { drawFieldsOnMap, fieldIcons } from './fields.js';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -71,6 +72,7 @@ export function drawMinimap(player, tiles, camH, target, icons = [], nav = null,
     g.fillStyle = '#bdb6a6'; g.fill(t.mm.bld);
     g.restore();
   }
+  drawFieldsOnMap(g, scale);                 // soccer, football and cricket fields
   g.lineCap = 'round'; g.lineJoin = 'round';
   g.strokeStyle = '#8fb8dd'; g.lineWidth = 14; if (overview.river) g.stroke(overview.river);
   for (const t of tiles.tiles.values()) {
@@ -99,6 +101,9 @@ export function drawMinimap(player, tiles, camH, target, icons = [], nav = null,
     g.fillStyle = '#ffc400'; g.strokeStyle = '#000'; g.lineWidth = 2;
     g.beginPath(); g.arc(W / 2 + px, H / 2 + py, 8, 0, Math.PI * 2); g.fill(); g.stroke();
   }
+  // sports field markers that fit inside the minimap
+  { const R = (W / 2 - 14) / scale; g.font = '15px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    for (const [x, y, e] of fieldIcons(player.x, player.y, R)) { const dx = (x - player.x) * scale, dy = -(y - player.y) * scale, ca = Math.cos(-camH), sa = Math.sin(-camH), px = dx * ca - dy * sa, py = dx * sa + dy * ca; if (Math.hypot(px, py) < W / 2 - 12) g.fillText(e, W / 2 + px, H / 2 + py); } }
   // icons (e.g. the helicopter, the concert): an emoji at the edge if far away
   for (const ic of icons) {
     const dx = (ic.x - player.x) * scale, dy = -(ic.y - player.y) * scale, ca = Math.cos(-camH), sa = Math.sin(-camH);
@@ -120,7 +125,7 @@ const bm = { cx: 0, cy: 0, scale: 0.05, open: false, cats: { grocery: true, libr
 export function openMap() {
   const p = game.player; bm.cx = p.x; bm.cy = p.y; bm.scale = 0.06; bm.open = true;
   $('#bigmap').hidden = false; resizeMap(); drawMap();
-  $('.bm-legend').innerHTML = `<div><i style="background:#c8102e"></i>You</div><div><i style="background:#ffc400"></i>Mission / waypoint</div><div><i style="background:#1c8c40"></i>Grocery store</div><div><i style="background:#2856c8"></i>Library</div><div><i style="background:#e67814"></i>Recreation</div><div><i style="background:#7a3fa0"></i>Landmark</div>`;
+  $('.bm-legend').innerHTML = `<div><i style="background:#c8102e"></i>You</div><div><i style="background:#ffc400"></i>Mission / waypoint</div><div><i style="background:#1c8c40"></i>Grocery store</div><div><i style="background:#2856c8"></i>Library</div><div><i style="background:#e67814"></i>Recreation</div><div><i style="background:#7a3fa0"></i>Landmark</div><div><i style="background:none;font-style:normal;line-height:12px">⚽</i>Sports field (zoom in)</div>`;
 }
 export function refreshMap() { if (bm.open) drawMap(); }
 export function closeMap() { bm.open = false; $('#bigmap').hidden = true; }
@@ -144,6 +149,7 @@ function drawMap() {
       g.restore();
     }
   }
+  if (bm.scale > 0.05) drawFieldsOnMap(g, s);
   g.strokeStyle = '#8fb8dd'; g.lineWidth = Math.max(10, 2 / s); if (overview.river) g.stroke(overview.river);
   const rs = [['r5', '#ffffff', 1.0], ['r4', '#fbe7a6', 1.4], ['r3', '#fbe7a6', 1.8], ['r2', '#f2b46b', 2.4], ['r1', '#e8925f', 2.8], ['r8', '#e8925f', 1.2]];
   for (const [k, col, w] of rs) { if (!overview[k] || (k === 'r5' && bm.scale < 0.04)) continue; g.strokeStyle = col; g.lineWidth = w / s; g.stroke(overview[k]); }
@@ -170,6 +176,11 @@ function drawMap() {
   for (const l of world.landmarks) {
     dot(l.x, l.y, '#7a3fa0', 6);
     if (bm.scale > 0.035 || l.full) { const [px, py] = P(l.x, l.y); g.fillStyle = '#2a1838'; g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 3 * dpr; g.strokeText(l.label, px + 9 * dpr, py + 4 * dpr); g.fillText(l.label, px + 9 * dpr, py + 4 * dpr); }
+  }
+  if (bm.scale > 0.18) {                    // sports field markers when zoomed in
+    g.font = `${14 * dpr}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    for (const [x, y, e] of fieldIcons(bm.cx, bm.cy, Math.max(W, H) / s)) { const [px, py] = P(x, y); if (px > 0 && px < W && py > 0 && py < H) g.fillText(e, px, py); }
+    g.textBaseline = 'alphabetic';
   }
   const tg = game.target(); if (tg) dot(tg.x, tg.y, '#ffc400', 9);
   const pl = game.player; dot(pl.x, pl.y, '#c8102e', 8);
