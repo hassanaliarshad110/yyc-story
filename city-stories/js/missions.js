@@ -73,7 +73,7 @@ export class Missions {
     const m = this.list[i]; if (!m) return;
     this.active = m;
     toast(`${tr('mission')} ${i + 1}: ${titleOf(m)}`, 3200);
-    try { await m.run(this, this.g, P); this.complete(m); }
+    try { await m.run(this, this.g, P); this.complete(m); if (m.after) { this.clearNpcs(); await m.after(this, this.g); } }
     catch (e) { if (e !== 'cancel') console.error(e); }
     finally { this.active = null; this.clearGoal(); this.clearNpcs(); if (this.g.cine) this.cineEnd(); }
   }

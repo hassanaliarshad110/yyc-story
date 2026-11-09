@@ -201,7 +201,7 @@ export class Character {
     let tg;
     if (st.sit) tg = pSit();
     else if (sp > 0.3) { const run = st.run ? 1 : 0; this.phase += dt * (run ? 11 * sp / 6.2 : 7 * sp / 2.9); tg = pGait(this.phase, run ? 1.15 : Math.min(.9, .45 + sp * .15), run); }
-    else if (st.dance != null) tg = pDance(t + (st.offset || 0), st.dance);
+    else if (st.dance != null) tg = pDance((st.syncT ?? t) + (st.offset || 0), st.dance, st.beat || 1.9);   // syncT/beat: dance on a song's beat
     else if (st.wave) tg = pWave(t);
     else if (st.talk) tg = pTalk(t);
     else { tg = pStance(); const b = Math.sin(t * 1.7); tg.chest[0] += .015 * b; tg.head[1] = .15 * Math.sin(t * .37); tg.armL[0] += .02 * b; tg.armR[0] += .02 * b; }

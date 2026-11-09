@@ -201,3 +201,24 @@ body.cine #buttons, body.cine #stick, body.cine #objective, body.cine #topright,
 #zoombtns button { width: 40px; height: 40px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .55); background: rgba(15, 23, 32, .6); color: #fff; font-size: 22px; font-weight: 800; line-height: 1; display: grid; place-items: center; }
 #zoombtns button:active { background: rgba(255, 210, 74, .55); }
 body.cine #zoombtns { display: none; }
+
+/* the "Beyond the Mask" music video at the end of Natalia's story, and the end of the game */
+#mv { position: fixed; inset: 0; z-index: 40; pointer-events: none; }
+#mv .mv-fade { position: absolute; inset: 0; background: #000; opacity: 1; }
+#mv .mv-lyric { position: absolute; left: 50%; bottom: calc(13vh + env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(900px, 94vw); text-align: center; color: #fff; font-weight: 800; font-size: clamp(18px, 3vw, 30px); line-height: 1.3; text-shadow: 0 2px 6px #000, 0 0 2px #000; letter-spacing: .01em; }
+#mv .mv-lyric:empty { opacity: 0; }
+#mv .mv-lyric.in { animation: mvIn .35s ease-out forwards; }
+@keyframes mvIn { from { transform: translateX(-50%) translateY(8px); } }
+#mv .mv-skip { position: absolute; right: 14px; top: calc(12vh + env(safe-area-inset-top)); pointer-events: auto; background: rgba(0,0,0,.45); color: #ddd; border: 1px solid rgba(255,255,255,.25); border-radius: 18px; padding: 6px 14px; font-size: 13px; }
+#mv .mv-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: auto; background: var(--gold, #f2b705); color: #111; border: 0; border-radius: 28px; padding: 14px 26px; font-size: 18px; font-weight: 800; }
+#mv.done { pointer-events: auto; }
+#mv.done .mv-fade { opacity: 1 !important; }
+#mv .mv-end { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; padding: 24px; color: #fff; animation: mvEnd 1.4s ease-out; }
+@keyframes mvEnd { from { opacity: 0; } to { opacity: 1; } }
+#mv .mv-the-end { font-size: clamp(40px, 9vw, 84px); font-weight: 900; letter-spacing: .04em; }
+#mv .mv-song { font-size: clamp(20px, 4vw, 32px); font-weight: 800; color: var(--gold, #f2b705); margin-top: 6px; }
+#mv .mv-by { font-size: 14px; color: #bbb; margin-top: 2px; }
+#mv .mv-sum { max-width: 620px; margin: 22px auto 0; font-size: 16px; line-height: 1.5; color: #ddd; }
+#mv .mv-btns { margin-top: 24px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+#mv .mv-btns button { pointer-events: auto; border: 0; border-radius: 22px; padding: 11px 22px; font-size: 16px; font-weight: 700; background: #c8102e; color: #fff; }
+#mv .mv-btns .mv-free { background: rgba(255,255,255,.14); }

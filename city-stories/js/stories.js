@@ -6,6 +6,7 @@ import { businessesNear } from './business.js';
 import { SPEED_LIMIT } from './tiles.js';
 import { wardAt, communityAt } from './world.js';
 import { LANG } from './i18n.js';
+import { prepareSong, playSongVideo, theEnd } from './songvideo.js';
 
 // real places used by the stories (metres from City Hall; City of Calgary open data and OpenStreetMap)
 export const PLACES = {
@@ -71,6 +72,17 @@ const MAYA_LOOK = { skin: 0x8d5a3b, shirt: 0xe0a020, pants: 0x2a3a5a, hair: 0x15
 const KID_LOOK = { skin: 0xc49a76, shirt: 0x58a0d8, pants: 0x34404c, hair: 0x6b4a2a, scale: 0.78, bag: 0x9b2a2a };
 const BULLY_LOOKS = [0, 1, 2].map(i => ({ skin: [0xb98260, 0xe0b090, 0x8d5a3b][i], shirt: [0x222222, 0x8a1c1c, 0x2e4a2e][i], pants: 0x23252b, hair: 0x15100d, scale: 0.97 }));
 const CLASS_LOOKS = [0, 1, 2].map(i => ({ skin: [0xe0b090, 0x8d5a3b, 0xc49a76][i], shirt: [0xc04a7a, 0x3a7ac0, 0xd0a030][i], pants: 0x2c3040, hair: [0x4a2e1a, 0x15100d, 0x15100d][i], long: i !== 1, fem: i !== 1, scale: 0.9 }));
+// the extra people in the "Beyond the Mask" music video at the end of Natalia's story
+const MV_LOOKS = {
+  bully: BULLY_LOOKS,
+  mom: { skin: 0xc49a76, shirt: 0x5a7a4a, pants: 0x2a2a30, hair: 0x4a2e1a, long: true, fem: true },
+  dad: { skin: 0xc49a76, shirt: 0x3a4a6a, pants: 0x3b3f4a, hair: 0x15100d },
+  teacher: { skin: 0xe0b090, shirt: 0x8a6a3a, pants: 0x2a2e38, hair: 0x6b4a2a, scale: 1.0 },
+  community: [{ skin: 0x8d5a3b, shirt: 0xc8102e, pants: 0x222222, hair: 0x15100d }, { skin: 0xe1b899, shirt: 0x2bb3c0, pants: 0x2a3a5a, hair: 0xa07040, long: true, fem: true },
+    { skin: 0xb07a52, shirt: 0xf2b705, pants: 0x3b3f4a, hair: 0x15100d, hijab: 0x2a2a3a, fem: true }, { skin: 0x5c3a24, shirt: 0x2f8f4e, pants: 0x222222, hair: 0x15100d },
+    { skin: 0xd2b090, shirt: 0x7a2e8c, pants: 0x2a2e38, hair: 0xd2d0cc, scale: 0.97 }, { skin: 0xc69373, shirt: 0xe8742a, pants: 0x1d3557, hair: 0x15100d, scale: 0.8 }],
+};
+const NAT_END = `<p>You stood up to bullies safely, helped a new student feel welcome, stopped an online pile-on, taught younger kids what to do and spoke up in front of the whole school. Keep looking out for each other!</p><p style="margin-top:14px"><b>YYC City Stories — a game by Hassan Ali</b></p>`;
 const T = (en, fr, pa, ur, tl, ar) => ({ en, fr, pa, ur, tl, ar });
 
 // ---------------------------------------------------------------- the characters
@@ -374,6 +386,7 @@ const NATALIA = [
   {
     id: 'nat-assembly', title: T('Speak up at the assembly', 'Prendre la parole à l\'assemblée', 'ਸਭਾ ਵਿੱਚ ਆਵਾਜ਼ ਉਠਾਓ', 'اسمبلی میں آواز اٹھاؤ', 'Magsalita sa assembly', 'تحدّثي في التجمّع المدرسي'), startAt: 'mandela',
     async run(M, g, P) {
+      prepareSong();                 // the song for the music video at the end starts loading now
       await say(MAYA, `Natalia! The principal asked you to speak at the anti-bullying assembly. Everyone is outside waiting for you!`);
       const s = openSpot(g, P.mandela.x, P.mandela.y, 40, 170, 10);
       const principal = M.actor({ skin: 0x6b4430, shirt: 0x7a2a3a, pants: 0x2a2a30, hair: 0x15100d, long: true, fem: true }, s.x - 2.2, s.y + 0.4, Math.PI);
@@ -383,6 +396,7 @@ const NATALIA = [
         const look = i === 2 ? { skin: 0xc8956a, shirt: 0x2f6f8f, pants: 0x2a2e3c, hijab: 0x6a2a4a, fem: true, sleeve: 1, scale: 0.92 } : i === 7 ? { skin: 0xe0b090, shirt: 0x3a6a3a, pants: 0x2a2e38, hair: 0x6b4a2a, scale: 0.93 } : i === 4 ? KID_LOOK : { ...CLASS_LOOKS[i % 3], shirt: [0x2a5a9a, 0xb04a2a, 0x2a8a6a, 0x8a2a8a, 0xc0a020][i % 5], scale: 0.86 + (i % 4) * 0.03 };
         crowd.push(M.actor(look, x, y, 0));
       }
+      const maya = M.actor(MAYA_LOOK, s.x + 1.8, s.y + 0.3, Math.PI);
       await M.goto({ x: s.x, y: s.y + 0.8, name: 'the assembly', real: false }, 'Walk up to the front of the assembly', 4);
       const a1 = await quiz({ q: 'How do you want to start your speech?', opts: ['With what we really saw at school this term', 'By naming and shaming the bullies', 'By telling everyone they are bad people'], a: 0, explain: 'Real stories make people listen. Shaming people makes them defensive, and it\'s bullying too.' });
       const a2 = await quiz({ q: 'What is the most important thing for the crowd to remember?', opts: ['Bullies need an audience: stand with the person, speak up and tell an adult', 'Fight back hard so they never try again', 'Stay out of it'], a: 0, explain: 'Most bullying happens in front of others. When bystanders act, it usually stops.' });
@@ -411,11 +425,13 @@ const NATALIA = [
       crowd.forEach(c => M.pose(c, null));
       M.cam(s.x + 3, s.y - 3, 1.8, s.x - 1, s.y + 0.2, 1.4); M.face(principal, p.x, p.y); M.face(p, principal.x, principal.y);
       await M.line(principal, PRINCIPAL, `Thank you, Natalia. That took real courage.`);
+      // the music video: "Beyond the Mask" (by Hassan Ali), then the game ends
+      await playSongVideo(M, g, { s, p, principal, maya, crowd, kid: crowd[4], amira: crowd[2], jordan: crowd[7], looks: MV_LOOKS });
       M.cineEnd();
       if (a1 && a2) M.earn(6);
       found('🎤 The whole school heard you!');
-      await card({ tag: 'The end of Natalia\'s story (for now)', title: 'A school where everyone belongs', body: `<p>You stood up to bullies safely, helped a new student feel welcome, stopped an online pile-on, taught younger kids what to do and spoke up in front of the whole school. Keep looking out for each other!</p><p style="margin-top:14px"><b>YYC City Stories — a game by Hassan Ali</b></p>` });
     },
+    after() { return theEnd(NAT_END); },
   },
 ];
 

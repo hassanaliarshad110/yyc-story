@@ -363,7 +363,7 @@ function camSnap() { camH = player.h; camPos.set(NaN, 0, 0); game._gyKnown = fal
 game.camSnap = () => camSnap();
 function updateCamera(dt) {
   if (game.cineCam) {
-    const c = game.cineCam, k = camPos.x === camPos.x ? Math.min(1, dt * 2.2) : 1;
+    const c = game.cineCam, k = c.snap || camPos.x !== camPos.x ? 1 : Math.min(1, dt * 2.2);      // snap: the music video moves the camera itself
     if (!game._cineT) game._cineT = new THREE.Vector3(...c.t);
     camPos.lerp(tmpV.set(...c.p), k); if (camPos.x !== camPos.x) camPos.set(...c.p);
     game._cineT.lerp(tmpV.set(...c.t), k);
