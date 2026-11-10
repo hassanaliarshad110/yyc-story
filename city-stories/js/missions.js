@@ -27,7 +27,7 @@ export const P = {
   martindaleStn: { x: 6358.8, y: 8063.1, name: 'Martindale CTrain Station' },
   martindalePark: { x: 6987, y: 7986, name: 'Martindale Park' },
   martinbrook: { x: 6800, y: 7884, name: 'Martinbrook Link NE' },
-  home: { x: 6785, y: 7893, name: 'Home, Martinbrook Link NE', real: false },   // a real house: no street photo of someone's home
+  home: { x: 6734.3, y: 7889.5, name: 'Home, 78 Martinbrook Link NE', real: false },   // in front of 78 (City address points: the house at 6734.5, 7894.5; its frontage at 6734.2, 7887.5)   // a real house: no street photo of someone's home
   freshco: { x: 7910.7, y: 8701.5, name: 'Chalo! FreshCo, 850 Saddletowne Circle NE' },
   villageSquare: { x: 7268.8, y: 3417.7, name: 'Village Square Leisure Centre, 2623 56 St NE' },
   princes: { x: -862, y: 1062, name: "Prince's Island Park" },

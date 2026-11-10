@@ -31,10 +31,47 @@ async function load(kind) {
   geo.translate(-c.x, -b.min.y, -c.z); geo.scale(R.W / s.x, R.H / s.y, R.L / s.z);
   geo.computeBoundingSphere(); geo.userData.shared = true;
   const m = mesh.material;
-  READY[kind] = { geo, mat: new THREE.MeshLambertMaterial({ map: m.map, normalMap: m.normalMap || null }), wheels: WHEEL_R[kind] ? splitWheels(geo, R.W, WHEEL_R[kind]) : null };
+  READY[kind] = { geo, mat: new THREE.MeshLambertMaterial({ map: m.map }), wheels: WHEEL_R[kind] ? axleWheels(geo, WHEEL_R[kind]) : null };
 }
 // tyre radius by vehicle (m); the CTrain's wheels are hidden under its skirts
 const WHEEL_R = { pickup: 0.42, offroad: 0.43, police: 0.38, peace: 0.39, bus: 0.5, sorento: 0.37, rondo: 0.33, veloster: 0.32 };
+// the wheels: cutting the model's own tyres out of the mesh left holes and black scraps when they turned, so each car
+// gets clean wheels of its own (a tyre and an alloy rim) placed over the model's tyres at its axles, and those spin
+let WHEEL_TEX = null;
+function rimTexture() {
+  if (WHEEL_TEX) return WHEEL_TEX;
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+  g.fillStyle = '#1b1c1f'; g.beginPath(); g.arc(64, 64, 64, 0, 7); g.fill();
+  const rg = g.createRadialGradient(64, 64, 6, 64, 64, 46); rg.addColorStop(0, '#e9ecef'); rg.addColorStop(1, '#9aa2aa');
+  g.fillStyle = '#3a3e44'; g.beginPath(); g.arc(64, 64, 46, 0, 7); g.fill();
+  g.fillStyle = rg; for (let k = 0; k < 5; k++) { g.save(); g.translate(64, 64); g.rotate(k / 5 * Math.PI * 2); g.beginPath(); g.moveTo(-6, 8); g.lineTo(6, 8); g.lineTo(11, 44); g.lineTo(-11, 44); g.closePath(); g.fill(); g.restore(); }
+  g.strokeStyle = '#c9ced4'; g.lineWidth = 5; g.beginPath(); g.arc(64, 64, 44, 0, 7); g.stroke();
+  g.fillStyle = '#d6dade'; g.beginPath(); g.arc(64, 64, 11, 0, 7); g.fill(); g.fillStyle = '#5a5f66'; g.beginPath(); g.arc(64, 64, 4, 0, 7); g.fill();
+  WHEEL_TEX = new THREE.CanvasTexture(c); WHEEL_TEX.colorSpace = THREE.SRGBColorSpace; WHEEL_TEX.anisotropy = 4; return WHEEL_TEX;
+}
+const WMAT = {};
+function wheelMesh(r, w, side) {
+  WMAT.tyre ||= new THREE.MeshLambertMaterial({ color: 0x1d1e21 }); WMAT.rim ||= new THREE.MeshLambertMaterial({ map: rimTexture() });
+  const g = new THREE.Group(), t = new THREE.Mesh(new THREE.CylinderGeometry(r, r, w, 22), WMAT.tyre); t.rotation.z = Math.PI / 2; g.add(t);
+  for (const sd of [side, -side]) { const f = new THREE.Mesh(new THREE.CircleGeometry(r * 0.97, 22), WMAT.rim); f.rotation.y = sd * Math.PI / 2; f.position.x = sd * (w / 2 + 0.004); g.add(f); }
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; }); return g;
+}
+// the axles from the model: its lowest points at the sides (where the tyres touch the ground), front and back
+function axleWheels(geo, r) {
+  const P = geo.attributes.position, n = P.count; geo.computeBoundingBox(); const bb = geo.boundingBox, W = bb.max.x - bb.min.x;
+  const low = []; for (let i = 0; i < n; i++) if (P.getY(i) < 0.08) low.push([P.getX(i), P.getZ(i)]);
+  if (low.length < 8) return null;
+  const zs = low.map(p => p[1]).sort((a, b) => a - b), axles = []; let st = zs[0], prev = zs[0];
+  for (const z of zs.slice(1).concat([Infinity])) { if (z - prev > 0.8) { axles.push((st + prev) / 2); st = z; } prev = z; }
+  if (axles.length < 2 || axles.length > 4) return null;
+  const front = Math.max(...axles), wheels = [];
+  for (const az of axles) for (const sd of [1, -1]) {
+    let ox = 0; for (const [x, z] of low) if (Math.sign(x) === sd && Math.abs(z - az) < r) ox = Math.max(ox, Math.abs(x));
+    if (!ox) ox = W / 2 - 0.08;
+    const w = Math.min(0.3, Math.max(0.2, r * 0.6)); wheels.push({ p: [sd * (ox - w / 2 + 0.02), r, az], r, w, side: sd, front: az === front });
+  }
+  return { body: geo, wheels, overlay: true };
+}
 // find the wheels in the model so they can turn: the low points at the sides give the axles, and the
 // triangles inside each tyre's circle become their own piece, spun round the axle
 function splitWheels(geo, W, r) {
@@ -86,7 +123,9 @@ export function makeCar3D(kind) {
   const R = CAR3D[kind], wheels = [], front = [];
   if (W) for (const w of W.wheels) {             // each tyre on its own pivot at the axle: spins as you drive, the front ones steer
     const pv = new THREE.Group(); pv.rotation.order = 'YXZ'; pv.position.set(w.p[0], w.p[1], w.p[2]);
-    const wm = new THREE.Mesh(w.geo, r.mat); wm.position.set(-w.p[0], -w.p[1], -w.p[2]); wm.castShadow = true; pv.add(wm); g.add(pv);
+    if (W.overlay) pv.add(wheelMesh(w.r * 1.03, w.w, w.side));
+    else { const wm = new THREE.Mesh(w.geo, r.mat); wm.position.set(-w.p[0], -w.p[1], -w.p[2]); wm.castShadow = true; pv.add(wm); }
+    g.add(pv);
     wheels.push(pv); if (w.front) front.push(pv);
   }
   g.userData = { L: R.L, W: R.W, kind: kind === 'pickup' ? 'truck' : kind === 'offroad' ? 'suv' : kind, model: kind, wheels, front, wheelR: WHEEL_R[kind] || 0.4 };

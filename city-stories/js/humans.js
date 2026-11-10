@@ -46,7 +46,7 @@ function prep(name, gl) {
     if (o.isMesh) {
       o.castShadow = true; o.frustumCulled = false;
       const m = o.material;      // the same simple lighting for everyone: one shader, quick to draw
-      if (m) o.material = new THREE.MeshLambertMaterial({ map: m.map, normalMap: m.normalMap || null, side: THREE.FrontSide });
+      if (m) o.material = new THREE.MeshLambertMaterial({ map: m.map, side: THREE.FrontSide });
     }
   });
   scene.updateMatrixWorld(true);

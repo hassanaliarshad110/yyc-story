@@ -23,7 +23,7 @@ async function loadModel(url) {
   const geo = mesh.geometry.clone(); geo.applyMatrix4(mesh.matrixWorld);
   geo.computeBoundingBox(); const b = geo.boundingBox, c = b.getCenter(new THREE.Vector3());
   geo.translate(-c.x, -b.min.y, -c.z); geo.computeBoundingBox(); geo.userData.shared = true;
-  const m = mesh.material, mat = new THREE.MeshLambertMaterial({ map: m.map, normalMap: m.normalMap || null });
+  const m = mesh.material, mat = new THREE.MeshLambertMaterial({ map: m.map });
   const s = geo.boundingBox.getSize(new THREE.Vector3());
   return { geo, mat, dx: s.x, dy: s.y, dz: s.z };
 }
@@ -189,7 +189,7 @@ export async function loadLandmarks(scene) {
       const gl0 = await (FILES[L.file] ||= loader.loadAsync(`data/models/${L.file}.glb`)); const o = gl0.scene.clone(true), gl = { scene: o };
       const tall = L.size[1] > 60, mode = tall || L.file === 'cityhall' || L.file === 'mandela' ? 1 : 0;
       const fl = tall ? [3.9, 1.8] : [4.4, 2.8], base = ground(L.x, L.y) - 0.3;
-      o.traverse(n => { if (n.isMesh) { const m = n.material; n.material = nightLit(new THREE.MeshLambertMaterial({ map: m.map, normalMap: m.normalMap || null }), mode, fl, base, L.size[1]); n.castShadow = true; n.receiveShadow = true; } });
+      o.traverse(n => { if (n.isMesh) { const m = n.material; n.material = nightLit(new THREE.MeshLambertMaterial({ map: m.map }), mode, fl, base, L.size[1]); n.castShadow = true; n.receiveShadow = true; } });
       const b = new THREE.Box3().setFromObject(o), sz = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
       const inner = new THREE.Group(); inner.add(o); o.position.set(-c.x, -b.min.y, -c.z);
       // stand on the lowest ground under the footprint (never floating over a slope); the walls reach down to it

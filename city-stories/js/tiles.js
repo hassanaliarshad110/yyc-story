@@ -230,6 +230,16 @@ const LIGHT_COLS = [0x3aa0ff, 0xb05aff, 0xff4a7a, 0xffb02a, 0x2affd0, 0xf2f6ff, 
 export const HOUSES = { place: null, drop: null };
 // extra walkable surfaces (CTrain platforms): oriented boxes { x, y, fx, fy, hl, hw, top }
 export const PLATFORMS = [];
+// buildings rebuilt as other models (shopping plazas): an oriented box (centre, length, depth, rotation) on a 200 m grid
+const SKIPG = new Map();
+export function addSkip(x, y, r, L, D, rot) {
+  const ax = Math.cos(rot), ay = Math.sin(rot), e = { x, y, L, D, ax, ay }, R = Math.hypot(L, D) / 2;
+  for (let i = Math.floor((x - R) / 200); i <= Math.floor((x + R) / 200); i++) for (let j = Math.floor((y - R) / 200); j <= Math.floor((y + R) / 200); j++) { const k = i + ',' + j; let l = SKIPG.get(k); if (!l) SKIPG.set(k, l = []); l.push(e); }
+}
+function skipped(x, y) {
+  for (const e of SKIPG.get(Math.floor(x / 200) + ',' + Math.floor(y / 200)) || []) { const dx = x - e.x, dy = y - e.y; if (Math.abs(dx * e.ax + dy * e.ay) < e.L / 2 + 1 && Math.abs(-dx * e.ay + dy * e.ax) < e.D / 2 + 1) return true; }
+  return false;
+}
 // the top of a CTrain platform under (x, y), or null; standY: where people stand (the platform top, else the ground)
 export function platformTop(x, y) {
   let best = null;
@@ -284,7 +294,7 @@ export function buildB3D(buf, skipTall = true, groundAt = gl, opt = {}) {
       }
     }
     if ((tall && skipTall) || k === 17) continue;          // the Calgary Tower has its own model
-    if (B3D_SKIP.some(q => Math.hypot(cx + OX - q[0], cy + OY - q[1]) < q[2])) continue;
+    if (B3D_SKIP.some(q => Math.hypot(cx + OX - q[0], cy + OY - q[1]) < q[2]) || skipped(cx + OX, cy + OY)) continue;
     built++;
     const hs = hash2(cx, cy), era = (flags >> 5) & 7, wg0 = wallGroup(k, h, hs, era);
     // a plain house with a simple footprint: a detailed model can stand in for it
@@ -964,7 +974,7 @@ export async function loadTreeModels() {
         const prev = mat.onBeforeCompile;
         mat.onBeforeCompile = sh => {
           sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n vec3 txC = diffuseColor.rgb; float lfM = smoothstep(-0.02, 0.06, txC.g - txC.r * 0.85);')
-            .replace('#include <color_fragment>', '#include <color_fragment>\n #ifdef USE_COLOR\n { float lu = dot(txC, vec3(0.3, 0.59, 0.11)); diffuseColor.rgb = mix(txC, vColor.rgb * (0.45 + lu * 1.5), lfM); }\n #endif');
+            .replace('#include <color_fragment>', '#include <color_fragment>\n #ifdef USE_COLOR\n { float lu = dot(txC, vec3(0.3, 0.59, 0.11)); diffuseColor.rgb = mix(txC, vColor.rgb * (0.8 + lu * 0.9), lfM); }\n #endif');
         };
       }
       nearFade(mat, 1.5, 4.5); if (k === 'maple') mat.customProgramCacheKey = () => 'nearfade-maple';

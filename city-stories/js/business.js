@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { L } from './tiles.js';
 import { ground } from './terrain.js';
 import { LM_GROUPS } from './houses3d.js';
+import { plazaAt } from './plazas.js';
 const RAY = new THREE.Raycaster(), _o = new THREE.Vector3(), _d = new THREE.Vector3(), _n = new THREE.Vector3();
 
 export const BIZ_CAT = {
@@ -78,6 +79,13 @@ export function wallFor(tiles, b) {
   }
   return best;
 }
+// the front of a plaza as a wall: along its street side, a little out from the storefronts
+const SIGN_BAND = 0.74;          // the sign band's height as a share of the plaza model's height
+function plazaWall(P, b) {
+  const ax0 = P.x - P.ax * P.L / 2 + P.fx * (P.D * P.band), ay0 = P.y - P.ay * P.L / 2 + P.fy * (P.D * P.band);
+  const u = Math.max(1, Math.min(P.L - 1, (b.x - ax0) * P.ax + (b.y - ay0) * P.ay));
+  return { plaza: true, x: ax0 + P.ax * u, y: ay0 + P.ay * u, nx: P.fx, ny: P.fy, len: P.L, h: P.H, key: 'plaza' + P.i, ax: ax0, ay: ay0, ex: P.ax, ey: P.ay, u, signY: P.base + P.H * SIGN_BAND - 0.5 };
+}
 export class Signs {
   constructor(scene, tiles) { this.scene = scene; this.tiles = tiles; this.live = new Map(); this.t = 0; this.slots = new Map(); }
   update(dt, x, y) {
@@ -86,7 +94,9 @@ export class Signs {
     for (const { b } of want) {
       keep.add(b);
       if (this.live.has(b)) continue;
-      const w = wallFor(this.tiles, b); if (!w) continue;
+      // a shop in a plaza: its sign goes on the plaza's sign band, along the street side
+      const pz = plazaAt(b.x, b.y);
+      const w = pz ? plazaWall(pz, b) : wallFor(this.tiles, b); if (!w) continue;
       const { t: tex, aspect } = signTexture(b), sh = 1.0, width = Math.min(w.len - 0.4, sh * aspect), hgt = sh * (width / (sh * aspect));
       // find a free spot on this wall: slide along it, then go up a row
       const used = this.slots.get(w.key) || []; let pos = null;
@@ -108,6 +118,7 @@ export class Signs {
       // inside a landmark model (the Superstores): the sign goes up high on its front wall
       const lm = LM_GROUPS.find(g => { const L = g.userData.lm; return L && Math.hypot(L.x - wx, L.y - wy) < Math.max(L.size[0], L.size[2]) / 2 + 12; });
       if (lm) { const L = lm.userData.lm; y0 = Math.max(y0, Math.min(L.size[1] * 0.62, 8)); }
+      if (w.plaza) { y0 = w.signY - base + pos.row * (hgt + 0.25); tg.length = 0; }
       if (tg.length) {
         RAY.set(_o.set(wx + w.nx * 14, base + y0 + hgt / 2, -(wy + w.ny * 14)), _d.set(-w.nx, 0, w.ny)); RAY.far = 40;
         const hit = RAY.intersectObjects(tg, true)[0];

@@ -37,6 +37,7 @@ import { loadTerrain, ground } from './terrain.js';
 import { loadBusinesses, Signs } from './business.js';
 import { Requests311 } from './r311.js';
 import { Leaves } from './leaves.js';
+import { loadPlazas, Plazas, PLAZA_NIGHT } from './plazas.js';
 import { loadParks, ParkAssets, parksCredit } from './parks.js';
 import { loadFields, Fields } from './fields.js';
 import { loadLyrics, updateLyrics } from './lyrics.js';
@@ -139,10 +140,10 @@ async function boot() {
     status('Loading Google 3D city…');
   }
   status('Loading people and cars…');
-  await Promise.all([loadHero(), loadVehicles(), loadBusinesses(), loadParks(), loadSigns(), loadBillboards(), loadFields(), loadLyrics(), loadTreeModels()]);
+  await Promise.all([loadHero(), loadVehicles(), loadBusinesses(), loadParks(), loadSigns(), loadBillboards(), loadFields(), loadLyrics(), loadTreeModels(), loadPlazas()]);
   tiles = new TileManager(scene, world, { radius: game.photoOn ? Math.max(1, game.settings.radius - 1) : game.settings.radius, meshes: !game.photoOn, onTile: (t, added) => { if (added) { tilePaths(t); buildFuel(t, tiles); } traffic && traffic.onTile(t, added); } });
   tiles.far = mobile ? 1 : 2; if (!game.photoOn) scene.fog.far = fogFar();
-  game.tiles = tiles; game.signs = new Signs(scene, tiles); game.r311 = new Requests311(scene, camera, world, canvas, tiles); game.leaves = new Leaves(scene, tiles, mobile ? 110 : 220);
+  game.tiles = tiles; game.signs = new Signs(scene, tiles); game.r311 = new Requests311(scene, camera, world, canvas, tiles); game.leaves = new Leaves(scene, tiles, mobile ? 110 : 220); game.plazas = new Plazas(scene);
   // compile the shaders of newly loaded models off to the side, so the first time one appears the game doesn't stall
   WARM.fn = obj => { obj.position.set(camera.position.x, -500, camera.position.z); obj.traverse(o => { o.frustumCulled = false; }); scene.add(obj);
     const done = () => scene.remove(obj); try { renderer.compileAsync(obj, camera, scene).then(done, done); } catch (e) { done(); } };
@@ -261,12 +262,13 @@ function homeStreet() {
   });
   game.familyCar = game.homeCars[0];
   // the lawn: halfway between the house and the street
-  const nl = Math.hypot(H.x - b.px, H.y - b.py) || 1, nx = (H.x - b.px) / nl, ny = (H.y - b.py) / nl, lx = b.px + nx * (b.p.w / 2 + 7.5), ly = b.py + ny * (b.p.w / 2 + 7.5);      // the lawn: past the sidewalk, in front of the house
+  // 78's front lawn: between its frontage on the sidewalk (6734.2, 7887.5) and the house (6734.5, 7894.5), City address points
+  const nl = Math.hypot(H.x - b.px, H.y - b.py) || 1, nx = (H.x - b.px) / nl, ny = (H.y - b.py) / nl, lx = 6734.3, ly = 7891.8;
   if (!game.homeTree && TREE_M.maple) {
-    const tx = lx + b.dx * 6 - nx * 1.5, ty = ly + b.dy * 6 - ny * 1.5, t = new THREE.InstancedMesh(TREE_M.maple.geo, TREE_M.maple.mat, 1);
-    t.setMatrixAt(0, new THREE.Matrix4().compose(new THREE.Vector3(tx, ground(tx, ty), -ty), new THREE.Quaternion(), new THREE.Vector3(4.2, 9.5, 4.2))); t.setColorAt(0, new THREE.Color(0.9, 0.22, 0.07)); t.castShadow = true; t.name = 'home maple'; scene.add(t); game.homeTree = t;
+    const tx = lx - 3.6, ty = ly - 1.2, t = new THREE.InstancedMesh(TREE_M.maple.geo, TREE_M.maple.mat, 1);
+    t.setMatrixAt(0, new THREE.Matrix4().compose(new THREE.Vector3(tx, ground(tx, ty), -ty), new THREE.Quaternion(), new THREE.Vector3(3.2, 8, 3.2))); t.setColorAt(0, new THREE.Color(0.9, 0.22, 0.07)); t.castShadow = true; t.name = 'home maple'; scene.add(t); game.homeTree = t;
   }
-  if (game.life) game.life.homeKids = { x: lx - b.dx * 2.5 + nx * 1, y: ly - b.dy * 2.5 + ny * 1 };
+  if (game.life) game.life.homeKids = { x: lx + 1.6, y: ly + 0.4 };
   return true;
 }
 
@@ -485,7 +487,7 @@ function updateSky(px, py) {
   sun.position.set(px + Math.sin(az) * 300, 120 + e * 380, -py + Math.cos(az) * 300);
   sun.target.position.set(px, player ? player.gy : 0, -py); sun.position.y += player ? player.gy : 0;
   sun.color.setHSL(0.1, 0.6, 0.6 + day * 0.35);
-  setNight(1 - day); setHalloweenNight(1 - day); game.day = day; LM_NIGHT.value = Math.max(0, Math.min(1, ((1 - day) - 0.35) / 0.4));
+  setNight(1 - day); setHalloweenNight(1 - day); game.day = day; LM_NIGHT.value = PLAZA_NIGHT.value = Math.max(0, Math.min(1, ((1 - day) - 0.35) / 0.4));
   game._sunDir = (game._sunDir || new THREE.Vector3()).copy(sun.position).sub(sun.target.position).normalize();
   game._skyArgs = [day, dusk];
   if (game.mountains) { const mc = game.mountains.material.color; mc.setRGB(0.2, 0.25, 0.38).lerp(tmp.setRGB(1, 1, 1), day); if (dusk > 0) mc.lerp(tmp.setRGB(1, 0.72, 0.6), dusk * 0.4); game.mountains.position.set(px, (player ? player.gy : 0) * 0.3, -py); }
@@ -548,6 +550,7 @@ function loop(now) {
   if (game.started) game.signs.update(dt, player.x, player.y);
   if (game.started && game.r311 && player.mode !== 'heli') game.r311.update(dt, player.x, player.y);
   if (game.started && (game._homeT = (game._homeT || 0) - dt) <= 0) { game._homeT = 2; if (Math.hypot(player.x - P.home.x, player.y - P.home.y) < 320 && (!game.homeCars || game.homeCars.some(c => !c || c.dead) || !game.homeTree)) homeStreet(); }
+  if (game.plazas) game.plazas.update(dt, player.x, player.y);
   if (game.started && game.leaves) game.leaves.update(dt, player.x, player.y, player.mode !== 'heli');
   if (game.started && game.parks) game.parks.update(dt, player.x, player.y);
   if (game.started && game.fields) game.fields.update(dt, player.x, player.y);

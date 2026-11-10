@@ -81,7 +81,7 @@ export class Life {
       if (H && humanReady('kid_girl') && humanReady('kid_boy') && Math.hypot(H.x - px, H.y - py) < 180 && !this.kids.some(k => k.home)) {
         ['kid_girl', 'kid_boy'].forEach((name, i) => {
           const ch = new Character({ glb: name, gscale: 0.82 }); this.scene.add(ch.g);
-          this.kids.push({ ch, cx: H.x, cy: H.y, a: i * Math.PI, r: 2.2, sp: 1.9 + i * 0.15, mode: 'chase', h: 0, x: H.x, y: H.y, t: i * 3, home: true });
+          this.kids.push({ ch, cx: H.x, cy: H.y, a: i * Math.PI, r: 1.4, sp: 1.5 + i * 0.1, mode: 'chase', h: 0, x: H.x, y: H.y, t: i * 3, home: true });
         });
       }
       if (this.kids.length < this.max.kids) this.spawnKids(px, py);
