@@ -13,6 +13,9 @@ export const CAR3D = {
   peace: { L: 5.05, W: 2.0, H: 1.95 },
   bus: { L: 12.2, W: 2.59, H: 3.2 },
   ctrain: { L: 24.8, W: 2.65, H: 3.9 },
+  sorento: { L: 4.78, W: 1.89, H: 1.69 },      // 2017 Kia Sorento, white
+  rondo: { L: 4.55, W: 1.8, H: 1.65 },         // 2008 Kia Rondo, brown
+  veloster: { L: 4.22, W: 1.8, H: 1.4 },       // 2015 Hyundai Veloster, orange
 };
 const READY = {};
 
@@ -31,7 +34,7 @@ async function load(kind) {
   READY[kind] = { geo, mat: new THREE.MeshLambertMaterial({ map: m.map, normalMap: m.normalMap || null }), wheels: WHEEL_R[kind] ? splitWheels(geo, R.W, WHEEL_R[kind]) : null };
 }
 // tyre radius by vehicle (m); the CTrain's wheels are hidden under its skirts
-const WHEEL_R = { pickup: 0.42, offroad: 0.43, police: 0.38, peace: 0.39, bus: 0.5 };
+const WHEEL_R = { pickup: 0.42, offroad: 0.43, police: 0.38, peace: 0.39, bus: 0.5, sorento: 0.37, rondo: 0.33, veloster: 0.32 };
 // find the wheels in the model so they can turn: the low points at the sides give the axles, and the
 // triangles inside each tyre's circle become their own piece, spun round the axle
 function splitWheels(geo, W, r) {

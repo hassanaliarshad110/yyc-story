@@ -28,7 +28,7 @@ function carWhich(x, y, z) { const ax = x < 0 ? -x : x; if (ax < WHL.cxi || y > 
 function bikeWhich(x, y, z) { if (z > WHL.bz || z < -WHL.bz) return 0; for (let k = 0; k < 2; k++) { const w = WHL.bike[k], dx = x - w.x, dy = y - w.y; if (dx * dx + dy * dy < w.r * w.r) return k + 1; } return 0; }
 
 // body paint colours: the texture's own red is swapped for the tint
-const TINTS = { white: [238, 238, 232], silver: [168, 174, 180], black: [36, 36, 40], blue: [44, 84, 170], grey: [112, 116, 122], gold: [196, 170, 110], green: [46, 92, 62], navy: [30, 44, 84] };
+const TINTS = { white: [238, 238, 232], silver: [168, 174, 180], black: [36, 36, 40], blue: [44, 84, 170], grey: [112, 116, 122], gold: [196, 170, 110], green: [46, 92, 62], navy: [30, 44, 84], red: [168, 24, 30] };
 function bakedTex(d, w, h, rgb) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); g.fillStyle = '#8a8478'; g.fillRect(0, 0, w, h);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;

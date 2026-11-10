@@ -1,6 +1,7 @@
 // Streams 500 m map tiles around the player and turns them into 3D meshes plus collision data.
 import * as THREE from 'three';
-import { MAT } from './materials.js';
+import { MAT, nearFade } from './materials.js';
+import { loader } from './gltf.js';
 import { TER, ground, gl } from './terrain.js';
 
 export const L = { BLD: 1, ROAD: 2, PATH: 3, RAIL: 4, AREA: 5, WATER: 6, WWAY: 7, POI: 8, STOP: 9, BARR: 10, TREE: 11 };
@@ -228,7 +229,14 @@ const LIGHT_COLS = [0x3aa0ff, 0xb05aff, 0xff4a7a, 0xffb02a, 0x2affd0, 0xf2f6ff, 
 // geometry (shouse0..3, sroof) tagged with each house's centre, and come back as `cands`
 export const HOUSES = { place: null, drop: null };
 // extra walkable surfaces (CTrain platforms): oriented boxes { x, y, fx, fy, hl, hw, top }
-export const PLATFORMS = [];      // detailed house models (houses3d.js) hook in here
+export const PLATFORMS = [];
+// the top of a CTrain platform under (x, y), or null; standY: where people stand (the platform top, else the ground)
+export function platformTop(x, y) {
+  let best = null;
+  for (const P of PLATFORMS) { const dx = x - P.x, dy = y - P.y; if (Math.abs(dx) > P.hl + P.hw || Math.abs(dy) > P.hl + P.hw) continue; if (Math.abs(dx * P.fx + dy * P.fy) <= P.hl && Math.abs(dx * P.fy - dy * P.fx) <= P.hw && (best == null || P.top > best)) best = P.top; }
+  return best;
+}
+export function standY(x, y) { const g = ground(x, y), p = platformTop(x, y); return p != null && p > g - 0.5 && p < g + 2.5 ? p : g; }      // detailed house models (houses3d.js) hook in here
 export const B3D_SKIP = [];        // landmarks drawn by their own models (world x, y, radius); filled by houses3d.js
 export function buildB3D(buf, skipTall = true, groundAt = gl, opt = {}) {
   const G = { house0: new GeoBuilder(), house1: new GeoBuilder(), house2: new GeoBuilder(), house3: new GeoBuilder(), apt: new GeoBuilder(), comm: new GeoBuilder(), shop: new GeoBuilder(), tower: new GeoBuilder(), roof: new GeoBuilder(), crown: new GeoBuilder(), wash: new GeoBuilder() };
@@ -764,10 +772,12 @@ export function railStore() {
 export function buildGuardrails(roads, ridx, rails) {
   const G = new GeoBuilder(), white = new THREE.Color(0xffffff);
   for (const f of roads || []) {
-    if (![1, 2, 8, 9].includes(f.kind) || (f.flags & 4)) continue;
+    // guardrails only on freeways (in the middle, between the two directions) and along bridges; city streets get curbs
+    const raw0 = f.rings[0], bridge = !!raw0.z;
+    if ((f.flags & 4) || !(bridge ? [1, 2, 3, 4, 8, 9].includes(f.kind) : f.kind === 1)) continue;
     const raw = f.rings[0], Z = raw.z, r = Z || !TER.on ? raw : densify(raw, 8), n = r.length / 2; if (n < 2) continue;
     G.lift = Z ? 0 : null;
-    for (const side of [1, -1]) {
+    for (const side of bridge ? [1, -1] : (f.flags & 1) ? [1] : []) {
       const off = (f.a / 20 + 0.6) * side; let along = 0; const base = G.n;
       const free = new Uint8Array(n), P = new Float32Array(n * 3);
       for (let i = 0; i < n; i++) {
@@ -795,7 +805,7 @@ export function buildGuardrails(roads, ridx, rails) {
 export function buildCurbs(roads, ridx, rails) {
   const G = new GeoBuilder(), top = new THREE.Color(0xdcd9d2), face = new THREE.Color(0x9a978f);
   const lines = [];
-  for (const f of roads || []) if ([3, 4, 5, 6].includes(f.kind) && !(f.flags & 4) && !f.rings[0].z) lines.push([f, f.a / 20, ROAD_Y[f.kind] || 0.15]);
+  for (const f of roads || []) if ([2, 3, 4, 5, 6, 9].includes(f.kind) && !(f.flags & 4) && !f.rings[0].z) lines.push([f, f.a / 20, ROAD_Y[f.kind] || 0.15]);
   for (const f of rails || []) if (f.kind === 2 && !(f.flags & 4) && !f.rings[0].z) lines.push([f, 1.75, 0.17]);
   const H = 0.18, W = 0.24;
   for (const [f, hw, ry] of lines) {
@@ -938,12 +948,61 @@ function treeGeos() {
   };
   return TREE_GEO;
 }
+// the generated tree models (autumn sugar maple, Colorado blue spruce, paper birch): one geometry each, standing on y = 0,
+// 1 high, crown radius 1. Most broadleaf street trees become maples, in reds, oranges and golds
+export const TREE_M = {};
+export async function loadTreeModels() {
+  const v = new THREE.Vector3(), v2 = new THREE.Vector3();
+  await Promise.all(['maple', 'spruce', 'birch'].map(async k => {
+    try {
+      const gl0 = await loader.loadAsync(`data/models/tree_${k}.glb`); gl0.scene.updateMatrixWorld(true); let mesh = null; gl0.scene.traverse(o => { if (o.isMesh && !mesh) mesh = o; });
+      const geo = mesh.geometry.clone(); geo.applyMatrix4(mesh.matrixWorld); geo.computeBoundingBox();
+      const b = geo.boundingBox, sz = b.getSize(v), c = b.getCenter(v2), r = Math.max(sz.x, sz.z) / 2;
+      geo.translate(-c.x, -b.min.y, -c.z); geo.scale(1 / r, 1 / sz.y, 1 / r); geo.computeBoundingSphere(); geo.computeBoundingBox();
+      const mat = new THREE.MeshLambertMaterial({ map: mesh.material.map });
+      if (k === 'maple') {        // the leaves (greenish texels) take each tree's autumn colour; the trunk keeps its bark
+        const prev = mat.onBeforeCompile;
+        mat.onBeforeCompile = sh => {
+          sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n vec3 txC = diffuseColor.rgb; float lfM = smoothstep(-0.02, 0.06, txC.g - txC.r * 0.85);')
+            .replace('#include <color_fragment>', '#include <color_fragment>\n #ifdef USE_COLOR\n { float lu = dot(txC, vec3(0.3, 0.59, 0.11)); diffuseColor.rgb = mix(txC, vColor.rgb * (0.45 + lu * 1.5), lfM); }\n #endif');
+        };
+      }
+      nearFade(mat, 1.5, 4.5); if (k === 'maple') mat.customProgramCacheKey = () => 'nearfade-maple';
+      TREE_M[k] = { geo, mat };
+    } catch (e) { console.warn('tree model', k, e); }
+  }));
+}
+const TINT = { maple: [[0.85, 0.16, 0.07], [0.95, 0.42, 0.08], [0.95, 0.66, 0.14], [0.68, 0.09, 0.07], [0.9, 0.3, 0.06], [0.78, 0.62, 0.18]], birch: [[1, 1, 1], [1, 0.92, 0.75]], spruce: [[1, 1, 1], [0.85, 0.95, 1], [0.9, 1, 0.9]] };
+function modelFor(c, hs) {
+  if (c === 6 || c === 11) return null;                       // shrubs and junipers keep their low shapes
+  if (c === 2 || c === 3 || c === 7) return 'spruce';
+  if (c === 8) return 'birch';
+  if (c === 4) return hs < 0.5 ? 'birch' : 'maple';
+  return hs * 7 % 1 < 0.18 ? 'birch' : 'maple';
+}
 // leaf colours (HSL) per class: [hue, sat, light] base and jitter; some classes have a second colour (purple crabapples, blue spruce)
 const LEAF = { 1: [0.24, 0.45, 0.3], 2: [0.37, 0.32, 0.22], 3: [0.33, 0.33, 0.25], 4: [0.2, 0.5, 0.36], 5: [0.23, 0.42, 0.33], 6: [0.25, 0.4, 0.3], 7: [0.27, 0.45, 0.42], 8: [0.21, 0.5, 0.42], 9: [0.25, 0.42, 0.28], 10: [0.19, 0.42, 0.42], 11: [0.4, 0.28, 0.24] };
 export function buildTrees(feats) {
   if (!feats || !feats.length) return [];
   const G = treeGeos(), out = [], m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), pos = new THREE.Vector3(), col = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
   const cls = f => (f.kind >= 1 && f.kind <= 11 ? f.kind : 1);
+  const hsOf = f => { const r = f.rings[0]; return Math.abs(Math.sin(r[0] * 12.9898 + r[1] * 78.233)) % 1; };
+  if (TREE_M.maple && TREE_M.spruce && TREE_M.birch) {      // the detailed models
+    const byM = {}, rest = [];
+    for (const f of feats) { const k = modelFor(cls(f), hsOf(f)); if (k) (byM[k] ||= []).push(f); else rest.push(f); }
+    for (const [k, list] of Object.entries(byM)) {
+      const M = TREE_M[k], im = new THREE.InstancedMesh(M.geo, M.mat, list.length), T = TINT[k];
+      list.forEach((f, i) => {
+        const r = f.rings[0], h = Math.max(3, f.a / 10), cr = Math.max(1.2, f.b / 10), hs = hsOf(f), c = cls(f);
+        const w = k === 'spruce' ? Math.max(1.2, Math.min(cr * 0.85, h * 0.3)) : Math.min(cr * 0.95, h * 0.62);
+        m.compose(pos.set(r[0], TER.on ? gl(r[0], r[1]) : 0, -r[1]), q.setFromAxisAngle(up, hs * 6.28), sc.set(w * (0.92 + hs * 0.16), h, w * (1.08 - hs * 0.16)));
+        im.setMatrixAt(i, m); const t = T[(hs * 31 | 0) % T.length]; im.setColorAt(i, col.setRGB(t[0], t[1], t[2]));
+      });
+      im.castShadow = true; im.userData.trees = k; out.push(im);
+    }
+    if (!rest.length) return out;
+    feats = rest;
+  }
   const withTrunk = feats.filter(f => cls(f) !== 6 && cls(f) !== 11);
   if (withTrunk.length) {
     const trunks = new THREE.InstancedMesh(G.trunk, MAT.trunk, withTrunk.length);
@@ -1161,14 +1220,14 @@ export class TileManager {
       for (let i = 0; i < 4; i++) { const m = add(geos['shouse' + i], MAT.wallHousesSwap[i], { cs }); if (m) m.customDepthMaterial = MAT.swapDepth; }
       { const m = add(geos.sroof, MAT.roofSwap, { cs }); if (m) m.customDepthMaterial = MAT.swapDepth; }
       if (cands && cands.length) { t.hcands = [cands, roadIndex(layers[L.ROAD]), g, ox, oy]; if (HOUSES.place) t.houses = HOUSES.place(...t.hcands); }
-      add(geos.apt, MAT.wallApt, { cs }); add(geos.comm, MAT.wallComm, { cs }); add(geos.shop, MAT.wallShop, { cs }); add(geos.tower, MAT.wallTower, { cs }); add(geos.roof, MAT.roof, { cs });
+      for (const [k, mt] of [['apt', MAT.wallApt], ['comm', MAT.wallComm], ['shop', MAT.wallShop], ['tower', MAT.wallTower]]) { const m = add(geos[k], mt, { cs }); if (m) m.userData.bld = 1; } add(geos.roof, MAT.roof, { cs });
     }
     if (layers[L.BLD]) {
       const footOnly = !M || !!job.bbuf;
       const { geos, coll: rings } = !footOnly ? buildBuildings(layers[L.BLD], true, layers[L.ROAD]) : { geos: {}, coll: layers[L.BLD].map(f => { const p = cleanRing(f.rings[0]); if (ringArea(f.rings[0]) < 0) p.reverse(); return p; }).filter(p => p.length >= 3) };
       const cs = !lite;
       for (let i = 0; i < 4; i++) add(geos['house' + i], MAT.wallHouses[i], { cs });
-      add(geos.apt, MAT.wallApt, { cs }); add(geos.comm, MAT.wallComm, { cs }); add(geos.shop, MAT.wallShop, { cs }); add(geos.tower, MAT.wallTower, { cs }); add(geos.roof, MAT.roof, { cs }); add(geos.trim, MAT.concrete, { cs }); if (D) { add(geos.doors, MAT.doors); add(geos.drive, MAT.drive, { ro: 2 }); }
+      for (const [k, mt] of [['apt', MAT.wallApt], ['comm', MAT.wallComm], ['shop', MAT.wallShop], ['tower', MAT.wallTower]]) { const m = add(geos[k], mt, { cs }); if (m) m.userData.bld = 1; } add(geos.roof, MAT.roof, { cs }); add(geos.trim, MAT.concrete, { cs }); if (D) { add(geos.doors, MAT.doors); add(geos.drive, MAT.drive, { ro: 2 }); }
       if (!job.bbuf) coll = buildCollision(rings);          // with the City's 3D buildings, their real walls are the obstacles
     }
     if (layers[L.TREE]) {        // tree trunks block cars and people
@@ -1273,7 +1332,7 @@ export class TileManager {
     }
     if (!only) for (const P of PLATFORMS) {
       const dx = x - P.x, dy = y - P.y; if (Math.abs(dx) > P.hl + P.hw || Math.abs(dy) > P.hl + P.hw) continue;
-      if (Math.abs(dx * P.fx + dy * P.fy) <= P.hl && Math.abs(dx * P.fy - dy * P.fx) <= P.hw && P.top <= cur + step && P.top > best) best = P.top;
+      if (Math.abs(dx * P.fx + dy * P.fy) <= P.hl && Math.abs(dx * P.fy - dy * P.fx) <= P.hw && P.top <= cur + Math.max(step, 1.35) && P.top > best) best = P.top;      // you can always step up onto a platform
     }
     if (lift && best === g0) for (const t of this.tilesNear(x, y, 40)) { if (!t.pave) continue; const l = t.pave.lift(x - t.ox, y - t.oy); if (l) return g0 + l; }
     return best;

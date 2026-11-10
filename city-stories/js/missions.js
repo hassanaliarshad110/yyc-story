@@ -1,5 +1,6 @@
 // The story: ten missions, each teaching one City of Calgary service, set at real places.
 import * as THREE from 'three';
+import { standY } from './tiles.js';
 import { say, card, quiz, toast, setObjective, setObjDist, setPrompt, found } from './hud.js';
 import { app311, appHelp, appShop } from './phone.js';
 import { makeMarker } from './actors.js';
@@ -99,7 +100,7 @@ export class Missions {
   outside(x, y) { const T = this.g.tiles; if (!T || !T.readyAt(x, y) || !T.insideBuilding(x, y)) return [x, y]; const s = T.safeSpot(x, y, { maxR: 70 }); return [s.x, s.y]; }
   npc(look, x, y, h = 0) {
     [x, y] = this.outside(x, y);
-    let p = new Character(look).g; p.position.set(x, ground(x, y), -y); p.rotation.y = Math.PI - h; this.g.scene.add(p); this.npcs.push(p);
+    let p = new Character(look).g; p.position.set(x, standY(x, y), -y); p.rotation.y = Math.PI - h; this.g.scene.add(p); this.npcs.push(p);
     // the realistic model takes over once it has loaded
     if (look.glb && !humanReady(look.glb)) loadHuman(look.glb).then(ok => { const i = this.npcs.indexOf(p); if (!ok || i < 0) return; const q = new Character(look).g; q.position.copy(p.position); q.rotation.copy(p.rotation); this.g.scene.remove(p); this.g.scene.add(q); this.npcs[i] = q; p = q; });
     // the buildings may still be loading: look again once they're in, and step outside if this spot is in one
@@ -112,7 +113,7 @@ export class Missions {
   actor(look, x, y, h = 0) {
     [x, y] = this.outside(x, y);
     const ch = new Character(look), a = { ch, g: ch.g, x, y, h, to: null, sp: 1.4, act: null, res: null };
-    ch.g.position.set(x, ground(x, y), -y); ch.g.rotation.y = Math.PI - h; this.g.scene.add(ch.g); this.actors.push(a);
+    ch.g.position.set(x, standY(x, y), -y); ch.g.rotation.y = Math.PI - h; this.g.scene.add(ch.g); this.actors.push(a);
     if (look.glb && !humanReady(look.glb)) loadHuman(look.glb).then(ok => { if (!ok || !this.actors.includes(a)) return; const c2 = new Character(look); c2.g.position.copy(a.g.position); c2.g.rotation.copy(a.g.rotation); this.g.scene.remove(a.g); this.g.scene.add(c2.g); a.ch = c2; a.g = c2.g; });
     return a;
   }
@@ -156,7 +157,7 @@ export class Missions {
         else { const st = Math.min(d, a.sp * dt); a.x += dx / d * st; a.y += dy / d * st; sp = a.sp; a.h += angDiff(a.h, Math.atan2(dx, dy)) * Math.min(1, dt * 8); }
       } else if (a.faceH != null) a.h += angDiff(a.h, a.faceH) * Math.min(1, dt * 6);
       a.ch.animate(dt, { speed: sp, ...(a.act || {}) });
-      a.g.position.set(a.x, ground(a.x, a.y), -a.y); a.g.rotation.y = Math.PI - a.h;
+      a.g.position.set(a.x, standY(a.x, a.y), -a.y); a.g.rotation.y = Math.PI - a.h;
     }
   }
   ride(route, from, to, label) {
@@ -205,7 +206,8 @@ export class Missions {
     if (this.goal) {
       const d = Math.hypot(p.x - this.goal.x, p.y - this.goal.y);
       setObjDist(d);
-      if (d < this.goal.r && p.mode !== 'ride') { const g = this.goal, r = g.res; this.clearGoal(); if (g.name && g.real !== false) { this.seen(g); this.g.offerReal(g); } r(); }
+      if (p.mode === 'heli' && d < Math.max(60, this.goal.r * 2.5) && !this.goal.heliHint) { this.goal.heliHint = true; toast('Land the helicopter and step out (F) to carry on.', 4000); }
+      if (d < this.goal.r && p.mode !== 'ride' && p.mode !== 'heli') { const g = this.goal, r = g.res; this.clearGoal(); if (g.name && g.real !== false) { this.seen(g); this.g.offerReal(g); } r(); }
     }
     this.marker.userData.arrow.position.y = 4 + Math.sin(performance.now() / 300) * 0.6;
     this.marker.rotation.y += dt;

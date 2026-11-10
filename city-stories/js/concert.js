@@ -5,6 +5,7 @@ import { drawLyricsOn } from './lyrics.js';
 import { Character, HAT_COLORS } from './rig.js';
 import { ground } from './terrain.js';
 import { rotY } from './player.js';
+import { Dancers } from './dancers.js';
 
 export const isConcertTime = clock => clock >= 19 || clock < 3;
 const SKIN = [0x8d5a3b, 0xb07a52, 0xc69373, 0xe1b899, 0x5c3a24, 0xa4704e];
@@ -46,24 +47,18 @@ export class Concert {
     });
     this.wash = [new THREE.PointLight(0xff2a6d, 0, 60, 1.5), new THREE.PointLight(0x05d9e8, 0, 60, 1.5)];
     this.wash[0].position.set(-8, 9, 6); this.wash[1].position.set(8, 9, 6); for (const w of this.wash) g.add(w);
-    // performers
-    this.band = [];
-    const singer = new Character({ skin: 0xb07a52, shirt: 0x111111, pants: 0x111111, hair: 0x15100d });
-    singer.g.position.set(0, 1.7, -3); singer.g.rotation.y = 0; g.add(singer.g); this.band.push([singer, 2]);
-    for (const [x, sh] of [[-6, 0xc8102e], [6, 0x1f6fd1]]) { const d = new Character({ skin: 0x8d5a3b, shirt: sh, pants: 0x222222, hair: 0x15100d }); d.g.position.set(x, 1.7, -5); g.add(d.g); this.band.push([d, 1]); }
+    // the singer and two dancers on stage, and the crowd in front: 3D people dancing to the song
+    const band = [[0, -3], [-6, -5], [6, -5]].map(([ax, ay]) => { const [x, y] = this.local(ax, ay); return { x, y, h: this.face, z: 1.7 }; });
+    this.band = new Dancers(this.scene, band, { seed: 5 });
     const mic = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.5, 6), truss); mic.position.set(0, 2.45, -2.5); g.add(mic);
-    // the crowd, facing the stage
-    this.crowd = [];
+    const crowd = [];
     for (let i = 0; i < this.n; i++) {
-      const fem = H(i, 1) < 0.45, look = { skin: SKIN[Math.floor(H(i, 2) * SKIN.length)], shirt: TOPS[Math.floor(H(i, 3) * TOPS.length)], pants: BOTS[Math.floor(H(i, 4) * BOTS.length)], hair: 0x15100d, fem, long: fem && H(i, 5) < 0.6, hijab: fem && H(i, 6) < 0.18 ? 0x2a2a3a : undefined, scale: 0.92 + H(i, 7) * 0.14, hat: H(i, 13) < 0.7 && !(fem && H(i, 6) < 0.18) ? HAT_COLORS[Math.floor(H(i, 14) * HAT_COLORS.length)] : undefined };
-      const ch = new Character(look);
       const row = Math.floor(i / 7), col = i % 7, ax = (col - 3) * 2.6 + (H(i, 8) - 0.5) * 1.4 + (row % 2) * 1.3, ay = 4 + row * 2.4 + (H(i, 9) - 0.5) * 1.0;
-      const [wx, wy] = this.local(ax, ay);
-      ch.g.position.set(wx, ground(wx, wy), -wy); ch.g.rotation.y = rotY(this.face + Math.PI + (H(i, 10) - 0.5) * 0.5);
-      this.scene.add(ch.g); this.crowd.push([ch, Math.floor(H(i, 11) * 4), H(i, 12) * 2]);
+      const [wx, wy] = this.local(ax, ay); crowd.push({ x: wx, y: wy, h: this.face + Math.PI + (H(i, 10) - 0.5) * 0.5 });
     }
+    this.crowd = new Dancers(this.scene, crowd, { seed: 9 });
   }
-  setVisible(on) { if (!this.built) return; this.on = on; for (const b of this.beams) b.visible = on; for (const w of this.wash) w.intensity = on ? 40 : 0; for (const [c] of this.crowd) c.g.visible = on; for (const [c] of this.band) c.g.visible = on; }
+  setVisible(on) { if (!this.built) return; this.on = on; for (const b of this.beams) b.visible = on; for (const w of this.wash) w.intensity = on ? 40 : 0; this.crowd.visible = on; this.band.visible = on; }
   drawScreen(t) {
     const g = this.cx, W = 512, Hh = 256;
     const grd = g.createLinearGradient(0, 0, W, Hh); grd.addColorStop(0, `hsl(${(t * 40) % 360},80%,25%)`); grd.addColorStop(1, `hsl(${(t * 40 + 120) % 360},80%,15%)`);
@@ -82,8 +77,7 @@ export class Concert {
     if (!night) return 0;
     this.t += dt;
     if (d < 700) {
-      for (const [c, st] of this.band) c.animate(dt, { dance: st });
-      if (d < 350) for (const [c, st, off] of this.crowd) c.animate(dt, { dance: st, offset: off });
+      this.band.update(dt, true, true); this.crowd.update(dt, d < 350, true);
       this.beams.forEach((b, i) => { b.rotation.z = Math.sin(this.t * 0.9 + i) * 0.55; b.rotation.x = 0.35 + Math.sin(this.t * 0.7 + i * 1.7) * 0.35; });
       this.wash[0].color.setHSL((this.t * 0.1) % 1, 1, 0.5); this.wash[1].color.setHSL((this.t * 0.1 + 0.5) % 1, 1, 0.5);
       if ((this.st = (this.st || 0) - dt) <= 0) { this.st = 0.12; this.drawScreen(this.t); }

@@ -98,30 +98,109 @@ export const LANDMARKS = [
   { file: 'cityhall', x: 52.2, y: 84.5, size: [39, 32.6, 34], rot: Math.PI - 0.06, skip: [51, 85, 8] },
   // The Bow (2012), Centre Street and 5 Avenue SE: a curved tower, its long side running north-east
   { file: 'bow', x: -289, y: 286, size: [92, 236, 46], rot: Math.PI / 4, skip: [-288.7, 285.8, 10] },
-  // Brookfield Place East (2017), 6 Avenue SW
-  { file: 'brookfield', x: -408, y: 290, size: [56, 247, 44], rot: 0, skip: [-408.1, 288.1, 10] },
+  // Brookfield Place East (2017), 225 6 Avenue SW (the City's 3D data has only its crown)
+  { file: 'brookfield', x: -556, y: 208, size: [52, 247, 42], rot: 0, skip: [-553.6, 210.4, 8] },
+  // Suncor Energy Centre (1984), 150 6 Avenue SW: the 215 m west tower and the 33-storey east tower
+  { file: 'suncor', x: -411.7, y: 293.2, size: [127, 215, 82], rot: 0, skip: [-408.1, 288.1, 10] },
   // TELUS Sky (2019), Centre Street and 7 Avenue SW
   { file: 'telussky', x: -379, y: 162, size: [46, 222, 40], rot: 0, skip: [-378.9, 162.2, 10] },
   // Scotiabank Saddledome (1983), Stampede Park
   { file: 'saddledome', x: 431, y: -877, size: [150, 43, 150], rot: 0, skip: [429.8, -872.8, 12] },
   // Nelson Mandela High School (2016), 45 Saddletowne Circle NE; entrance to the north
   { file: 'mandela', x: 7623.4, y: 8542.5, size: [128, 16.3, 133], rot: Math.PI / 2, skip: [7643.3, 8540.8, 10] },
-  // Real Canadian Superstore, 3633 Westwinds Drive NE (2005)
-  { file: 'superstore', x: 6060.9, y: 7167.1, size: [153.7, 13.7, 116], rot: Math.PI / 2, skip: [6066, 7135.5, 10] },
+  // Real Canadian Superstores (the big stores; the smaller downtown and north-central ones keep the City's shapes)
+  { file: 'superstore', x: 5201, y: 2643.7, size: [146.8, 10.8, 116.5], rot: 2.732, skip: [5193.9, 2658.3, 8] },      // 3575 20 Avenue NE
+  { file: 'superstore', x: -7232.2, y: 10142.6, size: [151.2, 14.4, 106.3], rot: 0.205, skip: [-7236.9, 10148.5, 8] },      // 5251 Country Hills Boulevard NW
+  { file: 'superstore', x: -799.8, y: 12987.5, size: [165.9, 13.7, 97.7], rot: 0.001, skip: [-817.2, 12975, 8] },      // 100 Country Village Road NE
+  { file: 'superstore', x: 6378.2, y: -12350, size: [151.4, 13.5, 106.6], rot: 3.143, skip: [6382.2, -12361, 8] },      // 4700 130 Avenue SE
+  { file: 'superstore', x: -667.6, y: -15051.5, size: [146.1, 15, 102.5], rot: 3.511, skip: [-669.2, -15054.4, 8] },      // 15915 Macleod Trail SE
+  { file: 'superstore', x: 6060.9, y: 7167.1, size: [153.7, 13.7, 116], rot: 1.571, skip: [6066, 7135.5, 8] },      // 3633 Westwinds Drive NE
+  { file: 'superstore', x: -1144, y: -9284.7, size: [146.3, 12.1, 116.2], rot: 6.282, skip: [-1118.8, -9302.7, 8] },      // 10505 Southport Road SW
+  { file: 'superstore', x: 1136.1, y: -6545.8, size: [155, 12.4, 115], rot: 3.195, skip: [1145.3, -6537.6, 8] },      // 20 Heritage Meadows Way SE
+  { file: 'superstore', x: 6807.2, y: -18850.2, size: [95, 15.6, 58.4], rot: 1.792, skip: [6812.4, -18850.4, 8] },      // 19655 Seton Way SE
 ];
 for (const L of LANDMARKS) B3D_SKIP.push(L.skip);
+const FILES = {};
+export const LM_GROUPS = [];
+// night on the landmarks: lit windows (a random mix of warm and cool offices, floor by floor), a soft floodlight wash up
+// the walls and a brighter crown; LM_NIGHT is set with the city's other night lights (0 day .. 1 night)
+export const LM_NIGHT = { value: 0 }, LM_TIME = { value: 0 };
+function nightLit(mat, mode, fl, base, top) {
+  mat.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, { lmNight: LM_NIGHT, lmBase: { value: base }, lmTop: { value: top }, lmFloor: { value: new THREE.Vector2(fl[0], fl[1]) }, lmMode: { value: mode } });
+    sh.vertexShader = 'varying vec3 vLmWP; varying vec3 vLmWN;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      vLmWP = (modelMatrix * vec4(transformed, 1.0)).xyz; vLmWN = normalize(mat3(modelMatrix) * objectNormal);`);
+    sh.fragmentShader = 'varying vec3 vLmWP; varying vec3 vLmWN; uniform float lmNight; uniform float lmBase; uniform float lmTop; uniform vec2 lmFloor; uniform float lmMode;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      if (lmNight > 0.0) {
+        vec3 wn = normalize(vLmWN); float hgt = vLmWP.y - lmBase;
+        if (lmMode > 0.5 && abs(wn.y) < 0.45 && hgt > 4.5 && hgt < lmTop - 2.5) {
+          vec2 sd = normalize(vec2(-wn.z, wn.x) + 1e-5); float s = dot(vLmWP.xz, sd);
+          vec2 c = vec2(s / lmFloor.y, hgt / lmFloor.x), cell = floor(c), f = fract(c);
+          float win = step(0.14, f.x) * step(f.x, 0.86) * step(0.2, f.y) * step(f.y, 0.8);
+          float h1 = fract(sin(dot(cell + floor(wn.xz * 2.5) * 17.0, vec2(12.9898, 78.233))) * 43758.5453);
+          float lit = win * step(0.4, h1) * (0.55 + 0.45 * fract(h1 * 7.0));
+          vec3 wc = mix(vec3(1.0, 0.8, 0.52), vec3(0.82, 0.9, 1.0), step(0.72, fract(h1 * 13.0)));
+          totalEmissiveRadiance += wc * lit * lmNight * 1.15;
+        }
+        totalEmissiveRadiance += diffuseColor.rgb * lmNight * (0.1 + (lmMode > 0.5 && lmTop > 60.0 ? 0.45 * smoothstep(lmTop - 16.0, lmTop, hgt) : 0.0));
+      }`);
+  };
+  mat.customProgramCacheKey = () => 'lmnight';
+  return mat;
+}
+// the Saddledome's roof lights: LED strips around the rim and across the saddle roof, slowly changing colour at night
+// (traced on the model itself: rays straight down find the roof)
+function roofLEDs(g, L) {
+  const ray = new THREE.Raycaster(), down = new THREE.Vector3(0, -1, 0), cx = L.x, cy = L.y, R = L.size[0] / 2;
+  const roofAt = (x, y) => { ray.set(new THREE.Vector3(x, 400, -y), down); const h = ray.intersectObject(g, true)[0]; return h ? h.point.y : null; };
+  const lines = [];
+  for (const rf of [0.9, 0.6]) {       // the rim and an inner ring
+    const pts = [];
+    for (let i = 0; i < 120; i++) { const a = i / 120 * Math.PI * 2, x = cx + Math.cos(a) * R * rf, y = cy + Math.sin(a) * R * rf, h = roofAt(x, y); if (h != null) pts.push(new THREE.Vector3(x, h + 0.35, -y)); }
+    if (pts.length > 60) lines.push({ pts, closed: true });
+  }
+  for (let k = 0; k < 8; k++) {        // strips from the middle out to the rim
+    const a = k / 8 * Math.PI * 2, pts = [];
+    for (let i = 0; i <= 30; i++) { const r = R * 0.9 * i / 30, x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r, h = roofAt(x, y); if (h != null) pts.push(new THREE.Vector3(x, h + 0.35, -y)); }
+    if (pts.length > 10) lines.push({ pts, closed: false });
+  }
+  if (!lines.length) return null;
+  const geos = lines.map(l => { const c = new THREE.CatmullRomCurve3(l.pts, l.closed); return new THREE.TubeGeometry(c, l.pts.length * 2, l.closed ? 0.4 : 0.25, 5, l.closed); });
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { night: LM_NIGHT, time: LM_TIME }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform float night; uniform float time; varying vec3 vP;
+      vec3 hue(float h){ return clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0); }
+      void main(){ float a = atan(vP.z + ${(cy).toFixed(1)}, vP.x - ${cx.toFixed(1)});
+        float chase = 0.55 + 0.45 * sin(a * 12.0 - time * 3.0);
+        float mode = mod(floor(time / 12.0), 3.0);
+        vec3 c = mode < 0.5 ? mix(vec3(0.9, 0.05, 0.08), vec3(1.0), step(0.75, chase)) : mode < 1.5 ? hue(fract(a / 6.2832 + time * 0.05)) : mix(vec3(1.0, 0.75, 0.15), vec3(0.9, 0.05, 0.08), 0.5 + 0.5 * sin(time * 1.5));
+        gl_FragColor = vec4(c * (0.6 + 0.6 * chase) * 1.6, night); }`,
+  });
+  const grp = new THREE.Group(); for (const gg of geos) grp.add(new THREE.Mesh(gg, mat)); grp.name = 'saddledome-leds';
+  grp.onBeforeRender = () => {}; LEDS.push(grp); return grp;
+}
+const LEDS = [];
+export function updateLandmarks(dt) { LM_TIME.value += dt; for (const l of LEDS) l.visible = LM_NIGHT.value > 0.02; }      // the landmark models in the scene (store signs snap onto their walls)
 export async function loadLandmarks(scene) {
   const out = [];
   await Promise.all(LANDMARKS.map(async L => {
     try {
-      const gl = await loader.loadAsync(`data/models/${L.file}.glb`); const o = gl.scene;
-      o.traverse(n => { if (n.isMesh) { const m = n.material; n.material = new THREE.MeshLambertMaterial({ map: m.map, normalMap: m.normalMap || null }); n.castShadow = true; n.receiveShadow = true; } });
+      const gl0 = await (FILES[L.file] ||= loader.loadAsync(`data/models/${L.file}.glb`)); const o = gl0.scene.clone(true), gl = { scene: o };
+      const tall = L.size[1] > 60, mode = tall || L.file === 'cityhall' || L.file === 'mandela' ? 1 : 0;
+      const fl = tall ? [3.9, 1.8] : [4.4, 2.8], base = ground(L.x, L.y) - 0.3;
+      o.traverse(n => { if (n.isMesh) { const m = n.material; n.material = nightLit(new THREE.MeshLambertMaterial({ map: m.map, normalMap: m.normalMap || null }), mode, fl, base, L.size[1]); n.castShadow = true; n.receiveShadow = true; } });
       const b = new THREE.Box3().setFromObject(o), sz = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
       const inner = new THREE.Group(); inner.add(o); o.position.set(-c.x, -b.min.y, -c.z);
-      inner.scale.set(L.size[0] / sz.x, L.size[1] / sz.y, L.size[2] / sz.z);
+      // stand on the lowest ground under the footprint (never floating over a slope); the walls reach down to it
+      const g0 = ground(L.x, L.y), cR = Math.cos(L.rot), sR = Math.sin(L.rot); let gmin = g0;
+      for (const [u, w] of [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5], [0, -0.5], [0, 0.5], [-0.5, 0], [0.5, 0]]) { const ax = u * L.size[0], az = w * L.size[2]; gmin = Math.min(gmin, ground(L.x + ax * cR + az * sR, L.y + ax * sR - az * cR)); }
+      const extra = Math.min(6, g0 - gmin);
+      inner.scale.set(L.size[0] / sz.x, (L.size[1] + extra) / sz.y, L.size[2] / sz.z);
       const g = new THREE.Group(); g.add(inner);
-      g.position.set(L.x, ground(L.x, L.y) - 0.3, -L.y); g.rotation.y = L.rot;
-      g.name = L.file; warm(g.clone()); scene.add(g); out.push(g);
+      g.position.set(L.x, g0 - extra - 0.3, -L.y); g.rotation.y = L.rot;
+      if (L.file === 'saddledome') { g.updateMatrixWorld(true); const led = roofLEDs(g, L); if (led) scene.add(led); }
+      g.name = L.file; g.userData.bld = 1; g.userData.lm = L; warm(g.clone()); scene.add(g); out.push(g); LM_GROUPS.push(g);
     } catch (e) { console.warn('landmark', L.file, e); }
   }));
   return out;

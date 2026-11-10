@@ -5,17 +5,19 @@ import { toast } from './hud.js';
 import { hurt } from './health.js';
 import { makeMarker } from './actors.js';
 import { ground } from './terrain.js';
+import { Challenges } from './challenges.js';
 
+const UPV = new THREE.Vector3(0, 1, 0), _dv = new THREE.Vector3();
 const WEAPONS = [{ id: 0, icon: '🙌', name: 'Hands' }, { id: 1, icon: '🔫', name: 'Water gun' }, { id: 2, icon: '🥚', name: 'Eggs' }];
-const W = { 1: { speed: 24, up: 0.06, g: 4, life: 0.85, dmg: 6, every: 0.07, r: 0.09, col: 0x5ab4ff }, 2: { speed: 17, up: 0.22, g: 9.8, life: 2.2, dmg: 20, every: 0.5, r: 0.07, col: 0xfaf6ea } };
+const W = { 1: { speed: 19, up: 0.1, g: 9.8, life: 1.1, dmg: 3, every: 0.03, r: 0.05, col: 0x6cc4ff }, 2: { speed: 17, up: 0.22, g: 9.8, life: 2.2, dmg: 20, every: 0.6, r: 0.07, col: 0xfaf6ea } };
 
 export class Games {
   constructor(game, scene) {
     this.g = game; this.scene = scene; this.w = 0; this.held = false; this.cool = 0; this.shots = []; this.splats = [];
     game.score = 0; game.race = null;
     this.geo = { 1: new THREE.SphereGeometry(1, 6, 4), 2: new THREE.SphereGeometry(1, 8, 6) };
-    this.mat = { 1: new THREE.MeshBasicMaterial({ color: W[1].col, transparent: true, opacity: 0.75 }), 2: new THREE.MeshLambertMaterial({ color: W[2].col }), yolk: new THREE.MeshBasicMaterial({ color: 0xffc928 }), wet: new THREE.MeshBasicMaterial({ color: 0x8fd0ff, transparent: true, opacity: 0.6 }) };
-    this.ui();
+    this.mat = { 1: new THREE.MeshBasicMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.8, depthWrite: false }), 2: new THREE.MeshLambertMaterial({ color: W[2].col }), yolk: new THREE.MeshBasicMaterial({ color: 0xffc928 }), wet: new THREE.MeshBasicMaterial({ color: 0x5a7f9a, transparent: true, opacity: 0.28, depthWrite: false }) };
+    this.ui(); this.ch = new Challenges(game, scene, this);
     if (game.mp) game.mp.onGame = (id, name, d) => this.onNet(id, name, d);
   }
   ui() {
@@ -66,29 +68,45 @@ export class Games {
     return [fx, fy, fz];
   }
   fire() {
-    const p = this.g.player, w = W[this.w]; if (!p || p.mode !== 'foot') return;
-    const [fx, fy, fz] = this.aim(p);
-    const o = { x: p.x + fx * 0.6, y: p.y + fy * 0.6, z: p.gy + 1.35, vx: fx * w.speed, vy: fy * w.speed, vz: (fz + w.up) * w.speed };
-    this.spawn(this.w, o, true);
-    if (this.g.mp && this.g.mp.on) this.g.mp.game({ k: 'shot', w: this.w, o: [o.x, o.y, o.z, o.vx, o.vy, o.vz].map(v => Math.round(v * 100) / 100) });
-    if (this.g.sfx && this.g.sfx.step) this.g.sfx.step(false);
+    const p = this.g.player, w = W[this.w], wi = this.w; if (!p || p.mode !== 'foot') return;
+    const ch = p.char;
+    if (wi === 2 && ch) ch.pose = { throw: 0 };
+    const go = () => {
+      const [fx, fy, fz] = this.aim(p), sp = w.speed * (wi === 1 ? 0.95 + Math.random() * 0.1 : 1);
+      // from the gun's muzzle / the throwing hand, a little to the right of the body
+      const rx = fy, ry = -fx, o = { x: p.x + fx * (wi === 1 ? 0.75 : 0.4) + rx * 0.18, y: p.y + fy * (wi === 1 ? 0.75 : 0.4) + ry * 0.18, z: p.gy + (wi === 1 ? 1.3 : 1.7), vx: fx * sp + (Math.random() - 0.5) * 0.4, vy: fy * sp + (Math.random() - 0.5) * 0.4, vz: (fz + w.up) * sp };
+      this.spawn(wi, o, true);
+      const mp = this.g.mp;
+      if (mp && mp.on && (wi === 2 || (this.netT = (this.netT || 0) - 1) <= 0)) { if (wi === 1) this.netT = 3; mp.game({ k: 'shot', w: wi, o: [o.x, o.y, o.z, o.vx, o.vy, o.vz].map(v => Math.round(v * 100) / 100) }); }
+    };
+    if (wi === 2) setTimeout(go, 280); else go();
   }
   spawn(w, o, mine) {
-    const m = new THREE.Mesh(this.geo[w], this.mat[w]); m.scale.setScalar(W[w].r); if (w === 2) m.scale.set(0.07, 0.09, 0.07);
+    const m = new THREE.Mesh(this.geo[w], this.mat[w]); m.scale.setScalar(W[w].r); if (w === 2) m.scale.set(0.035, 0.045, 0.035);
     this.scene.add(m); this.shots.push({ ...o, w, m, t: 0, mine });
+    if (!mine && w === 1) for (let k = 1; k <= 2; k++) {      // the other player's stream: fill in between the messages
+      const d = { ...o, vx: o.vx + (Math.random() - 0.5) * 0.5, vy: o.vy + (Math.random() - 0.5) * 0.5, vz: o.vz + (Math.random() - 0.5) * 0.3 };
+      setTimeout(() => { const m2 = new THREE.Mesh(this.geo[1], this.mat[1]); m2.scale.setScalar(W[1].r); this.scene.add(m2); this.shots.push({ ...d, w: 1, m: m2, t: 0, mine: false }); }, k * 30);
+    }
   }
   splat(x, y, z, w) {
-    const m = new THREE.Mesh(this.geo[1], w === 2 ? this.mat.yolk : this.mat.wet); m.scale.set(w === 2 ? 0.18 : 0.25, 0.02, w === 2 ? 0.18 : 0.25);
+    if (w === 1 && this.splats.length > 60) return;
+    const m = new THREE.Mesh(this.geo[1], w === 2 ? this.mat.yolk : this.mat.wet); const r = w === 2 ? 0.14 : 0.08 + Math.random() * 0.1; m.scale.set(r, 0.01, r);
     m.position.set(x, z + 0.02, -y); this.scene.add(m); this.splats.push({ m, t: w === 2 ? 6 : 1.5 });
   }
   // ---------------------------------------------------------------- network
   onNet(id, name, d) {
     if (!d || !d.k) return;
-    if (d.k === 'shot' && Array.isArray(d.o)) { const [x, y, z, vx, vy, vz] = d.o; this.spawn(d.w === 2 ? 2 : 1, { x, y, z, vx, vy, vz }, false); }
+    if (d.k.startsWith('ch')) { this.ch.onNet(id, name, d); return; }
+    if (d.k === 'shot' && Array.isArray(d.o)) {
+      const [x, y, z, vx, vy, vz] = d.o, o = this.g.mp.others.get(id);
+      if (o && o.ch) { if (d.w === 2) o.ch.pose = { throw: 0.25 }; else { o.ch.pose = { aim: 1 }; clearTimeout(o.aimT); o.aimT = setTimeout(() => { if (o.ch.pose && o.ch.pose.aim) o.ch.pose = null; }, 400); } }
+      this.spawn(d.w === 2 ? 2 : 1, { x, y, z, vx, vy, vz }, false);
+    }
     else if (d.k === 'hit') {           // someone got you
-      const dmg = Math.max(1, Math.min(40, +d.dmg || 5)), o = this.g.mp.others.get(id), p = this.g.player;
+      const dmg = Math.max(1, Math.min(d.w === 'car' ? 60 : 40, +d.dmg || 5)), o = this.g.mp.others.get(id), p = this.g.player;
       let nx = 0, ny = 0; if (o) { const dx = p.x - o.x, dy = p.y - o.y, l = Math.hypot(dx, dy) || 1; nx = dx / l * 0.3; ny = dy / l * 0.3; }
-      hurt(dmg, nx, ny, 'splash'); this.popup(d.w === 2 ? `🥚 ${name}` : `💦 ${name}`, '#8fd0ff');
+      if (d.w === 'car') { nx *= 6; ny *= 6; } hurt(dmg, nx, ny, d.w === 'car' ? 'car' : 'splash'); this.popup(d.w === 'car' ? `🚗 ${name}` : d.w === 2 ? `🥚 ${name}` : `💦 ${name}`, '#8fd0ff');
     }
     else if (d.k === 'race') this.invite(name, d);
     else if (d.k === 'fin' && this.g.race && this.g.race.rid === d.rid) { this.g.race.done.push({ name, t: d.t }); toast(`🏁 ${name} finished: ${(d.t / 1000).toFixed(1)} s`); }
@@ -169,23 +187,45 @@ export class Games {
     const p = this.g.player; if (!p) return;
     this.cool -= dt;
     if (this.held && this.w && this.cool <= 0 && p.mode === 'foot' && !this.g.paused) { this.cool = W[this.w].every; this.fire(); }
+    const ch = p.char;
+    if (ch && this.w === 1 && p.mode === 'foot') { const a = this.held ? 1 : 0, cur = ch.pose && ch.pose.aim != null ? ch.pose.aim : 0, n = cur + (a - cur) * Math.min(1, dt * 12); ch.pose = n > 0.02 ? { aim: n } : null; }
+    else if (ch && ch.pose && ch.pose.aim != null) ch.pose = null;
     if (this.prop && (!this.prop.parent || p.char !== this.propChar)) { this.propChar = p.char; this.updateHeld(); }
     if (!this.prop && this.w && p.char) { this.propChar = p.char; this.updateHeld(); }
     const mp = this.g.mp, others = mp && mp.on ? [...mp.others.values()] : [];
     for (let i = this.shots.length - 1; i >= 0; i--) {
       const s = this.shots[i], w = W[s.w]; s.t += dt;
       s.vz -= w.g * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt; s.m.position.set(s.x, s.z, -s.y);
+      if (s.w === 1) {               // a streak of water: long along its path, thinning out
+        const sp = Math.hypot(s.vx, s.vy, s.vz) || 1, k = 1 + s.t * 1.5;
+        s.m.quaternion.setFromUnitVectors(UPV, _dv.set(s.vx / sp, s.vz / sp, -s.vy / sp)); s.m.scale.set(w.r * k, w.r * 5.5, w.r * k);
+      }
       let gone = s.t > w.life;
       const gz = ground(s.x, s.y); if (s.z < gz + 0.03) { gone = true; this.splat(s.x, s.y, gz, s.w); }
       if (!gone && s.mine) for (const o of others) {
         const dz = s.z - (o.z ?? gz); if (dz < 0 || dz > 1.9 || Math.hypot(s.x - o.x, s.y - o.y) > 0.55) continue;
         mp.game({ k: 'hit', dmg: w.dmg, w: s.w }, o.id);
+        this.ch.hitPlayer(o.id);
         this.setScore(this.g.score + 1); this.popup('+1'); this.splat(o.x, o.y, o.z ?? gz, s.w); gone = true; break;
       }
       if (gone) { this.scene.remove(s.m); this.shots.splice(i, 1); }
     }
     for (let i = this.splats.length - 1; i >= 0; i--) { const s = this.splats[i]; s.t -= dt; if (s.t <= 0) { this.scene.remove(s.m); this.splats.splice(i, 1); } }
+    // driving into another player knocks them down (and hurts): a point for the driver
+    if (p.mode === 'car' && Math.abs(p.v) > 3 && others.length) {
+      const u = p.car && p.car.mesh.userData, L = (u && u.L) || 4.5, Wd = (u && u.W) || 1.9, fx = Math.sin(p.h), fy = Math.cos(p.h);
+      for (const o of others) {
+        if (o.mode !== 'foot' || (o.hitCool || 0) > performance.now()) continue;
+        const dx = o.x - p.x, dy = o.y - p.y, al = dx * fx + dy * fy, lat = dx * fy - dy * fx;
+        if (Math.abs(al) > L / 2 + 0.4 || Math.abs(lat) > Wd / 2 + 0.4) continue;
+        o.hitCool = performance.now() + 1500;
+        mp.game({ k: 'hit', dmg: Math.min(60, 12 + Math.abs(p.v) * 3), w: 'car' }, o.id);
+        this.ch.hitPlayer(o.id);
+        this.setScore(this.g.score + 1); this.popup('+1 🚗'); p.v *= 0.7;
+      }
+    }
     this.updateRace(dt);
+    this.ch.update(dt);
     // the scoreboard: you and everyone online
     if ((this.bt = (this.bt || 0) - dt) <= 0) {
       this.bt = 1; const b = this.$('#g-board');

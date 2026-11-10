@@ -3,6 +3,8 @@
 import * as THREE from 'three';
 import { L } from './tiles.js';
 import { ground } from './terrain.js';
+import { LM_GROUPS } from './houses3d.js';
+const RAY = new THREE.Raycaster(), _o = new THREE.Vector3(), _d = new THREE.Vector3(), _n = new THREE.Vector3();
 
 export const BIZ_CAT = {
   food: { icon: '🍽️', col: '#b8432f', label: 'Food' }, shop: { icon: '🛍️', col: '#1f5fa8', label: 'Shops' },
@@ -28,7 +30,10 @@ export function searchBusinesses(q, x, y, max = 30) {
 }
 
 // ---- signs
-function signTexture(b) {
+// store numbers from the licence ("Dollarama #1354", "Dollarama 1691") don't go on the sign
+const signName = n => (n || '').replace(/\s*#\s*\d+\s*$/, '').replace(/\s+\d{3,5}\s*$/, '').trim();
+function signTexture(b0) {
+  const b = { ...b0, name: signName(b0.name) };
   const c = document.createElement('canvas'), g = c.getContext('2d'), cat = BIZ_CAT[b.cat] || BIZ_CAT.shop;
   g.font = '700 46px system-ui, sans-serif'; const tw = g.measureText(b.name).width;
   c.width = Math.min(1400, Math.max(320, Math.ceil(tw + 110))); c.height = 96;
@@ -93,8 +98,25 @@ export class Signs {
       used.push(pos); this.slots.set(w.key, used);
       const mat = new THREE.MeshBasicMaterial({ map: tex });
       const m = new THREE.Mesh(new THREE.PlaneGeometry(width, hgt), mat);
-      const wx = w.ax + w.ex * pos.c, wy = w.ay + w.ey * pos.c, base = ground(wx, wy), y0 = Math.min(Math.max(2.6, w.h - 1.2), 3.9) + pos.row * (hgt + 0.25);
-      m.position.set(wx + w.nx * 0.12, base + y0, -(wy + w.ny * 0.12)); m.rotation.y = Math.atan2(w.nx, -w.ny);
+      const wx = w.ax + w.ex * pos.c, wy = w.ay + w.ey * pos.c, base = ground(wx, wy); let y0 = Math.min(Math.max(2.6, w.h - 1.2), 3.9) + pos.row * (hgt + 0.25);
+      // the footprint's wall and the 3D building's real wall can be metres apart: look along the wall's normal for the real
+      // facade (city buildings and landmark models) and put the sign flat on it
+      let px = wx, py = wy, nx = w.nx, ny = w.ny;
+      const tile = this.tiles.tileAt(wx, wy), tg = [];
+      if (tile && tile.group) for (const c of tile.group.children) if (c.userData.bld) tg.push(c);
+      for (const g of LM_GROUPS) if (Math.hypot(g.position.x - wx, -g.position.z - wy) < 250) tg.push(g);
+      // inside a landmark model (the Superstores): the sign goes up high on its front wall
+      const lm = LM_GROUPS.find(g => { const L = g.userData.lm; return L && Math.hypot(L.x - wx, L.y - wy) < Math.max(L.size[0], L.size[2]) / 2 + 12; });
+      if (lm) { const L = lm.userData.lm; y0 = Math.max(y0, Math.min(L.size[1] * 0.62, 8)); }
+      if (tg.length) {
+        RAY.set(_o.set(wx + w.nx * 14, base + y0 + hgt / 2, -(wy + w.ny * 14)), _d.set(-w.nx, 0, w.ny)); RAY.far = 40;
+        const hit = RAY.intersectObjects(tg, true)[0];
+        if (hit) {
+          if (hit.face) { _n.copy(hit.face.normal).transformDirection(hit.object.matrixWorld); const hl = Math.hypot(_n.x, _n.z); if (hl > 0.7 && (_n.x * w.nx - _n.z * w.ny) / hl > 0.5) { nx = _n.x / hl; ny = -_n.z / hl; } }
+          px = hit.point.x; py = -hit.point.z;
+        }
+      }
+      m.position.set(px + nx * 0.12, base + y0, -(py + ny * 0.12)); m.rotation.y = Math.atan2(nx, -ny);
       m.userData.biz = b; m.userData.key = w.key; m.userData.slot = pos;
       this.scene.add(m); this.live.set(b, m);
     }

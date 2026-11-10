@@ -14,13 +14,26 @@ let CLIPS = null;               // name -> { clip, speed, once }
 export const MAIN = ['ali', 'natalia', 'chris', 'jean', 'leo', 'sofia'];
 export const NPCS = ['npc_suit', 'npc_dress', 'npc_cowboy', 'npc_sikh', 'npc_hijab', 'npc_teen'];
 
+// the standing clip looked around over both shoulders: keep a gentle breathing sway instead (each bone pulled most of
+// the way to its average pose; the head and neck almost still)
+function calm(bone, vals) {
+  const n = vals.length / 4, m = [0, 0, 0, 0], out = new Float32Array(vals.length);
+  for (let i = 0; i < n; i++) for (let k = 0; k < 4; k++) m[k] += vals[i * 4 + k] * Math.sign(vals[3] * vals[i * 4 + 3] + vals[0] * vals[i * 4] + vals[1] * vals[i * 4 + 1] + vals[2] * vals[i * 4 + 2] || 1) / n;
+  const f = /Head|neck/i.test(bone) ? 0.08 : /Spine|Hips/.test(bone) ? 0.25 : 0.4;
+  for (let i = 0; i < n; i++) {
+    const sg = Math.sign(m[0] * vals[i * 4] + m[1] * vals[i * 4 + 1] + m[2] * vals[i * 4 + 2] + m[3] * vals[i * 4 + 3]) || 1;
+    let q = [0, 1, 2, 3].map(k => m[k] + (vals[i * 4 + k] * sg - m[k]) * f), l = Math.hypot(...q) || 1;
+    for (let k = 0; k < 4; k++) out[i * 4 + k] = q[k] / l;
+  }
+  return out;
+}
 // the clips: quaternion tracks for every bone and the height of the hips, stored compactly
 async function loadClips() {
   const r = await fetch('data/chars/anims.json'); if (!r.ok) throw new Error('anims ' + r.status);
   const A = await r.json(); CLIPS = {};
   for (const [name, c] of Object.entries(A.clips)) {
     const times = Float32Array.from(c.t), tracks = [];
-    for (const [bone, vals] of Object.entries(c.q)) tracks.push(new THREE.QuaternionKeyframeTrack(bone + '.quaternion', times, Float32Array.from(vals, v => v / 10000)));
+    for (const [bone, vals] of Object.entries(c.q)) tracks.push(new THREE.QuaternionKeyframeTrack(bone + '.quaternion', times, name === 'idle' ? calm(bone, vals) : Float32Array.from(vals, v => v / 10000)));
     if (c.hy) tracks.push(new THREE.NumberKeyframeTrack('Hips.position[y]', times, Float32Array.from(c.hy, v => v / 10000)));   // share of the hips' height
     CLIPS[name] = { clip: new THREE.AnimationClip(name, c.d, tracks), speed: c.sp || 0, once: !!c.once };
   }
@@ -58,6 +71,16 @@ export async function loadHumans(first = []) {
 }
 
 const LOCO = ['idle', 'walk', 'run'];
+const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3(), _v4 = new THREE.Vector3(), _v5 = new THREE.Vector3(), _v6 = new THREE.Vector3();
+const _q0 = new THREE.Quaternion(), _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _a = new THREE.Vector3(), _b = new THREE.Vector3();
+// turn a bone (in the world) so it points from itself towards `dir`, blended by w
+function point(bone, child, dir, w) {
+  bone.getWorldPosition(_a); child.getWorldPosition(_b); const cur = _b.sub(_a); if (cur.lengthSq() < 1e-10) return; cur.normalize();
+  _q1.setFromUnitVectors(cur, dir); if (w < 1) _q1.slerp(_q2.identity(), 1 - w);
+  const wq = bone.getWorldQuaternion(new THREE.Quaternion()).premultiply(_q1);
+  const pq = bone.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+  bone.quaternion.copy(pq.multiply(wq)); bone.updateMatrixWorld(true);
+}
 export class Human {
   constructor(name, style = {}) {
     const M = MODELS.get(name);
@@ -93,6 +116,26 @@ export class Human {
     g.position.set(p.x, p.y, p.z + 0.4); g.rotation.x = -0.12;
     head.add(g);
   }
+  // arms on top of the clip: holding a water gun out in front, or throwing (pose = { aim: 0..1 } or { throw: seconds since the throw })
+  applyPose(dt) {
+    const P = this.pose, B = this.bones; if (!B.RightArm || !B.RightForeArm || !B.RightHand) return;
+    this.obj.updateMatrixWorld(true);
+    const g = this.g, f = _v1.set(0, 0, 1).applyQuaternion(g.getWorldQuaternion(_q0)).normalize(), up = _v2.set(0, 1, 0);
+    let dir = null, w = 1, fore = null;
+    if (P.throw != null) {
+      const t = (P.throw += dt);          // wind up behind the shoulder, then whip forward and down
+      if (t < 0.16) { dir = _v3.copy(f).multiplyScalar(-0.6).addScaledVector(up, 0.8).normalize(); w = t / 0.16; fore = _v4.copy(up); }
+      else if (t < 0.42) { const u = (t - 0.16) / 0.26; dir = _v3.copy(f).multiplyScalar(-0.6 + 1.6 * u).addScaledVector(up, 0.8 - 1.1 * u).normalize(); fore = _v4.copy(dir); }
+      else if (t < 0.7) { dir = _v3.copy(f).addScaledVector(up, -0.3).normalize(); w = 1 - (t - 0.42) / 0.28; fore = _v4.copy(dir); }
+      else { this.pose = null; return; }
+    } else if (P.aim) { dir = _v3.copy(f).addScaledVector(up, -0.08).normalize(); w = P.aim; fore = dir; }
+    if (!dir) return;
+    point(B.RightArm, B.RightForeArm, dir, w); point(B.RightForeArm, B.RightHand, fore || dir, w);
+    if (P.aim && B.LeftArm && B.LeftForeArm && B.LeftHand) {       // both hands on the gun
+      const l = _v5.copy(f).multiplyScalar(0.9).addScaledVector(_v6.set(1, 0, 0).applyQuaternion(g.getWorldQuaternion(_q0)), -0.45).normalize();
+      point(B.LeftArm, B.LeftForeArm, l, w * 0.9); point(B.LeftForeArm, B.LeftHand, _v5.copy(f).addScaledVector(_v6.set(1, 0, 0).applyQuaternion(_q0), -0.6).normalize(), w * 0.9);
+    }
+  }
   // st: { speed (m/s), run, sit, talk, wave, dance, syncT, offset }  -> true on each footstep
   animate(dt, st = {}) {
     this.t += dt; const sp = st.speed || 0, W = {};
@@ -121,6 +164,7 @@ export class Human {
     for (const n in this.acts) { this.w[n] += (W[n] - this.w[n]) * k; if (this.w[n] < 0.002) this.w[n] = 0; sum += this.w[n]; }
     for (const n in this.acts) this.acts[n].setEffectiveWeight(sum > 0 ? this.w[n] / sum : 0);
     this.mixer.update(dt);
+    if (this.pose) this.applyPose(dt);
     // a footstep each time the lower foot changes (feet positions from the last drawn frame)
     const L = this.bones.LeftFoot, R = this.bones.RightFoot;
     if (!L || !R || sp < 0.3) { this.lr = 0; return false; }

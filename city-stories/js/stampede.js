@@ -7,6 +7,7 @@ import { drawLyricsOn } from './lyrics.js';
 import { Character, HAT_COLORS } from './rig.js';
 import { ground } from './terrain.js';
 import { rotY } from './player.js';
+import { Dancers } from './dancers.js';
 
 export const STAMPEDE = { x: 420, y: -820 };             // the middle of Stampede Park (metres from City Hall)
 export const PARK_SPOTS = {
@@ -151,14 +152,13 @@ class Stage {
       const b = new THREE.Mesh(geo, bm([0xff2a6d, 0x05d9e8, 0xffd319, 0x8b5cf6, 0x39ff14, 0xff7b00][i % 6])); b.position.set(-W / 2 + 1.5 + i * (W - 3) / (nb - 1), HT - 0.2, -1); g.add(b); this.beams.push(b);
     }
     this.wash = new THREE.PointLight(0xffaa55, 0, 50, 1.5); this.wash.position.set(0, HT - 1, 6); g.add(this.wash);
-    // the band, in hats
-    this.band = [];
-    const n = o.band || 3;
-    for (let i = 0; i < n; i++) {
-      const lead = i === 0, ch = new Character({ skin: pick(SKIN, H(i + o.seed, 1)), shirt: lead ? o.shirt || 0xf2f2ee : pick(TOPS, H(i + o.seed, 2)), pants: 0x2a3a5a, hair: 0x15100d, fem: H(i + o.seed, 3) < 0.4, long: H(i + o.seed, 3) < 0.3, hat: pick(HAT_COLORS, H(i + o.seed, 4)) });
-      const sx = lead ? 0 : (i % 2 ? -1 : 1) * Math.ceil(i / 2) * W / (n + 1);
-      ch.g.position.set(sx, 1.6, lead ? -2.5 : -4.5 - (i % 2)); g.add(ch.g); this.band.push([ch, lead ? 2 : (i % 3)]);
-    }
+    // the band (3D people in hats) and the front rows of the crowd: real people dancing; further back the light crowd
+    const n = o.band || 3, bandSpots = [];
+    for (let i = 0; i < n; i++) { const lead = i === 0, sx = lead ? 0 : (i % 2 ? -1 : 1) * Math.ceil(i / 2) * W / (n + 1), sz = lead ? -2.5 : -4.5 - (i % 2); const [bx, by] = local(x, y, face, sx, sz); bandSpots.push({ x: bx, y: by, h: face, z: 1.6 }); }
+    this.band = new Dancers(parent, bandSpots, { hats: true, seed: o.seed });
+    const front = [], nf = o.front || 16;
+    for (let i = 0; i < nf; i++) { const ax = (H(i + o.seed, 51) - 0.5) * W * 0.85, ay = 2.5 + H(i + o.seed, 52) * (o.frontD || 6.5); const [fx, fy] = local(x, y, face, ax, ay); front.push({ x: fx, y: fy, h: face + Math.PI + (H(i + o.seed, 53) - 0.5) * 0.4 }); }
+    this.front = new Dancers(parent, front, { hats: true, seed: o.seed + 7 });
     const mic = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.5, 6), truss); mic.position.set(0, 2.35, -2); g.add(mic);
     this.t = H(o.seed, 9) * 10; this.st = 0;
   }
@@ -178,7 +178,7 @@ class Stage {
     for (const b of this.beams) b.visible = night && live;
     this.wash.intensity = night && live ? 30 : 0;
     if (!near) return;
-    for (const [c, st] of this.band) c.animate(dt, live ? { dance: st } : {});
+    this.band.update(dt, near, true, live); this.front.update(dt, near, live);
     if (night && live) { this.beams.forEach((b, i) => { b.rotation.z = Math.sin(this.t * 0.9 + i) * 0.55; b.rotation.x = 0.35 + Math.sin(this.t * 0.7 + i * 1.7) * 0.35; }); this.wash.color.setHSL((this.t * 0.08) % 1, 1, 0.55); }
     if ((this.st -= dt) <= 0) { this.st = 0.12; this.draw(this.t); }
   }
@@ -233,15 +233,15 @@ export class Stampede {
     this.crowd = new Crowd(g, mob ? 380 : 1000);
     this.stages = [];
     // the Grandstand Show: a big stage on the track, facing the Grandstand to the north
-    const gs = new Stage(g, 420, -1192, 0, { w: 34, d: 12, h: 13, title: 'GRANDSTAND SHOW', sub: 'CALGARY STAMPEDE', color: '#8b1a1a', screen: 'GRANDSTAND SHOW', screenSub: 'LIVE TONIGHT · FIREWORKS AT 10:30', hue: 20, band: 5, seed: 3, shirt: 0xf2efe6 });
+    const gs = new Stage(g, 420, -1192, 0, { front: mob ? 18 : 44, frontD: 15, w: 34, d: 12, h: 13, title: 'GRANDSTAND SHOW', sub: 'CALGARY STAMPEDE', color: '#8b1a1a', screen: 'GRANDSTAND SHOW', screenSub: 'LIVE TONIGHT · FIREWORKS AT 10:30', hue: 20, band: 5, seed: 3, shirt: 0xf2efe6 });
     this.stages.push(gs);
     let seed = 1;
     const fill = (st, n, w, d0, d1) => { for (let i = 0; i < n; i++, seed++) { const ax = (H(seed, 20) - 0.5) * w, ay = d0 + H(seed, 21) * (d1 - d0); const [x, y] = local(st.x, st.y, st.face, ax, ay); this.crowd.add({ x, y, h: st.face + Math.PI + (H(seed, 22) - 0.5) * 0.4, dance: true }, seed); } };
-    fill(gs, mob ? 140 : 380, 52, 5, 42);
+    fill(gs, mob ? 120 : 330, 52, 18, 46);
     // the country stage at the east end of the midway
-    const cs = new Stage(g, 688, -608, Math.PI * 1.5, { w: 16, d: 8, h: 9, roof: 0x5a3a22, title: 'COUNTRY STAGE', sub: 'LIVE MUSIC ALL DAY', color: '#5a3a22', screen: 'COUNTRY NIGHT', screenSub: 'BOOTS ON · HATS ON', hue: 30, band: 4, seed: 11 });
+    const cs = new Stage(g, 688, -608, Math.PI * 1.5, { front: mob ? 8 : 18, frontD: 9, w: 16, d: 8, h: 9, roof: 0x5a3a22, title: 'COUNTRY STAGE', sub: 'LIVE MUSIC ALL DAY', color: '#5a3a22', screen: 'COUNTRY NIGHT', screenSub: 'BOOTS ON · HATS ON', hue: 30, band: 4, seed: 11 });
     this.stages.push(cs);
-    fill(cs, mob ? 50 : 120, 22, 4, 30);
+    fill(cs, mob ? 40 : 100, 22, 12, 30);
     // the midway: Ferris wheel, swing ride, booths, food trucks, lights
     this.ferris = this.makeFerris(520, -640);
     this.swing = this.makeSwing(372, -528);
@@ -261,7 +261,7 @@ export class Stampede {
     for (let i = 0; i < 14; i++, seed++) this.crowd.add({ x: 503 - i * 0.9, y: -626 + (i % 2) * 0.7, h: Math.PI * 0.5 }, seed);
     this.fireworks = new Fireworks(g, 420, -1260);
     // downtown: a street party stage at Olympic Plaza
-    const ps = new Stage(this.plazaG, -62, 34, 0, { w: 14, d: 7, h: 8.5, title: 'STREET PARTY', sub: 'STAMPEDE ON OLYMPIC PLAZA', color: '#1d4e8f', screen: 'YAHOO!', screenSub: 'STAMPEDE STREET PARTY', hue: 200, band: 3, seed: 21, quiet: true });
+    const ps = new Stage(this.plazaG, -62, 34, 0, { front: mob ? 6 : 10, w: 14, d: 7, h: 8.5, title: 'STREET PARTY', sub: 'STAMPEDE ON OLYMPIC PLAZA', color: '#1d4e8f', screen: 'YAHOO!', screenSub: 'STAMPEDE STREET PARTY', hue: 200, band: 3, seed: 21, quiet: true });
     this.plazaStage = ps;
     this.plazaCrowd = new Crowd(this.plazaG, mob ? 70 : 150);
     for (let i = 0; i < (mob ? 70 : 150); i++, seed++) { const [x, y] = local(ps.x, ps.y, 0, (H(seed, 40) - 0.5) * 34, 4 + H(seed, 41) * 40); this.plazaCrowd.add({ x, y, h: Math.PI + (H(seed, 42) - 0.5) * 0.5, dance: H(seed, 43) < 0.8, zone: H(seed, 43) < 0.8 ? null : { x0: -110, x1: -15, y0: 40, y1: 118 } }, seed); }

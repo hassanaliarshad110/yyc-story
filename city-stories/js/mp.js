@@ -6,6 +6,11 @@ import { Character } from './rig.js';
 import { LOOKS } from './player.js';
 import { ground } from './terrain.js';
 import { toast } from './hud.js';
+import { makeCar3D } from './cars3d.js';
+import { makeKarachiVehicle, spinWheels } from './vehicles.js';
+import { makeCar } from './actors.js';
+import { TYRE_Y } from './player.js';
+import { makeHeli } from './heli.js';
 import { ask } from './ask.js';
 import { tr } from './i18n.js';
 
@@ -99,7 +104,7 @@ export class Multiplayer {
     }
     o.tx = p[0]; o.ty = p[1]; o.tz = p[2]; o.th = p[3]; o.mode = p[4]; o.anim = p[5]; o.sc = p[6] || 0; o.hp = p[7] ?? 100; o.seen = performance.now();
   }
-  drop(id) { const o = this.others.get(id); if (!o) return; this.scene.remove(o.ch.g); this.others.delete(id); }
+  drop(id) { const o = this.others.get(id); if (!o) return; this.scene.remove(o.ch.g); if (o.car) this.scene.remove(o.car); this.others.delete(id); }
   bubble(o, text) {
     if (o.bub) o.ch.g.remove(o.bub);
     const s = tag(text.length > 26 ? text.slice(0, 25) + '…' : text); s.position.y = 2.75; s.scale.set(2.6, 0.65, 1); o.ch.g.add(s); o.bub = s;
@@ -109,8 +114,17 @@ export class Multiplayer {
   async setTalk(on) {
     if (!this.on) return;
     if (on && !this.mic) {
-      try { this.mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
-      catch (e) { toast('Allow the microphone to talk to people near you.'); return; }
+      // the browser asks for the microphone the first time you press 🎤
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('nomedia');
+        this.mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      } catch (e) {
+        let st = ''; try { st = (await navigator.permissions.query({ name: 'microphone' })).state; } catch (er) { }
+        if (st === 'denied' || (e && e.name === 'NotAllowedError')) toast('🎤 The microphone is blocked. Tap the 🔒 (or ⓘ) next to the web address, allow Microphone, then press 🎤 again.');
+        else if (e && e.name === 'NotFoundError') toast('🎤 No microphone found on this device.');
+        else toast('🎤 Voice chat needs a secure page with microphone access. Open the game on its own page and try again.');
+        return;
+      }
       for (const pc of this.peers.values()) this.addMic(pc.pc);
     }
     this.ptt = on; if (this.mic) this.mic.getAudioTracks().forEach(t => t.enabled = on);
@@ -150,8 +164,9 @@ export class Multiplayer {
     if (!this.on) return;
     if ((this.sendT -= dt) <= 0 && this.ws && this.ws.readyState === 1) {
       this.sendT = 0.16;
-      const anim = player.mode === 'foot' ? (Math.abs(player.v) > 3.5 ? 'run' : Math.abs(player.v) > 0.3 ? 'walk' : 'idle') : player.mode;
-      this.send({ t: 'pos', x: player.x, y: player.y, z: player.gy, h: player.h, mode: player.mode, anim, sc: this.g.score || 0, hp: this.g.hp ?? 100 });
+      const veh = player.mode === 'car' && player.car ? (player.car.mesh.userData.model || player.car.mesh.userData.kind || 'car') : '';
+      const anim = player.mode === 'foot' ? (Math.abs(player.v) > 3.5 ? 'run' : Math.abs(player.v) > 0.3 ? 'walk' : 'idle') : veh ? 'v:' + String(veh).slice(0, 8) : player.mode;
+      this.send({ t: 'pos', x: player.x, y: player.y, z: player.mode === 'heli' && this.g.heli ? this.g.heli.alt : player.gy, h: player.h, mode: player.mode, anim, sc: this.g.score || 0, hp: this.g.hp ?? 100 });
     }
     const now = performance.now(), near = [];
     for (const o of this.others.values()) {
@@ -162,6 +177,11 @@ export class Multiplayer {
       o.sp = Math.hypot(o.x - px, o.y - py) / Math.max(dt, 1e-3);
       o.ch.g.position.set(o.x, o.mode === 'foot' ? o.z : ground(o.x, o.y), -o.y); o.ch.g.rotation.y = Math.PI - o.h;
       o.ch.g.visible = o.mode === 'foot' || o.mode === undefined;
+      // their car (or bike): the same model they're driving, where they are
+      const vm = o.mode === 'heli' ? 'heli' : o.mode === 'car' && typeof o.anim === 'string' && o.anim.startsWith('v:') ? o.anim.slice(2) : null;
+      if (vm !== o.vm) { if (o.car) { this.scene.remove(o.car); o.car = null; } o.vm = vm; if (vm) { o.car = vm === 'heli' ? makeHeli() : makeCar3D(vm) || makeKarachiVehicle(vm) || makeCar('car'); this.scene.add(o.car); } }
+      if (o.car && vm === 'heli') { o.car.position.set(o.x, o.z, -o.y); o.car.rotation.set(0, Math.PI - o.h, 0); const u = o.car.userData; o.spin = (o.spin || 0) + dt * 26; if (u.rotor) u.rotor.rotation.y = o.spin; if (u.trotor) u.trotor.rotation.x = o.spin * 1.7; }
+      else if (o.car) { o.car.position.set(o.x, (o.z ?? ground(o.x, o.y)) + TYRE_Y, -o.y); o.car.rotation.y = Math.PI - o.h; if (o.car.userData.wheels) spinWheels(o.car, o.sp * dt); }
       o.ch.animate(dt, { speed: o.sp, run: o.anim === 'run' });
       const d = Math.hypot(o.x - player.x, o.y - player.y); o.d = d; if (d < VOICE_R) near.push(o);
     }

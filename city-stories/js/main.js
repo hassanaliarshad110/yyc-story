@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { initMaterials, setNight, MAT } from './materials.js';
 import { setMaxAnisotropy } from './textures.js';
-import { TileManager, SPEED_LIMIT } from './tiles.js';
+import { TileManager, SPEED_LIMIT, loadTreeModels, TREE_M } from './tiles.js';
 import { buildWorldMeshes, prepLookups, communityAt, wardAt, loadSky3D } from './world.js';
 import { Player, dirOf, angDiff, LOOKS } from './player.js';
 import { Traffic } from './traffic.js';
@@ -15,8 +15,8 @@ import { initInput, readInput, input, onAction } from './input.js';
 import { makeCar } from './actors.js';
 import { loadHero } from './rig.js';
 import { loadHumans, humanReady, loadHuman } from './humans.js';
-import { loadHouses, loadCityHall, updateHouses, setHouseRange } from './houses3d.js';
-import { loadCars3D } from './cars3d.js';
+import { loadHouses, loadCityHall, updateHouses, setHouseRange, LM_NIGHT, updateLandmarks } from './houses3d.js';
+import { loadCars3D, makeCar3D } from './cars3d.js';
 import { WARM } from './gltf.js';
 import { Multiplayer } from './mp.js';
 import { ask } from './ask.js';
@@ -25,7 +25,7 @@ import { buildPlatforms } from './platforms.js';
 import { buildFuel } from './fuel.js';
 import { Games } from './games.js';
 import { Life } from './life.js';
-import { loadVehicles } from './vehicles.js';
+import { loadVehicles, makeKarachiVehicle } from './vehicles.js';
 import { sfx, unlockAudio, updateAudio } from './sound.js';
 import { Sky } from './sky.js';
 import { EffectComposer } from '../vendor/jsm/postprocessing/EffectComposer.js';
@@ -35,6 +35,8 @@ import { ShaderPass } from '../vendor/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from '../vendor/jsm/postprocessing/OutputPass.js';
 import { loadTerrain, ground } from './terrain.js';
 import { loadBusinesses, Signs } from './business.js';
+import { Requests311 } from './r311.js';
+import { Leaves } from './leaves.js';
 import { loadParks, ParkAssets, parksCredit } from './parks.js';
 import { loadFields, Fields } from './fields.js';
 import { loadLyrics, updateLyrics } from './lyrics.js';
@@ -97,24 +99,20 @@ function glowSetup() {
 game.setGlow = on => { game.settings.glow = on; saveSettings(); };
 addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); if (composer) composer.setSize(innerWidth, innerHeight); });
 
-// the Rocky Mountains on the western horizon
+// the Rocky Mountains on the western horizon: a painted range on a curved band far away (three copies, the middle one mirrored)
 function addMountains() {
-  const g = new THREE.BufferGeometry(), pos = [], col = [], R = 8200, N = 160;
-  const rnd = (i) => { const s = Math.sin(i * 91.7) * 43758.5; return s - Math.floor(s); };
-  for (let i = 0; i < N; i++) {
-    const a0 = (205 + i * (140 / N)) * Math.PI / 180, a1 = (205 + (i + 1) * (140 / N)) * Math.PI / 180;
-    const f = Math.sin(i / N * Math.PI);
-    const h0 = 140 + f * (130 + rnd(i) * 200) * (0.6 + 0.4 * rnd(i * 3)), h1 = 140 + f * (130 + rnd(i + 1) * 200) * (0.6 + 0.4 * rnd(i * 3 + 3));
-    const p = (a, h) => [Math.sin(a) * R, h, -Math.cos(a) * R];
-    const b0 = p(a0, -50), b1 = p(a1, -50), t0 = p(a0, h0), t1 = p(a1, h1);
-    pos.push(...b0, ...b1, ...t1, ...b0, ...t1, ...t0);
-    const c0 = [0.42, 0.48, 0.58], cs = [0.93, 0.95, 0.98];
-    const top = h => (h > 300 ? cs : [0.55, 0.6, 0.7]);
-    col.push(...c0, ...c0, ...top(h1), ...c0, ...top(h1), ...top(h0));
+  const R = 8200, A0 = 200, A1 = 350, N = 96, H = 760, B = -170, g = new THREE.BufferGeometry(), pos = [], uv = [], idx = [];
+  for (let i = 0; i <= N; i++) {
+    const t = i / N, a = (A0 + t * (A1 - A0)) * Math.PI / 180, x = Math.sin(a) * R, z = -Math.cos(a) * R, u = t * 3;
+    pos.push(x, B, z, x, B + H, z); uv.push(u, 0, u, 1);
+    if (i < N) { const k = i * 2; idx.push(k, k + 2, k + 3, k, k + 3, k + 1); }
   }
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, fog: false, side: THREE.DoubleSide, transparent: true, opacity: 0.8, depthWrite: false }));
-  m.renderOrder = -1; scene.add(m); game.mountains = m;
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+  const tex = new THREE.TextureLoader().load('data/mountains.webp'); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = THREE.MirroredRepeatWrapping; tex.anisotropy = 4;
+  const mat = new THREE.MeshBasicMaterial({ map: tex, fog: false, side: THREE.DoubleSide, transparent: true, depthWrite: false });
+  // the two outer ends fade into the haze
+  mat.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.a *= smoothstep(0.0, 0.35, vMapUv.x) * smoothstep(3.0, 2.65, vMapUv.x);'); };
+  const m = new THREE.Mesh(g, mat); m.renderOrder = -1; m.frustumCulled = false; scene.add(m); game.mountains = m;
 }
 
 // ---------------------------------------------------------------- loading
@@ -123,7 +121,7 @@ let world, tiles, player, traffic, transit, missions;
 async function boot() {
   status('Loading the map of Calgary…');
   const r = await fetch('data/world.json'); world = await r.json(); game.world = world;
-  for (const c of ['Ground heights: City of Calgary LiDAR bare-earth elevation model 2022–2024 (Open Government Licence – City of Calgary); outside the city, contains modified Copernicus DEM GLO-30 data (European Union, ESA)', 'Businesses and property types: City of Calgary business licences and property assessments, Open Government Licence – City of Calgary', 'Park benches, picnic tables, playgrounds, fountains and park signs: City of Calgary Parks open data, Open Government Licence – City of Calgary', 'Traffic signals and road signs: City of Calgary open data, Open Government Licence – City of Calgary', 'Ward boundaries and councillors: City of Calgary open data', 'Shops and restaurants: City of Calgary business licences and OpenStreetMap contributors', 'Sports fields (soccer, football, rugby, cricket): City of Calgary Parks Sport Surfaces open data, Open Government Licence – City of Calgary', 'People, animals, homes, vehicles and landmarks (Historic City Hall, The Bow, Brookfield Place, TELUS Sky, the Saddledome, Nelson Mandela High School, the Westwinds Superstore): 3D models made for this game; homes are fitted to the City of Calgary 3D building footprints and heights', 'Online play: positions and chat pass through the game server; voice chat goes straight between nearby players and is never recorded', 'Title song: "Under One Sky" by Hassan Ali', 'Song: "Beyond the Mask" by Hassan Ali', 'Dialogue voices: Kokoro (Apache License 2.0) and Meta MMS-TTS (CC BY-NC 4.0, non-commercial)', 'Stampede Park, its concerts and the midway are a game re-creation, not affiliated with the Calgary Stampede'])
+  for (const c of ['Ground heights: City of Calgary LiDAR bare-earth elevation model 2022–2024 (Open Government Licence – City of Calgary); outside the city, contains modified Copernicus DEM GLO-30 data (European Union, ESA)', 'Businesses and property types: City of Calgary business licences and property assessments, Open Government Licence – City of Calgary', 'Park benches, picnic tables, playgrounds, fountains and park signs: City of Calgary Parks open data, Open Government Licence – City of Calgary', 'Traffic signals and road signs: City of Calgary open data, Open Government Licence – City of Calgary', 'Ward boundaries and councillors: City of Calgary open data', 'Shops and restaurants: City of Calgary business licences and OpenStreetMap contributors', 'Sports fields (soccer, football, rugby, cricket): City of Calgary Parks Sport Surfaces open data, Open Government Licence – City of Calgary', 'People, animals, trees, homes, vehicles and landmarks (Historic City Hall, The Bow, Brookfield Place, Suncor Energy Centre, TELUS Sky, the Saddledome, Nelson Mandela High School, Real Canadian Superstores): 3D models made for this game; homes are fitted to the City of Calgary 3D building footprints and heights', '311 requests: City of Calgary 311 Service Requests open data (the last 14 days, refreshed every two weeks), Open Government Licence – City of Calgary; each icon is placed at a random spot in its community', 'Online play: positions and chat pass through the game server; voice chat goes straight between nearby players and is never recorded', 'Title song: "Under One Sky" by Hassan Ali', 'Song: "Beyond the Mask" by Hassan Ali', 'Dialogue voices: Kokoro (Apache License 2.0) and Meta MMS-TTS (CC BY-NC 4.0, non-commercial)', 'Stampede Park, its concerts and the midway are a game re-creation, not affiliated with the Calgary Stampede'])
     if (!world.credits.data.includes(c)) world.credits.data.push(c);
   $('#data-credits').innerHTML = world.credits.data.join('<br>');
   status('Building the city…');
@@ -141,10 +139,10 @@ async function boot() {
     status('Loading Google 3D city…');
   }
   status('Loading people and cars…');
-  await Promise.all([loadHero(), loadVehicles(), loadBusinesses(), loadParks(), loadSigns(), loadBillboards(), loadFields(), loadLyrics()]);
+  await Promise.all([loadHero(), loadVehicles(), loadBusinesses(), loadParks(), loadSigns(), loadBillboards(), loadFields(), loadLyrics(), loadTreeModels()]);
   tiles = new TileManager(scene, world, { radius: game.photoOn ? Math.max(1, game.settings.radius - 1) : game.settings.radius, meshes: !game.photoOn, onTile: (t, added) => { if (added) { tilePaths(t); buildFuel(t, tiles); } traffic && traffic.onTile(t, added); } });
   tiles.far = mobile ? 1 : 2; if (!game.photoOn) scene.fog.far = fogFar();
-  game.tiles = tiles; game.signs = new Signs(scene, tiles);
+  game.tiles = tiles; game.signs = new Signs(scene, tiles); game.r311 = new Requests311(scene, camera, world, canvas, tiles); game.leaves = new Leaves(scene, tiles, mobile ? 110 : 220);
   // compile the shaders of newly loaded models off to the side, so the first time one appears the game doesn't stall
   WARM.fn = obj => { obj.position.set(camera.position.x, -500, camera.position.z); obj.traverse(o => { o.frustumCulled = false; }); scene.add(obj);
     const done = () => scene.remove(obj); try { renderer.compileAsync(obj, camera, scene).then(done, done); } catch (e) { done(); } };
@@ -204,7 +202,7 @@ $('#btn-online').onclick = () => startGame('free');
 function startGame(mode) {
   $('#title').hidden = true; $('#hud').hidden = false; game.started = true; intro.stop(); music.title(false);      // no song in the game until you get in a car
   setTimeout(() => game.buses.build(scene), 1200);
-  game.clock = 21.0;                       // the game starts at night: the city lights are on and the Saddledome concert is playing
+  game.clock = 21.0; game.dayN = 0;         // the game starts at night (a full-moon aurora night): the city lights are on and the Saddledome concert is playing
   // full screen on phones; inside the Calgary Insight page, that page goes full screen (so the browser names calgaryinsight.ca)
   if (mobile) {
     if (window.parent !== window) { try { window.parent.postMessage({ type: 'yyc-fullscreen' }, '*'); } catch (e) { } }
@@ -229,11 +227,47 @@ function placeStart(i) {
   const m = i != null ? missions.list[i] : null;
   const at = m && m.startAt ? P[m.startAt] : game.story === 'chris' ? P.kerbyHome : missions.state.home ? P.home : P.martinbrook;
   player.mode = 'foot'; player.place(at.x + (m ? 6 : 0), at.y - (m ? 6 : 0), m ? 0 : Math.PI); camSnap(); game.unstick.pending = true;
-  // a family car outside home
-  if (missions.state.home && Math.hypot(player.x - P.home.x, player.y - P.home.y) < 200 && !game.familyCar) {
-    const spot = game.findRoadSpot(P.home.x, P.home.y, 0, 60);
-    if (spot) { const c = { mesh: makeCar('family'), x: spot.x, y: spot.y, h: spot.h, v: 0, parked: true }; c.gy = ground(c.x, c.y); c.mesh.position.set(c.x, c.gy, -c.y); c.mesh.rotation.y = Math.PI - c.h; scene.add(c.mesh); traffic.cars.push(c); game.familyCar = c; }
+  homeStreet();
+}
+
+// home, 78 Martinbrook Link NE: the family's cars parked along the street out front (the red Corolla, a white 2017 Kia
+// Sorento, a brown 2008 Kia Rondo and an orange 2015 Hyundai Veloster), a maple in autumn colour on the front lawn and
+// two little ones (a girl and a boy) playing on the grass. The cars come back whenever you return.
+function homeSpot() {
+  const H = P.home; let best = null;
+  for (const p of traffic.pieces) {
+    if (!/Martinbrook/i.test(p.name || '')) continue;
+    let s0 = 0;
+    for (let i = 1; i < p.pts.length; i++) {
+      const a = p.pts[i - 1], b = p.pts[i], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1e-9;
+      const u = Math.max(0, Math.min(1, ((H.x - a[0]) * dx + (H.y - a[1]) * dy) / (L * L))), px = a[0] + dx * u, py = a[1] + dy * u, d = Math.hypot(H.x - px, H.y - py);
+      if (!best || d < best.d) best = { p, s: s0 + u * L, d, dx: dx / L, dy: dy / L, px, py };
+      s0 += L;
+    }
   }
+  return best && best.d < 60 ? best : null;
+}
+function homeStreet() {
+  const b = homeSpot(); if (!b) return false;
+  const H = P.home, right = (H.x - b.px) * b.dy - (H.y - b.py) * b.dx > 0, dir = right ? 1 : -1;
+  game.homeCars ||= [];
+  const list = [['papurola', 'red', -4], ['sorento', null, 3.6], ['rondo', null, -11.6], ['veloster', null, 11]];
+  list.forEach(([k, tint, off], i) => {
+    const old = game.homeCars[i]; if (old && !old.dead) return;
+    const mesh = k === 'papurola' ? makeKarachiVehicle('papurola', tint) : makeCar3D(k); if (!mesh) return;
+    const s = Math.max(3, Math.min(b.p.len - 3, (dir > 0 ? b.s : b.p.len - b.s) + off));
+    const c = { mesh, piece: b.p, dir, s, v: 0, parked: true, x: 0, y: 0, h: 0, gy: 0, home: true };
+    traffic.place(c, b.p.w / 2 - 1.1); scene.add(mesh); traffic.cars.push(c); game.homeCars[i] = c;
+  });
+  game.familyCar = game.homeCars[0];
+  // the lawn: halfway between the house and the street
+  const nl = Math.hypot(H.x - b.px, H.y - b.py) || 1, nx = (H.x - b.px) / nl, ny = (H.y - b.py) / nl, lx = b.px + nx * (b.p.w / 2 + 7.5), ly = b.py + ny * (b.p.w / 2 + 7.5);      // the lawn: past the sidewalk, in front of the house
+  if (!game.homeTree && TREE_M.maple) {
+    const tx = lx + b.dx * 6 - nx * 1.5, ty = ly + b.dy * 6 - ny * 1.5, t = new THREE.InstancedMesh(TREE_M.maple.geo, TREE_M.maple.mat, 1);
+    t.setMatrixAt(0, new THREE.Matrix4().compose(new THREE.Vector3(tx, ground(tx, ty), -ty), new THREE.Quaternion(), new THREE.Vector3(4.2, 9.5, 4.2))); t.setColorAt(0, new THREE.Color(0.9, 0.22, 0.07)); t.castShadow = true; t.name = 'home maple'; scene.add(t); game.homeTree = t;
+  }
+  if (game.life) game.life.homeKids = { x: lx - b.dx * 2.5 + nx * 1, y: ly - b.dy * 2.5 + ny * 1 };
+  return true;
 }
 
 // a helicopter waiting near where you start: on the street ahead of you, clear of houses
@@ -451,10 +485,10 @@ function updateSky(px, py) {
   sun.position.set(px + Math.sin(az) * 300, 120 + e * 380, -py + Math.cos(az) * 300);
   sun.target.position.set(px, player ? player.gy : 0, -py); sun.position.y += player ? player.gy : 0;
   sun.color.setHSL(0.1, 0.6, 0.6 + day * 0.35);
-  setNight(1 - day); setHalloweenNight(1 - day); game.day = day;
+  setNight(1 - day); setHalloweenNight(1 - day); game.day = day; LM_NIGHT.value = Math.max(0, Math.min(1, ((1 - day) - 0.35) / 0.4));
   game._sunDir = (game._sunDir || new THREE.Vector3()).copy(sun.position).sub(sun.target.position).normalize();
   game._skyArgs = [day, dusk];
-  if (game.mountains) { game.mountains.material.opacity = 0.3 + day * 0.5; game.mountains.position.set(px, 0, -py); }
+  if (game.mountains) { const mc = game.mountains.material.color; mc.setRGB(0.2, 0.25, 0.38).lerp(tmp.setRGB(1, 1, 1), day); if (dusk > 0) mc.lerp(tmp.setRGB(1, 0.72, 0.6), dusk * 0.4); game.mountains.position.set(px, (player ? player.gy : 0) * 0.3, -py); }
 }
 
 // ---------------------------------------------------------------- main loop
@@ -468,12 +502,13 @@ function loop(now) {
   const blocked = game.paused || mapOpen() || phoneOpen() || realOpen();
   if (game.started && player) watchStuck(dt, blocked ? { x: 0, y: 0 } : inp);       // runs during dialogs too, so you are never left inside a wall
   if (game.started && !blocked) {
-    game.clock = (game.clock + dt / 60) % 24;
+    { const c0 = game.clock; game.clock = (game.clock + dt / 60) % 24; if (game.clock < c0) game.dayN = (game.dayN || 0) + 1; }
     player.update(dt, inp, camH);
     if (player.mode === 'ride' && game.rideVehicle) { player.x = game.rideVehicle.x; player.y = game.rideVehicle.y; }
     traffic.update(dt, player);
     transit.update(dt, player.x, player.y);
-    { const V = []; for (const v of transit.vehicles) for (const m of v.parts) { const u = m.userData; V.push({ x: m.position.x, y: -m.position.z, h: Math.PI - m.rotation.y, L: u.L > 30 ? 24.8 : (u.L || 12), W: u.W || 2.6, v: v.v || 0, kind: v.rail ? 'train' : 'bus' }); } updateHealth(dt, V); }
+    { const V = []; for (const v of transit.vehicles) for (const m of v.parts) { const u = m.userData; V.push({ x: m.position.x, y: -m.position.z, h: Math.PI - m.rotation.y, L: u.L > 30 ? 24.8 : (u.L || 12), W: u.W || 2.6, v: v.v || 0, kind: v.rail ? 'train' : 'bus' }); } if (game.mp && game.mp.on) for (const o of game.mp.others.values()) if (o.car && o.vm !== 'heli') { const u = o.car.userData; V.push({ x: o.x, y: o.y, h: o.h, L: u.L || 4.5, W: u.W || 1.9, v: 0, kind: 'car' }); }      // other players' cars: solid
+      updateHealth(dt, V); }
     missions.update(dt);
     for (const n of missions.npcs) { const ch = n.userData.char; if (ch) { const near = Math.hypot(n.position.x - player.x, -n.position.z - player.y) < 7; ch.animate(dt, { talk: near && !!missions.active }); } }
   }
@@ -511,6 +546,9 @@ function loop(now) {
   { const sp = player.mode === 'foot' ? 0 : player.v || 0, d = dirOf(player.h); tiles.update(player.x, player.y, d[0] * sp, d[1] * sp); }
   tiles.pumpFor(tiles.queue.length > 8 ? (mobile ? 10 : 14) : (mobile ? 5 : 8), player.x, player.y);
   if (game.started) game.signs.update(dt, player.x, player.y);
+  if (game.started && game.r311 && player.mode !== 'heli') game.r311.update(dt, player.x, player.y);
+  if (game.started && (game._homeT = (game._homeT || 0) - dt) <= 0) { game._homeT = 2; if (Math.hypot(player.x - P.home.x, player.y - P.home.y) < 320 && (!game.homeCars || game.homeCars.some(c => !c || c.dead) || !game.homeTree)) homeStreet(); }
+  if (game.started && game.leaves) game.leaves.update(dt, player.x, player.y, player.mode !== 'heli');
   if (game.started && game.parks) game.parks.update(dt, player.x, player.y);
   if (game.started && game.fields) game.fields.update(dt, player.x, player.y);
   if (game.started && game.signals) game.signals.update(dt, player.x, player.y);
@@ -523,6 +561,8 @@ function loop(now) {
   }
   updateCamera(dt);
   updateSky(player.x, player.y);
+  updateLandmarks(dt);
+  sky.auroraNight = ((game.dayN || 0) - (game.clock % 24 < 12 ? 1 : 0)) % 2 === 0;
   sky.update(camera, game._skyArgs[0], game._skyArgs[1], game._sunDir, scene.fog.color, dt);
   if (game.photo) game.photo.update(player.x, player.y);
   const night = 1 - (game.day ?? 1);

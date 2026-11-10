@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { Character, HAT_COLORS } from './rig.js';
 import { NPCS, humanReady } from './humans.js';
 import { ground } from './terrain.js';
-import { L } from './tiles.js';
+import { L, standY } from './tiles.js';
 
 const SKINS = [0x8d5a3b, 0xb07a52, 0xe0b896, 0xc49a76, 0x5a3a28, 0xd9a77e, 0xf0cfb0];
 const SHIRTS = [0x2a7de1, 0xc8102e, 0x2f8f5a, 0x222222, 0xe0a020, 0x7a3fa0, 0xf2f2f2, 0x4a5a6a, 0x9b2a2a, 0x1f4f7f];
@@ -81,7 +81,7 @@ export class People {
       }
       const s2 = w.s; x = s2[0] + (s2[2] - s2[0]) * w.u; y = s2[1] + (s2[3] - s2[1]) * w.u;
       const h = Math.atan2((s2[2] - s2[0]) * w.dir, (s2[3] - s2[1]) * w.dir);
-      w.ch.g.position.set(x, ground(x, y) + 0.05, -y); w.ch.g.rotation.y = Math.PI - h;
+      w.ch.g.position.set(x, standY(x, y) + 0.05, -y); w.ch.g.rotation.y = Math.PI - h;
     }
     this.updateCamps(dt, px, py);
   }

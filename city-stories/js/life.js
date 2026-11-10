@@ -1,7 +1,7 @@
 // Life in the neighbourhoods: children playing in parks and in front of homes, and wildlife in the parks
 // (jackrabbits hopping about, and now and then a young black bear wandering through a wooded park).
 import * as THREE from 'three';
-import { L } from './tiles.js';
+import { L, standY } from './tiles.js';
 import { ground } from './terrain.js';
 import { loader, warm } from './gltf.js';
 import { Character } from './rig.js';
@@ -76,6 +76,14 @@ export class Life {
   update(dt, px, py) {
     if ((this.t -= dt) <= 0) {
       this.t = 0.8;
+      // the two little ones on the lawn at home: a girl and a boy playing tag in a small circle, always there
+      const H = this.homeKids;
+      if (H && humanReady('kid_girl') && humanReady('kid_boy') && Math.hypot(H.x - px, H.y - py) < 180 && !this.kids.some(k => k.home)) {
+        ['kid_girl', 'kid_boy'].forEach((name, i) => {
+          const ch = new Character({ glb: name, gscale: 0.82 }); this.scene.add(ch.g);
+          this.kids.push({ ch, cx: H.x, cy: H.y, a: i * Math.PI, r: 2.2, sp: 1.9 + i * 0.15, mode: 'chase', h: 0, x: H.x, y: H.y, t: i * 3, home: true });
+        });
+      }
       if (this.kids.length < this.max.kids) this.spawnKids(px, py);
       if (this.animals.filter(a => a.kind === 'rabbit').length < this.max.rabbits || (ANIMALS.bear && !this.animals.some(a => a.kind === 'bear'))) this.spawnAnimal(px, py);
     }
@@ -90,7 +98,7 @@ export class Life {
       const moved = Math.hypot(nx - k.x, ny - k.y);
       if (moved > 1e-3) k.h = Math.atan2(nx - k.x, ny - k.y);
       k.x = nx; k.y = ny;
-      k.ch.g.position.set(k.x, ground(k.x, k.y), -k.y); k.ch.g.rotation.y = Math.PI - k.h;
+      k.ch.g.position.set(k.x, standY(k.x, k.y), -k.y); k.ch.g.rotation.y = Math.PI - k.h;
       if (far < 120 || Math.random() < 0.4) k.ch.animate(far < 120 ? dt : dt * 2.5, { speed: moved / Math.max(dt, 1e-3), run: k.mode === 'chase' });
     }
     // rabbits hop in short bursts and stop to look around; a bear ambles slowly

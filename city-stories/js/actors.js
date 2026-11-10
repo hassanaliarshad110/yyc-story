@@ -50,7 +50,7 @@ function policeKit(g, L, W, roofY, decalY) {
 }
 export function makeCar(kind = 'car', colour) {
   // the detailed models: police SUVs (now and then a community peace officer), pickups and off-roaders
-  { const r = Math.random(), k = kind === 'police' ? (r < 0.3 ? 'peace' : 'police') : kind === 'peace' ? 'peace' : kind === 'truck' ? 'pickup' : kind === 'suv' ? (r < 0.6 ? 'offroad' : 'pickup') : kind === 'car' ? (r < 0.14 ? 'pickup' : r < 0.22 ? 'offroad' : null) : null;
+  { const r = Math.random(), k = kind === 'police' ? (r < 0.3 ? 'peace' : 'police') : kind === 'peace' ? 'peace' : kind === 'truck' ? 'pickup' : kind === 'suv' ? (r < 0.6 ? 'offroad' : 'pickup') : kind === 'car' ? (r < 0.12 ? 'pickup' : r < 0.2 ? 'offroad' : r < 0.32 ? 'sorento' : r < 0.42 ? 'rondo' : r < 0.52 ? 'veloster' : null) : null;
     const m = k && makeCar3D(k); if (m) return m; }
   if (kind === 'police') {
     const v = vehiclesReady() && makeKarachiVehicle('papurola', 'white');
@@ -60,7 +60,7 @@ export function makeCar(kind = 'car', colour) {
   }
   if (vehiclesReady()) {      // the Karachi models: mostly the sedan, some small hatchbacks, the odd ambulance, truck or bike
     const r = Math.random();
-    const k = kind === 'bike' ? 'moto' : kind === 'family' ? 'papurola' : kind === 'truck' ? (r < 0.3 ? 'truck' : 'papurola') : r < 0.72 ? 'papurola' : r < 0.97 ? 'mehran' : 'amb';
+    const k = kind === 'bike' ? 'moto' : 'papurola';      // the sedan and the motorbike: their wheels turn
     const v = makeKarachiVehicle(k, kind === 'family' ? 'navy' : undefined); if (v) return v;
   }
   if (kind === 'family') kind = 'suv';

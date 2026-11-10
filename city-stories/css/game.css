@@ -272,3 +272,5 @@ body.hurt #game, body.hurt canvas { filter: saturate(1.6) brightness(1.15) sepia
 #g-count { position: fixed; left: 50%; top: 30%; transform: translateX(-50%); z-index: 30; font: 900 72px system-ui, sans-serif; color: #fff; text-shadow: 0 3px 10px #000; pointer-events: none; }
 .start-btns .online { background: #1f7ae0; color: #fff; }
 body.cine #gamebar, body.cine #hpbar, body.cine #mpbar { display: none; }
+#g-chinfo { position: fixed; left: 50%; top: 64px; transform: translateX(-50%); z-index: 26; background: rgba(15, 23, 32, .82); color: #fff; font: 600 14px system-ui, sans-serif; padding: 6px 14px; border-radius: 16px; border: 1px solid rgba(255, 210, 74, .6); white-space: nowrap; pointer-events: none; }
+body.cine #g-chinfo { display: none; }
