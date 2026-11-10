@@ -229,3 +229,16 @@ body.cine #zoombtns { display: none; }
 #lyrics .lyr-now.pop { animation: lyrpop .35s ease-out; }
 @keyframes lyrpop { from { transform: translateY(8px); opacity: .2; } to { transform: none; opacity: 1; } }
 body.cine #lyrics { display: none; }
+
+/* online play */
+#mpbar { position: fixed; left: 10px; top: 46%; z-index: 25; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+#mpbar > button { pointer-events: auto; width: 44px; height: 44px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .55); background: rgba(15, 23, 32, .6); font-size: 20px; }
+#mpbar > button.on { background: rgba(46, 160, 90, .75); }
+#mp-talk.on { background: rgba(200, 16, 46, .8) !important; transform: scale(1.12); }
+#mp-feed { position: fixed; left: 62px; top: 46%; max-width: min(60vw, 360px); font: 600 13px system-ui, sans-serif; color: #fff; text-shadow: 0 1px 3px #000; pointer-events: none; }
+#mp-feed div { background: rgba(10, 16, 26, .5); border-radius: 8px; padding: 3px 8px; margin-bottom: 4px; transition: opacity 1s; }
+#mp-feed div.old { opacity: 0; }
+#mp-form { position: fixed; left: 50%; bottom: 40%; transform: translateX(-50%); display: flex; gap: 6px; pointer-events: auto; z-index: 40; }
+#mp-form input { width: min(70vw, 380px); padding: 10px 12px; border-radius: 10px; border: 0; font-size: 16px; }
+#mp-form button { padding: 10px 14px; border-radius: 10px; border: 0; background: #ffc400; font-weight: 800; }
+body.cine #mpbar { display: none; }

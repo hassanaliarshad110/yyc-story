@@ -162,11 +162,23 @@ const HAT_MATS = new Map();
 const hatMat = c => { if (!HAT_MATS.has(c)) HAT_MATS.set(c, new THREE.MeshLambertMaterial({ color: c, side: THREE.DoubleSide })); return HAT_MATS.get(c); };
 export const HAT_COLORS = [0xf2efe6, 0x5a3a22, 0x2a2a2a, 0x8a5a32, 0xc8a070, 0xf2efe6, 0x7a1c1c, 0xd8c8a8];
 const HAT_Y = { adult: 0.2, hero: 0.165 };
+// a hat on its own (brim, crown, band), for any head
+export function hatGroup(c) {
+  const g = new THREE.Group(), m = hatMat(c);
+  const brim = new THREE.Mesh(HAT.brim, m), crown = new THREE.Mesh(HAT.crown, m), band = new THREE.Mesh(HAT.band, HAT.bandMat);
+  crown.position.y = 0.075; band.position.y = 0.03; g.add(brim, crown, band);
+  for (const o of g.children) o.castShadow = true;
+  return g;
+}
+// realistic models (humans.js) take over a look that names one, once it has loaded
+let GLB = null;
+export const setGlbFactory = f => { GLB = f; };
 export const setHatY = (k, y) => { HAT_Y[k] = y; };
 
 // ---- a character: Group with a SkinnedMesh and a skeleton, driven by animate()
 export class Character {
   constructor(style = {}) {
+    if (GLB && style.glb) { const h = GLB(style); if (h) return h; }
     const hero = style.hero && heroGeo;
     const J = hero ? HERO.J : J_ADULT;
     this.R = { J, off: KC.offsets(J), RP: hero ? HERO.RP : RP0, CLR: hero ? HERO.CLR : CLR0 };
@@ -186,13 +198,11 @@ export class Character {
   }
   // a cowboy hat on the head bone (colour, or null to take it off)
   setHat(c) {
+    this.hatC = c ?? null;
     if (this.hat) { this.bones.head.remove(this.hat); this.hat = null; }
     if (c == null) return;
-    const g = this.hat = new THREE.Group(), m = hatMat(c), hero = this.R.J !== J_ADULT;
-    const brim = new THREE.Mesh(HAT.brim, m), crown = new THREE.Mesh(HAT.crown, m), band = new THREE.Mesh(HAT.band, HAT.bandMat);
-    brim.position.y = 0; crown.position.y = 0.075; band.position.y = 0.03; g.add(brim, crown, band);
+    const g = this.hat = hatGroup(c), hero = this.R.J !== J_ADULT;
     g.position.set(0, hero ? HAT_Y.hero : HAT_Y.adult, 0.01); g.rotation.x = -0.12;
-    for (const o of g.children) o.castShadow = true;
     this.bones.head.add(g);
   }
   // st: { speed (m/s), run (bool), sit, talk, wave }

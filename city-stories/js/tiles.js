@@ -103,7 +103,7 @@ class GeoBuilder {
   constructor() { this.pos = []; this.nor = []; this.uv = []; this.col = []; this.idx = []; this.lift = null; }
   get n() { return this.pos.length / 3; }
   // y is above the ground at (x, -z) unless lift is set (a fixed base, e.g. a building's footprint, or 0 for absolute heights)
-  v(x, y, z, nx, ny, nz, u, w, c) { y += this.lift != null ? this.lift : TER.on ? gl(x, -z) : 0; this.pos.push(x, y, z); this.nor.push(nx, ny, nz); this.uv.push(u, w); this.col.push(c.r, c.g, c.b); return this.n - 1; }
+  v(x, y, z, nx, ny, nz, u, w, c) { y += this.lift != null ? this.lift : TER.on ? gl(x, -z) : 0; this.pos.push(x, y, z); this.nor.push(nx, ny, nz); this.uv.push(u, w); this.col.push(c.r, c.g, c.b); if (this.hc) this.hc.push(this.hx, this.hz); return this.n - 1; }
   build() {
     if (!this.idx.length) return null;
     const g = new THREE.BufferGeometry();
@@ -111,6 +111,7 @@ class GeoBuilder {
     g.setAttribute('normal', new THREE.Float32BufferAttribute(this.nor, 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(this.uv, 2));
     g.setAttribute('color', new THREE.Float32BufferAttribute(this.col, 3));
+    if (this.hc) g.setAttribute('hc', new THREE.Float32BufferAttribute(this.hc, 2));
     g.setIndex(this.n > 65535 ? new THREE.Uint32BufferAttribute(this.idx, 1) : new THREE.Uint16BufferAttribute(this.idx, 1));
     g.computeBoundingSphere();
     return g;
@@ -223,8 +224,14 @@ export function buildBuildings(feats, skylineSkip = true, roads = []) {
 // one tile blob -> wall and roof geometry by material, like buildBuildings. skipTall: leave the 38 m+ towers to the skyline.
 const FLAT_ROOF = new THREE.Color(0x8d8a85), GLASS_ROOF = new THREE.Color(0x6c7884), BLACK_C = new THREE.Color(0x000000);
 const LIGHT_COLS = [0x3aa0ff, 0xb05aff, 0xff4a7a, 0xffb02a, 0x2affd0, 0xf2f6ff, 0xff6a2a, 0x5a7aff].map(c => new THREE.Color(c));
-export function buildB3D(buf, skipTall = true, groundAt = gl) {
+// opt: { ox, oy, swap } — swap: plain houses that a detailed model can replace up close go in their own
+// geometry (shouse0..3, sroof) tagged with each house's centre, and come back as `cands`
+export const HOUSES = { place: null, drop: null };      // detailed house models (houses3d.js) hook in here
+export const B3D_SKIP = [[51, 85, 8]];        // landmarks drawn by their own models (world x, y, radius): Historic City Hall
+export function buildB3D(buf, skipTall = true, groundAt = gl, opt = {}) {
   const G = { house0: new GeoBuilder(), house1: new GeoBuilder(), house2: new GeoBuilder(), house3: new GeoBuilder(), apt: new GeoBuilder(), comm: new GeoBuilder(), shop: new GeoBuilder(), tower: new GeoBuilder(), roof: new GeoBuilder(), crown: new GeoBuilder(), wash: new GeoBuilder() };
+  if (opt.swap) for (const k of ['shouse0', 'shouse1', 'shouse2', 'shouse3', 'sroof']) { G[k] = new GeoBuilder(); G[k].hc = []; }
+  const cands = [], OX = opt.ox || 0, OY = opt.oy || 0;
   for (const k in G) G[k].lift = 0;
   const dv = new DataView(buf.buffer || buf, buf.byteOffset || 0, buf.byteLength);
   if (dv.getUint32(0, true) !== 0x31425959) return { geos: {}, n: 0 };       // 'YYB1'
@@ -267,8 +274,23 @@ export function buildB3D(buf, skipTall = true, groundAt = gl) {
       }
     }
     if ((tall && skipTall) || k === 17) continue;          // the Calgary Tower has its own model
+    if (B3D_SKIP.some(q => Math.hypot(cx + OX - q[0], cy + OY - q[1]) < q[2])) continue;
     built++;
-    const hs = hash2(cx, cy), era = (flags >> 5) & 7, wg = wallGroup(k, h, hs, era), grp = G[wg];
+    const hs = hash2(cx, cy), era = (flags >> 5) & 7, wg0 = wallGroup(k, h, hs, era);
+    // a plain house with a simple footprint: a detailed model can stand in for it
+    let cand = null;
+    if (opt.swap && !tall && (k === 1 || k === 18 || k === 19) && h > 2.5 && h < 11.5) {
+      const E = []; let len0 = 0, ang = 0, area = 0;
+      for (let w = 0; w < nw; w++) { const q = wOff + w * 8; if (dv.getInt16(q + 4, true) / 10 !== gbase) continue; const a = dv.getUint16(q, true), c = dv.getUint16(q + 2, true), l = Math.hypot(X[c] - X[a], Y[c] - Y[a]); E.push(X[a], Y[a]); area += X[a] * Y[c] - X[c] * Y[a]; if (l > len0) { len0 = l; ang = Math.atan2(Y[c] - Y[a], X[c] - X[a]); } }
+      area = Math.abs(area) / 2;
+      const ux = Math.cos(ang), uy = Math.sin(ang); let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+      for (let i = 0; i < E.length; i += 2) { const u = E[i] * ux + E[i + 1] * uy, v = -E[i] * uy + E[i + 1] * ux; u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }
+      const du = u1 - u0, dvv = v1 - v0, um = (u0 + u1) / 2, vm = (v0 + v1) / 2;
+      if (E.length >= 8 && area > 45 && area < (k === 19 ? 900 : 480) && area / (du * dvv) > 0.62 && Math.min(du, dvv) > 4.5)
+        cand = { x: um * ux - vm * uy, y: um * uy + vm * ux, ang, du, dv: dvv, base: gmin - 0.1, h: zmax + shift - (gmin - 0.1), k, era, hs };
+    }
+    if (cand) { cands.push(cand); for (const q of ['shouse0', 'shouse1', 'shouse2', 'shouse3', 'sroof']) { G[q].hx = cand.x + OX; G[q].hz = -(cand.y + OY); } }
+    const wg = cand ? 's' + wg0 : wg0, grp = G[wg];
     tmpC.setHex(pick(KCOL[k] || KCOL[14], hs)); const wc = tmpC.clone();
     const house = k === 1 || k === 2 || k === 18 || k === 19;
     tmpC.setHex(pick(ROOF[k] || ROOF[1], hs * 7 % 1)); const pitchC = tmpC.clone();
@@ -302,7 +324,7 @@ export function buildB3D(buf, skipTall = true, groundAt = gl) {
       }
     }
     // roof triangles (counter-clockwise from above)
-    const R = G.roof;
+    const R = cand ? G.sroof : G.roof;
     for (let t = 0; t < nt; t++) {
       const q = tOff + t * 6, A = dv.getUint16(q, true), B = dv.getUint16(q + 2, true), C = dv.getUint16(q + 4, true);
       const ux = X[B] - X[A], uy = Y[B] - Y[A], uz = Z[B] - Z[A], wx = X[C] - X[A], wy = Y[C] - Y[A], wz = Z[C] - Z[A];
@@ -315,7 +337,7 @@ export function buildB3D(buf, skipTall = true, groundAt = gl) {
       R.idx.push(i0, i1, i2);
     }
   }
-  return { geos: Object.fromEntries(Object.entries(G).map(([k, g]) => [k, g.n ? g.build() : null])), n: built, walls, outlines, cwalls, hgrid: HG };
+  return { geos: Object.fromEntries(Object.entries(G).map(([k, g]) => [k, g.n ? g.build() : null])), n: built, walls, outlines, cwalls, hgrid: HG, cands };
 }
 // Sentinel-2 ground imagery (tools/build_s2.py): one 8 km texture per region, multiplied by the fine ground texture up close
 export const S2 = { on: false, rg: 8000, mats: new Map() };
@@ -1129,10 +1151,14 @@ export class TileManager {
     // buildings
     let coll = null;
     if (M && job.bbuf) {      // the City's 3D buildings: real roofs and heights
-      const { geos, walls, outlines, cwalls, hgrid } = buildB3D(job.bbuf, true); t.walls3d = walls; t.roofs3d = outlines; t.hgrid = hgrid;
+      const { geos, walls, outlines, cwalls, hgrid, cands } = buildB3D(job.bbuf, true, gl, { ox, oy, swap: D });
+      t.walls3d = walls; t.roofs3d = outlines; t.hgrid = hgrid;
       coll = buildSegCollision(cwalls);
       const cs = !lite;
       for (let i = 0; i < 4; i++) add(geos['house' + i], MAT.wallHouses[i], { cs });
+      for (let i = 0; i < 4; i++) { const m = add(geos['shouse' + i], MAT.wallHousesSwap[i], { cs }); if (m) m.customDepthMaterial = MAT.swapDepth; }
+      { const m = add(geos.sroof, MAT.roofSwap, { cs }); if (m) m.customDepthMaterial = MAT.swapDepth; }
+      if (cands && cands.length) { t.hcands = [cands, roadIndex(layers[L.ROAD]), g, ox, oy]; if (HOUSES.place) t.houses = HOUSES.place(...t.hcands); }
       add(geos.apt, MAT.wallApt, { cs }); add(geos.comm, MAT.wallComm, { cs }); add(geos.shop, MAT.wallShop, { cs }); add(geos.tower, MAT.wallTower, { cs }); add(geos.roof, MAT.roof, { cs });
     }
     if (layers[L.BLD]) {
@@ -1150,14 +1176,15 @@ export class TileManager {
     }
     this.scene.add(g);
     t.group = g; t.layers = layers; t.coll = coll; t.ox = ox; t.oy = oy; t.lite = lite;
-    if (prev) { this.scene.remove(prev.group); prev.group.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
+    if (prev) { this.scene.remove(prev.group); prev.group.traverse(o => { if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose(); }); if (prev.houses && HOUSES.drop) HOUSES.drop(prev.houses); }
     this.tiles.set(job.k, t);
     if (!lite) this.onTile(t, true);
     return true;
   }
   unload(k) {
     const t = this.tiles.get(k); if (!t) return;
-    if (t.group) { this.scene.remove(t.group); t.group.traverse(o => { if (o.geometry) o.geometry.dispose(); }); if (!t.lite) this.onTile(t, false); }
+    if (t.group) { this.scene.remove(t.group); t.group.traverse(o => { if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose(); }); if (!t.lite) this.onTile(t, false); }
+    if (t.houses && HOUSES.drop) HOUSES.drop(t.houses);
     this.tiles.delete(k);
   }
   tileAt(x, y) { return this.tiles.get(this.key(Math.floor(x / this.TS), Math.floor(y / this.TS))); }

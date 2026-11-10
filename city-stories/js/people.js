@@ -2,6 +2,7 @@
 // sheltering under the downtown bridges, with a way to check in and get them connected to outreach.
 import * as THREE from 'three';
 import { Character, HAT_COLORS } from './rig.js';
+import { NPCS, humanReady } from './humans.js';
 import { ground } from './terrain.js';
 import { L } from './tiles.js';
 
@@ -13,7 +14,7 @@ const HAIRS = [0x15100d, 0x4a2e1a, 0x8a6a3a, 0xd2d0cc, 0x15100d];
 const LOOKS = [];
 for (let i = 0; i < 18; i++) {
   const f = i % 2 === 1;
-  LOOKS.push({ skin: SKINS[i % SKINS.length], shirt: SHIRTS[(i * 3) % SHIRTS.length], pants: PANTS[i % PANTS.length], hair: HAIRS[(i * 7) % HAIRS.length], fem: f, long: f && i % 4 === 1, scale: 0.94 + (i % 3) * 0.04, bag: i % 5 === 0 ? 0x333333 : undefined, hat: i % 3 !== 2 ? HAT_COLORS[i % HAT_COLORS.length] : undefined });     // Stampede time: most people wear cowboy hats
+  LOOKS.push({ skin: SKINS[i % SKINS.length], shirt: SHIRTS[(i * 3) % SHIRTS.length], pants: PANTS[i % PANTS.length], hair: HAIRS[(i * 7) % HAIRS.length], fem: f, long: f && i % 4 === 1, scale: 0.94 + (i % 3) * 0.04, bag: i % 5 === 0 ? 0x333333 : undefined, hat: i % 3 !== 2 && !['npc_cowboy', 'npc_sikh', 'npc_hijab'].includes(NPCS[i % NPCS.length]) ? HAT_COLORS[i % HAT_COLORS.length] : undefined, glb: NPCS[i % NPCS.length], gscale: 0.96 + (i % 3) * 0.03 });     // Stampede time: most people wear cowboy hats
 }
 const WORN = [{ skin: 0xc49a76, shirt: 0x4a4a3a, pants: 0x3a3a34, hair: 0x5a4a3a }, { skin: 0x8d5a3b, shirt: 0x5a3a2a, pants: 0x2a2a2a, hair: 0x15100d }, { skin: 0xe0b896, shirt: 0x3a4a5a, pants: 0x4a4038, hair: 0x8a7a6a, fem: true, long: true }];
 const DOWNTOWN = { x: 0, y: 200, r: 1900 };
@@ -51,6 +52,7 @@ export class People {
       const s = S[Math.floor(Math.random() * S.length)], u = Math.random(), x = s[0] + (s[2] - s[0]) * u, y = s[1] + (s[3] - s[1]) * u, d = Math.hypot(x - px, y - py);
       if (d < 35 || d > 130) continue;
       let ch = this.pool.pop();
+      if (ch && !ch.mixer && humanReady(NPCS[0])) ch = null;          // the realistic people have arrived: retire the simple ones
       if (!ch) { ch = new Character(LOOKS[Math.floor(Math.random() * LOOKS.length)]); }
       this.scene.add(ch.g);
       this.walkers.push({ ch, s, u, dir: Math.random() < 0.5 ? 1 : -1, sp: 1.1 + Math.random() * 0.5, t, pause: 0 });

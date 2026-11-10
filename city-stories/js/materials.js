@@ -3,6 +3,14 @@ import * as THREE from 'three';
 import { facadeTexture, roadTexture, groundTexture, railTexture, nightWindowsTexture, doorTexture, sidewalkTexture, guardrailTexture } from './textures.js';
 
 export const MAT = {};
+// houses swapped for detailed models near you: the plain version folds away inside this circle (world x, world z, radius)
+export const SWAP = { u: new THREE.Vector3(0, 0, 0) };
+function swapShader(sh) {
+  sh.uniforms.uSwap = { value: SWAP.u };
+  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 hc;\nuniform vec3 uSwap;')
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\nif (distance(hc, uSwap.xy) < uSwap.z) transformed = vec3(0.0);');
+}
+function swapped(m) { const c = m.clone(); c.userData = { ...m.userData }; c.onBeforeCompile = swapShader; c.customProgramCacheKey = () => 'swap'; return c; }
 
 export function initMaterials() {
   // lit-window maps match each facade's window openings
@@ -24,6 +32,9 @@ export function initMaterials() {
   MAT.wallTower = wall('tower');
   MAT.walls = [...MAT.wallHouses, MAT.wallApt, MAT.wallComm, MAT.wallShop, MAT.wallTower];
   MAT.roof = new THREE.MeshLambertMaterial({ vertexColors: true });
+  MAT.wallHousesSwap = MAT.wallHouses.map(swapped); MAT.roofSwap = swapped(MAT.roof);
+  MAT.walls.push(...MAT.wallHousesSwap);
+  MAT.swapDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }); MAT.swapDepth.onBeforeCompile = swapShader; MAT.swapDepth.customProgramCacheKey = () => 'swapd';
   MAT.concrete = new THREE.MeshLambertMaterial({ vertexColors: true });
   MAT.doors = new THREE.MeshLambertMaterial({ map: doorTexture() });
   MAT.sidewalk = new THREE.MeshLambertMaterial({ map: sidewalkTexture(), polygonOffset: true, polygonOffsetFactor: -2.5, polygonOffsetUnits: -2.5 });

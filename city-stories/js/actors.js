@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { busSignTexture } from './textures.js';
 import { vehiclesReady, makeKarachiVehicle } from './vehicles.js';
+import { makeCar3D } from './cars3d.js';
 
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 const mat = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o });
@@ -48,6 +49,9 @@ function policeKit(g, L, W, roofY, decalY) {
   g.userData.beacons = [lr, lb]; g.userData.police = true;
 }
 export function makeCar(kind = 'car', colour) {
+  // the detailed models: police SUVs (now and then a community peace officer), pickups and off-roaders
+  { const r = Math.random(), k = kind === 'police' ? (r < 0.3 ? 'peace' : 'police') : kind === 'peace' ? 'peace' : kind === 'truck' ? 'pickup' : kind === 'suv' ? (r < 0.6 ? 'offroad' : 'pickup') : kind === 'car' ? (r < 0.14 ? 'pickup' : r < 0.22 ? 'offroad' : null) : null;
+    const m = k && makeCar3D(k); if (m) return m; }
   if (kind === 'police') {
     const v = vehiclesReady() && makeKarachiVehicle('papurola', 'white');
     const car = v || makeCar('car', 0xf2f2f2);
@@ -84,6 +88,11 @@ export function makeCar(kind = 'car', colour) {
 
 // Calgary Transit bus: white body, red stripe, route sign
 export function makeBus(route = '') {
+  const m = makeCar3D('bus');
+  if (m) {        // the detailed bus, with the route on its sign
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.32), new THREE.MeshBasicMaterial({ map: busSignTexture(route) }));
+    sign.position.set(0, 2.88, 12.2 / 2 + 0.04); m.add(sign); m.userData = { ...m.userData, kind: 'bus', route, sign }; return m;
+  }
   const g = new THREE.Group();
   const L = 12, W = 2.55, H = 2.9;
   const body = new THREE.Mesh(box(W, H, L), mat(0xf4f4f2)); body.position.y = 0.4 + H / 2; g.add(body);
@@ -105,6 +114,7 @@ export function makeTrain(cars = 3, line = 'Red') {
   const g = new THREE.Group();
   const L = 24.5, W = 2.65, H = 3.3, gap = 0.6;
   for (let i = 0; i < cars; i++) {
+    const d = makeCar3D('ctrain'); if (d) { d.position.z = -i * (24.8 + gap); g.add(d); continue; }
     const c = new THREE.Group();
     const b = new THREE.Mesh(box(W, H, L), mat(0xf2f2f0)); b.position.y = 0.6 + H / 2; c.add(b);
     const band = new THREE.Mesh(box(W + 0.02, 0.5, L + 0.02), mat(0xc8102e)); band.position.y = 1.3; c.add(band);

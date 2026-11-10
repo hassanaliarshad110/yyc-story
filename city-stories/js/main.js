@@ -14,6 +14,10 @@ import { initRealView, openReal, closeReal, realOpen } from './realview.js';
 import { initInput, readInput, input, onAction } from './input.js';
 import { makeCar } from './actors.js';
 import { loadHero } from './rig.js';
+import { loadHumans, humanReady } from './humans.js';
+import { loadHouses, loadCityHall, updateHouses, setHouseRange } from './houses3d.js';
+import { loadCars3D } from './cars3d.js';
+import { Multiplayer } from './mp.js';
 import { loadVehicles } from './vehicles.js';
 import { sfx, unlockAudio, updateAudio } from './sound.js';
 import { Sky } from './sky.js';
@@ -112,7 +116,7 @@ let world, tiles, player, traffic, transit, missions;
 async function boot() {
   status('Loading the map of Calgary…');
   const r = await fetch('data/world.json'); world = await r.json(); game.world = world;
-  for (const c of ['Ground heights: City of Calgary LiDAR bare-earth elevation model 2022–2024 (Open Government Licence – City of Calgary); outside the city, contains modified Copernicus DEM GLO-30 data (European Union, ESA)', 'Businesses and property types: City of Calgary business licences and property assessments, Open Government Licence – City of Calgary', 'Park benches, picnic tables, playgrounds, fountains and park signs: City of Calgary Parks open data, Open Government Licence – City of Calgary', 'Traffic signals and road signs: City of Calgary open data, Open Government Licence – City of Calgary', 'Ward boundaries and councillors: City of Calgary open data', 'Shops and restaurants: City of Calgary business licences and OpenStreetMap contributors', 'Sports fields (soccer, football, rugby, cricket): City of Calgary Parks Sport Surfaces open data, Open Government Licence – City of Calgary', 'Title song: "Under One Sky" by Hassan Ali', 'Song: "Beyond the Mask" by Hassan Ali', 'Dialogue voices: Kokoro (Apache License 2.0) and Meta MMS-TTS (CC BY-NC 4.0, non-commercial)', 'Stampede Park, its concerts and the midway are a game re-creation, not affiliated with the Calgary Stampede'])
+  for (const c of ['Ground heights: City of Calgary LiDAR bare-earth elevation model 2022–2024 (Open Government Licence – City of Calgary); outside the city, contains modified Copernicus DEM GLO-30 data (European Union, ESA)', 'Businesses and property types: City of Calgary business licences and property assessments, Open Government Licence – City of Calgary', 'Park benches, picnic tables, playgrounds, fountains and park signs: City of Calgary Parks open data, Open Government Licence – City of Calgary', 'Traffic signals and road signs: City of Calgary open data, Open Government Licence – City of Calgary', 'Ward boundaries and councillors: City of Calgary open data', 'Shops and restaurants: City of Calgary business licences and OpenStreetMap contributors', 'Sports fields (soccer, football, rugby, cricket): City of Calgary Parks Sport Surfaces open data, Open Government Licence – City of Calgary', 'People, homes, vehicles and Historic City Hall: 3D models made for this game; homes are fitted to the City of Calgary 3D building footprints and heights', 'Online play: positions and chat pass through the game server; voice chat goes straight between nearby players and is never recorded', 'Title song: "Under One Sky" by Hassan Ali', 'Song: "Beyond the Mask" by Hassan Ali', 'Dialogue voices: Kokoro (Apache License 2.0) and Meta MMS-TTS (CC BY-NC 4.0, non-commercial)', 'Stampede Park, its concerts and the midway are a game re-creation, not affiliated with the Calgary Stampede'])
     if (!world.credits.data.includes(c)) world.credits.data.push(c);
   $('#data-credits').innerHTML = world.credits.data.join('<br>');
   status('Building the city…');
@@ -134,6 +138,10 @@ async function boot() {
   tiles = new TileManager(scene, world, { radius: game.photoOn ? Math.max(1, game.settings.radius - 1) : game.settings.radius, meshes: !game.photoOn, onTile: (t, added) => { if (added) tilePaths(t); traffic && traffic.onTile(t, added); } });
   tiles.far = mobile ? 1 : 2; if (!game.photoOn) scene.fog.far = fogFar();
   game.tiles = tiles; game.signs = new Signs(scene, tiles);
+  // realistic people and homes arrive in the background; until then the simpler ones stand in
+  loadHumans([(LOOKS[game.look] || {}).glb].filter(Boolean));
+  if (!game.photoOn) { if (mobile) setHouseRange(110); loadHouses(tiles); loadCityHall(scene); }
+  loadCars3D();
   game.parks = new ParkAssets(scene, { radius: mobile ? 300 : 420 });
   game.fields = new Fields(scene, { radius: mobile ? 320 : 450 });      // soccer, football, rugby and cricket fields
   game.concert = new Concert(scene, 385, -772, Math.PI, { crowd: mobile ? 14 : 28 });     // on the lawn north of the Saddledome, facing it
@@ -149,6 +157,7 @@ async function boot() {
   game.metro = new Metro(game, { toast, setPrompt, sfx }); game.music = music;
   game.buses = new Buses(game, { toast, setPrompt, sfx });
   game.signals = new Signals(scene, traffic, { radius: mobile ? 180 : 260 }); game.billboards = new Billboards(scene); if (world.addr) game.numbers = new HouseNumbers(scene, tiles, { radius: 1 });
+  game.mp = new Multiplayer(game, scene);       // play online: other players, chat and voice near you
   game.people = new People(scene, tiles, { max: mobile ? 8 : 16, maxDowntown: mobile ? 18 : 40 });
   initHUD(world, game); initPhone(game); initRealView(game); initInput(canvas);
   game.updateMoney();
@@ -251,6 +260,7 @@ game.spawnCar = (x, y, h = 0, kind = 'family') => {
   c.mesh.position.set(x, c.gy, -y); c.mesh.rotation.y = Math.PI - h; scene.add(c.mesh); traffic.cars.push(c); return c;
 };
 // quick travel: jump to a spot (on foot or in your car; a helicopter keeps flying above it)
+game.groundAt = (x, y) => ground(x, y);      // for tests and tools
 game.teleport = (x, y, h = player.h) => {
   if (player.mode === 'heli' && player.heli) { const v = player.heli; v.x = x; v.y = y; v.h = h; v.v = 0; v.alt = Math.max(v.alt, ground(x, y) + 60); player.x = x; player.y = y; }
   else { player.seat = null; player.air = 0; player.place(x, y, h); }
@@ -443,7 +453,13 @@ function loop(now) {
     missions.update(dt);
     for (const n of missions.npcs) { const ch = n.userData.char; if (ch) { const near = Math.hypot(n.position.x - player.x, -n.position.z - player.y) < 7; ch.animate(dt, { talk: near && !!missions.active }); } }
   }
+  if (player && (game._hT = (game._hT || 0) - dt) <= 0) {      // the player's realistic model, once it has loaded
+    game._hT = 1; const L = LOOKS[player.look];
+    if (L && L.glb && !player.char.mixer && humanReady(L.glb)) { const hc = player.char.hatC; player.setLook(player.look); if (hc != null) player.char.setHat(hc); }
+  }
   if (game.started) {
+    updateHouses(dt, player.x, player.y);
+    if (game.mp) game.mp.update(dt, player, camH);
     let near = 0; for (const c of traffic.cars) if (!c.parked && Math.abs(c.x - player.x) < 120 && Math.abs(c.y - player.y) < 120) near++;
     const radio = player.mode === 'car' || player.mode === 'heli';
     updateAudio(dt, { driving: player.mode === 'car' && !blocked, bike: player.onBike, speed: player.v, throttle: Math.max(0, inp.y), day: game.day ?? 1, cars: near, foot: player.mode === 'foot', heli: player.mode === 'heli', rotor: game.heli ? game.heli.rot : 0, radio });

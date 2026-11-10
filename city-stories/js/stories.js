@@ -545,7 +545,7 @@ const JEAN = [
 ];
 
 // ---------------------------------------------------------------- Leo: visitor
-const SOFIA_LOOK = { skin: 0xd9a77e, shirt: 0xd04030, pants: 0x2a3a5a, hair: 0x2a1a10, long: true, fem: true, scale: 0.95 };
+const SOFIA_LOOK = { glb: 'sofia', skin: 0xd9a77e, shirt: 0xd04030, pants: 0x2a3a5a, hair: 0x2a1a10, long: true, fem: true, scale: 0.95 };
 const SOFIA_HAT = { ...SOFIA_LOOK, hat: 0xf2efe6 };
 const LEO_STORY = [
   {
