@@ -40,10 +40,15 @@ export class Room {
     if (m.t === 'hello') { a.name = clean(m.name, 20) || 'Player'; a.look = clean(m.look, 12); ws.serializeAttachment(a); this.broadcast(ws, { t: 'join', id: a.id, name: a.name, look: a.look }); }
     else if (m.t === 'pos') {
       const n = v => (typeof v === 'number' && isFinite(v) ? Math.round(v * 100) / 100 : 0);
-      a.p = [n(m.x), n(m.y), n(m.z), n(m.h), clean(m.mode, 6), clean(m.anim, 10)]; ws.serializeAttachment(a);
+      a.p = [n(m.x), n(m.y), n(m.z), n(m.h), clean(m.mode, 6), clean(m.anim, 10), Math.max(0, Math.min(99999, Math.round(+m.sc || 0))), Math.max(0, Math.min(100, Math.round(+m.hp || 0)))]; ws.serializeAttachment(a);
       this.broadcast(ws, { t: 'pos', id: a.id, name: a.name, look: a.look, p: a.p });
     }
     else if (m.t === 'chat') { const text = clean(m.text, 200); if (text) this.broadcast(ws, { t: 'chat', id: a.id, name: a.name, text }); }
+    else if (m.t === 'g' && m.d && typeof m.d === 'object') {      // games: shots, splashes, races (relayed as they are, small)
+      const d = JSON.stringify(m.d); if (d.length > 2000) return;
+      if (m.to) { for (const w of this.sockets()) if (w.deserializeAttachment().id === m.to) { try { w.send(JSON.stringify({ t: 'g', id: a.id, name: a.name, d: m.d })); } catch (e) { } break; } }
+      else this.broadcast(ws, { t: 'g', id: a.id, name: a.name, d: m.d });
+    }
     else if (m.t === 'rtc' && m.to) {              // a WebRTC offer, answer or ICE candidate for one player
       for (const w of this.sockets()) if (w.deserializeAttachment().id === m.to) { try { w.send(JSON.stringify({ t: 'rtc', from: a.id, d: m.d })); } catch (e) { } break; }
     }
