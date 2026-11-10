@@ -1,0 +1,19 @@
+name: Refresh 311 requests for City Stories
+# every two weeks (the 1st and 15th of each month), or by hand
+on:
+  schedule:
+    - cron: '17 9 1,15 * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python tools/fetch_311.py city-stories/data/311.json
+      - run: |
+          git config user.name "Hassan Ali"
+          git config user.email "hassanaliarshad110@users.noreply.github.com"
+          git add city-stories/data/311.json
+          git diff --cached --quiet || (git commit -qm "City Stories: refresh 311 requests (last 14 days)" && git pull -q --rebase && git push -q)
