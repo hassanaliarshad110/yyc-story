@@ -33,12 +33,12 @@ void main(){
     vec2 mp = vec2(dot(d, mx), dot(d, my)) / 0.05;
     float r = length(mp), disc = 1.0 - smoothstep(0.96, 1.0, r);
     vec3 mc;
-    if (moonReady > 0.5) { vec3 tx = texture2D(moonTex, clamp(vec2(0.5 - mp.x * 0.5, 0.5 + mp.y * 0.5), 0.0, 1.0)).rgb; mc = pow(tx, vec3(2.2)) * vec3(1.0, 0.86, 0.84) * 0.95; }
+    if (moonReady > 0.5) { vec3 tx = texture2D(moonTex, clamp(vec2(0.5 - mp.x * 0.5, 0.5 + mp.y * 0.5), 0.0, 1.0)).rgb; mc = (pow(tx, vec3(1.6)) * 1.75 + 0.14) * vec3(1.0, 0.5, 0.62); }
     else { float seas = smoothstep(0.45, 0.7, fbm(mp * 2.2 + 3.0)) * 0.32; mc = vec3(0.9, 0.82, 0.8) * (1.0 - seas); }
     float cl = 0.0;
     if (h > 0.0) { vec2 p2 = d.xz / (h + 0.12) * 1.3 + vec2(time * 0.006, time * 0.002); cl = smoothstep(0.5, 0.78, fbm(p2 * 1.4)); }
     col = mix(col, mc, disc * moon * (1.0 - cl * 0.85));
-    col += vec3(0.85, 0.7, 0.72) * moon * (pow(max(md, 0.0), 1800.0) * 0.14 + pow(max(md, 0.0), 120.0) * 0.06) * (1.0 - disc) * (1.0 - cl * 0.5);
+    col += vec3(1.0, 0.45, 0.6) * moon * (pow(max(md, 0.0), 900.0) * 0.55 + pow(max(md, 0.0), 160.0) * 0.22 + pow(max(md, 0.0), 30.0) * 0.06) * (1.0 - disc) * (1.0 - cl * 0.5);
   }
   // the northern lights: green curtains low in the north, violet tops, slowly waving
   if (aurora > 0.0 && h > 0.0 && d.z < 0.2) {

@@ -1,5 +1,5 @@
-// Sound effects, all made in the browser with WebAudio (nothing to download):
-// engine (pitch follows speed), horn, footsteps, bumps, chimes, CTrain/bus door bell, city ambience and birds.
+// Sound effects: the car, motorbike and helicopter engines are short recorded-style loops (audio/sfx), the rest is made in
+// the browser with WebAudio: horn, footsteps, bumps, chimes, CTrain/bus door bell, city ambience and birds.
 let ctx = null, master = null, muted = false;
 const S = { eng: null, amb: null, birdT: 3, last: 0, engVol: 1 };
 try { S.engVol = +(localStorage.getItem('yyc-engvol') ?? 1); } catch (e) { }
@@ -28,6 +28,16 @@ export function unlockAudio() {
   rs.buffer = noiseBuf(2, true); rs.loop = true; rbp.type = 'lowpass'; rbp.frequency.value = 260; rchop.gain.value = 0.5; lfo.type = 'square'; lfo.frequency.value = 7; lfoG.gain.value = 0.5; rg.gain.value = 0;
   lfo.connect(lfoG); lfoG.connect(rchop.gain); rs.connect(rbp); rbp.connect(rchop); rchop.connect(rg); rg.connect(master); rs.start(); lfo.start();
   S.rotor = { g: rg, lfo };
+  // recorded-style loops for the car, motorbike and helicopter (they replace the synthesised hum once loaded)
+  S.loops = {};
+  for (const [k, f] of [['car', 'engine_car'], ['bike', 'engine_bike'], ['rotor', 'rotor']]) {
+    fetch(`audio/sfx/${f}.mp3`).then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(buf => {
+      const src = ctx.createBufferSource(), g = ctx.createGain(); src.buffer = buf; src.loop = true;
+      // skip the encoder's silence at both ends so the loop is seamless
+      src.loopStart = 0.06; src.loopEnd = buf.duration - 0.06;
+      g.gain.value = 0; src.connect(g); g.connect(master); src.start(0, src.loopStart); S.loops[k] = { src, g };
+    }).catch(e => console.warn('sound', f, e));
+  }
   // city ambience: soft brown-noise hum
   const src = ctx.createBufferSource(), alp = ctx.createBiquadFilter(), ag = ctx.createGain();
   src.buffer = noiseBuf(4, true); src.loop = true; alp.type = 'lowpass'; alp.frequency.value = 420; ag.gain.value = 0.0;
@@ -73,7 +83,19 @@ export function updateAudio(dt, st) {
     // a soft hum, much quieter than before, and quieter again while the radio plays
     e.g.gain.setTargetAtTime((0.006 + (st.throttle || 0) * 0.004 + Math.min(0.004, sp * 0.00015)) * S.engVol * (st.radio ? 0.6 : 1), t, 0.12);
   } else e.g.gain.setTargetAtTime(0, t, 0.15);
-  if (S.rotor) { S.rotor.g.gain.setTargetAtTime(st.heli ? 0.035 * (st.rotor ?? 1) * (st.radio ? 0.7 : 1) : 0, t, 0.3); S.rotor.lfo.frequency.setTargetAtTime(4 + 4 * (st.rotor ?? 1), t, 0.3); }
+  // the engine loops: pitch (playback speed) rises with speed and throttle, quieter while the radio plays
+  const L = S.loops || {}, rad = st.radio ? 0.6 : 1;
+  if (L.car || L.bike) {
+    if (st.driving) e.g.gain.setTargetAtTime(0, t, 0.1);
+    for (const k of ['car', 'bike']) {
+      const l = L[k]; if (!l) continue; const on = st.driving && (k === 'bike') === !!st.bike;
+      const rate = (k === 'bike' ? 0.75 : 0.7) + Math.min(1.0, sp / 28) * 0.75 + (st.throttle || 0) * 0.12;
+      l.src.playbackRate.setTargetAtTime(rate, t, 0.15);
+      l.g.gain.setTargetAtTime(on ? (0.22 + (st.throttle || 0) * 0.1 + Math.min(0.12, sp * 0.004)) * S.engVol * rad : 0, t, 0.15);
+    }
+  }
+  if (L.rotor) { L.rotor.g.gain.setTargetAtTime(st.heli ? 0.32 * (st.rotor ?? 1) * rad * S.engVol : 0, t, 0.3); L.rotor.src.playbackRate.setTargetAtTime(0.85 + 0.25 * (st.rotor ?? 1), t, 0.3); if (S.rotor) S.rotor.g.gain.setTargetAtTime(0, t, 0.2); }
+  else if (S.rotor) { S.rotor.g.gain.setTargetAtTime(st.heli ? 0.035 * (st.rotor ?? 1) * (st.radio ? 0.7 : 1) : 0, t, 0.3); S.rotor.lfo.frequency.setTargetAtTime(4 + 4 * (st.rotor ?? 1), t, 0.3); }
   // ambience: louder with traffic around, quieter at night
   const amb = 0.035 + Math.min(0.08, (st.cars || 0) * 0.008) * (0.5 + 0.5 * (st.day ?? 1));
   S.amb.g.gain.setTargetAtTime(muted ? 0 : amb, t, 0.5);

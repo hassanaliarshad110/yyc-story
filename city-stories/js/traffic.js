@@ -186,6 +186,9 @@ export class Traffic {
     const moving = this.cars.filter(c => !c.parked && !c.player).length, parked = this.cars.filter(c => c.parked).length;
     if (moving < this.max && Math.random() < 0.4) this.spawn(px, py);
     if (parked < this.maxParked && Math.random() < 0.25) this.spawnParked(px, py);
+    // the buses on the road: three points along each, so cars stop behind them and never drive through one
+    this.busPts = [];
+    for (const v of (this.transit && this.transit.vehicles) || []) if (!v.rail) for (const m of v.parts) { const bx = m.position.x, by = -m.position.z, h = Math.PI - m.rotation.y, hx = Math.sin(h), hy = Math.cos(h); for (const k of [-4.5, 0, 4.5]) this.busPts.push([bx + hx * k, by + hy * k, 1.7]); }
     for (const c of this.cars) {
       if (c.player || c.dead) continue;
       if (Math.hypot(c.x - px, c.y - py) > 480) { c.dead = true; continue; }
@@ -221,6 +224,7 @@ export class Traffic {
       const [fx, fy] = dirOf(c.h);
       const blockers = [[px, py, player.mode === 'car' ? 2.2 : 1.2]];
       for (const o of this.cars) if (o !== c && !o.dead && Math.abs(o.x - c.x) < 22 && Math.abs(o.y - c.y) < 22) blockers.push([o.x, o.y, 1.4]);
+      for (const b of this.busPts || []) if (Math.abs(b[0] - c.x) < 24 && Math.abs(b[1] - c.y) < 24) blockers.push(b);        // buses (and their length)
       for (const [bx, by, br] of blockers) {
         const rx = bx - c.x, ry = by - c.y, ahead = rx * fx + ry * fy, lat = Math.abs(rx * fy - ry * fx);
         if (ahead > 0 && ahead < 20 && lat < br + 1.0) target = Math.min(target, Math.max(0, (ahead - 7) * 1.1));

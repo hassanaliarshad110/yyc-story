@@ -25,7 +25,7 @@ async function loadAnimal(name, len) {
 
 export class Life {
   constructor(game, scene, { kids = 10, rabbits = 8, mobile = false } = {}) {
-    this.g = game; this.scene = scene; this.max = { kids: mobile ? Math.round(kids * 0.6) : kids, rabbits: mobile ? 5 : rabbits };
+    this.g = game; this.scene = scene; this.max = { kids: mobile ? Math.round(kids * 0.6) : kids, rabbits: mobile ? 5 : rabbits, bears: mobile ? 1 : 2 };
     this.kids = []; this.animals = []; this.t = 0;
     loadAnimal('rabbit', 0.55); loadAnimal('bear', 1.25);
   }
@@ -68,8 +68,9 @@ export class Life {
     }
   }
   spawnAnimal(px, py) {
-    const bear = ANIMALS.bear && Math.random() < 0.15, kind = bear ? 'bear' : 'rabbit'; if (!ANIMALS[kind]) return;
-    const spot = this.greenSpot(px, py, 35, 140, bear); if (!spot) return;
+    const bears = this.animals.filter(a => a.kind === 'bear').length, bear = ANIMALS.bear && bears < this.max.bears && Math.random() < 0.45, kind = bear ? 'bear' : 'rabbit'; if (!ANIMALS[kind]) return;
+    // bears wander through wooded parks first, and any big green space when there's no woods close by
+    const spot = bear ? (this.greenSpot(px, py, 30, 160, true) || this.greenSpot(px, py, 40, 150)) : this.greenSpot(px, py, 35, 140); if (!spot) return;
     const m = new THREE.Mesh(ANIMALS[kind].geo, ANIMALS[kind].mat); m.castShadow = true; this.scene.add(m);
     this.animals.push({ m, kind, x: spot.x, y: spot.y, h: Math.random() * 6.28, t: 0, hop: 0, pause: Math.random() * 2, home: spot });
   }
@@ -85,7 +86,7 @@ export class Life {
         });
       }
       if (this.kids.length < this.max.kids) this.spawnKids(px, py);
-      if (this.animals.filter(a => a.kind === 'rabbit').length < this.max.rabbits || (ANIMALS.bear && !this.animals.some(a => a.kind === 'bear'))) this.spawnAnimal(px, py);
+      if (this.animals.filter(a => a.kind === 'rabbit').length < this.max.rabbits || (ANIMALS.bear && this.animals.filter(a => a.kind === 'bear').length < this.max.bears)) this.spawnAnimal(px, py);
     }
     // children: running round in a game of tag, or out for a walk
     for (let i = this.kids.length - 1; i >= 0; i--) {

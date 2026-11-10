@@ -93,6 +93,10 @@ export class Transit {
       const st = v.stops[v.nextStop];
       let target = v.rail ? 17 : 11;
       if (st) { const d = st.s - v.s; if (d < 30) target = Math.max(1.5, d * 0.5); if (d < 1) { v.s = st.s; v.wait = v.holdAt === v.nextStop ? 1e9 : (v.rail ? 12 : 6); v.nextStop++; if (v.onStop) v.onStop(st, v.nextStop - 1); } }
+      if (!v.rail && this.cars) {      // a bus stops behind the cars in front of it
+        const hx = Math.sin(v.h), hy = Math.cos(v.h);
+        for (const c of this.cars()) { if (c.dead) continue; const dx = c.x - v.x, dy = c.y - v.y; if (Math.abs(dx) > 26 || Math.abs(dy) > 26) continue; const al = dx * hx + dy * hy, lat = Math.abs(dx * hy - dy * hx); if (al > 0 && al < 22 && lat < 2.4) target = Math.min(target, Math.max(0, (al - 9) * 0.8)); }
+      }
       for (const o of this.vehicles) if (o !== v && o.path === v.path && o.s > v.s) { const gap = o.s - v.s - (v.rail ? 85 : 16); if (gap < 60) target = Math.min(target, Math.max(0, gap * 0.3)); }   // keep behind the one ahead
       if (v.rail) {        // another line's train on the same track ahead (Red and Blue share 7 Avenue)
         const hx = Math.sin(v.h), hy = Math.cos(v.h);

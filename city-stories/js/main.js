@@ -37,6 +37,7 @@ import { loadTerrain, ground } from './terrain.js';
 import { loadBusinesses, Signs } from './business.js';
 import { Requests311 } from './r311.js';
 import { Leaves } from './leaves.js';
+import { TrafficStops } from './stops.js';
 import { loadPlazas, Plazas, PLAZA_NIGHT } from './plazas.js';
 import { loadParks, ParkAssets, parksCredit } from './parks.js';
 import { loadFields, Fields } from './fields.js';
@@ -78,7 +79,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 const scene = new THREE.Scene(); game.scene = scene; game.renderer = renderer;
 const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.5, 9000);
 scene.fog = new THREE.Fog(0xbfd4e6, 500, 3200);
-const sky = new Sky(scene);
+const sky = new Sky(scene); game.sky = sky;
 const hemi = new THREE.HemisphereLight(0xdfeeff, 0x6b6250, 1.6); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff2dc, 2.4); sun.castShadow = true;
 sun.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048);
@@ -122,7 +123,7 @@ let world, tiles, player, traffic, transit, missions;
 async function boot() {
   status('Loading the map of Calgary…');
   const r = await fetch('data/world.json'); world = await r.json(); game.world = world;
-  for (const c of ['Ground heights: City of Calgary LiDAR bare-earth elevation model 2022–2024 (Open Government Licence – City of Calgary); outside the city, contains modified Copernicus DEM GLO-30 data (European Union, ESA)', 'Businesses and property types: City of Calgary business licences and property assessments, Open Government Licence – City of Calgary', 'Park benches, picnic tables, playgrounds, fountains and park signs: City of Calgary Parks open data, Open Government Licence – City of Calgary', 'Traffic signals and road signs: City of Calgary open data, Open Government Licence – City of Calgary', 'Ward boundaries and councillors: City of Calgary open data', 'Shops and restaurants: City of Calgary business licences and OpenStreetMap contributors', 'Sports fields (soccer, football, rugby, cricket): City of Calgary Parks Sport Surfaces open data, Open Government Licence – City of Calgary', 'People, animals, trees, homes, vehicles and landmarks (Historic City Hall, The Bow, Brookfield Place, Suncor Energy Centre, TELUS Sky, the Saddledome, Nelson Mandela High School, Real Canadian Superstores): 3D models made for this game; homes are fitted to the City of Calgary 3D building footprints and heights', '311 requests: City of Calgary 311 Service Requests open data (the last 14 days, refreshed every two weeks), Open Government Licence – City of Calgary; each icon is placed at a random spot in its community', 'Online play: positions and chat pass through the game server; voice chat goes straight between nearby players and is never recorded', 'Title song: "Under One Sky" by Hassan Ali', 'Song: "Beyond the Mask" by Hassan Ali', 'Dialogue voices: Kokoro (Apache License 2.0) and Meta MMS-TTS (CC BY-NC 4.0, non-commercial)', 'Stampede Park, its concerts and the midway are a game re-creation, not affiliated with the Calgary Stampede'])
+  for (const c of ['Ground heights: City of Calgary LiDAR bare-earth elevation model 2022–2024 (Open Government Licence – City of Calgary); outside the city, contains modified Copernicus DEM GLO-30 data (European Union, ESA)', 'Businesses and property types: City of Calgary business licences and property assessments, Open Government Licence – City of Calgary', 'Park benches, picnic tables, playgrounds, fountains and park signs: City of Calgary Parks open data, Open Government Licence – City of Calgary', 'Traffic signals and road signs: City of Calgary open data, Open Government Licence – City of Calgary', 'Ward boundaries and councillors: City of Calgary open data', 'Shops and restaurants: City of Calgary business licences and OpenStreetMap contributors', 'Sports fields (soccer, football, rugby, cricket): City of Calgary Parks Sport Surfaces open data, Open Government Licence – City of Calgary', 'Car, motorbike and helicopter engine sounds: made for this game', 'People, animals, trees, homes, vehicles and landmarks (Historic City Hall, The Bow, Brookfield Place, Suncor Energy Centre, TELUS Sky, the Saddledome, Nelson Mandela High School, Real Canadian Superstores): 3D models made for this game; homes are fitted to the City of Calgary 3D building footprints and heights', '311 requests: City of Calgary 311 Service Requests open data (the last 14 days, refreshed every two weeks), Open Government Licence – City of Calgary; each icon is placed at a random spot in its community', 'Online play: positions and chat pass through the game server; voice chat goes straight between nearby players and is never recorded', 'Title song: "Under One Sky" by Hassan Ali', 'Song: "Beyond the Mask" by Hassan Ali', 'Dialogue voices: Kokoro (Apache License 2.0) and Meta MMS-TTS (CC BY-NC 4.0, non-commercial)', 'Stampede Park, its concerts and the midway are a game re-creation, not affiliated with the Calgary Stampede'])
     if (!world.credits.data.includes(c)) world.credits.data.push(c);
   $('#data-credits').innerHTML = world.credits.data.join('<br>');
   status('Building the city…');
@@ -160,8 +161,10 @@ async function boot() {
   player.onStep = run => sfx.step(run);
   player.onPlace = () => { if (game.unstick) game.unstick.pending = true; };
   traffic = new Traffic(scene, tiles, world, { max: mobile ? 14 : 28, parked: mobile ? 16 : 32 }); game.traffic = traffic;
-  transit = new Transit(scene, world, { bus: mobile ? 5 : 9, train: mobile ? 1 : 2 }); game.transit = transit;
-  transit.groundY = (x, y, hint, rail) => rail ? tiles.surfaceAt(x, y, 0, 1e9, 3) : tiles.surfaceAt(x, y, hint ?? ground(x, y), 1.5, 1);
+  transit = new Transit(scene, world, { bus: mobile ? 5 : 9, train: mobile ? 1 : 2 }); game.transit = transit; transit.cars = () => traffic.cars; traffic.transit = transit; game.stops = new TrafficStops(game, scene, traffic);
+  // trains ride on the track's own height; where a raised track's height isn't known (a gap in the data, a tile still
+  // loading) they keep the height they had instead of dropping into the deck
+  transit.groundY = (x, y, hint, rail) => { if (!rail) return tiles.surfaceAt(x, y, hint ?? ground(x, y), 1.5, 1); const s = tiles.surfaceAt(x, y, 0, 1e9, 3), g0 = ground(x, y); return hint != null && s < g0 + 0.3 && hint > g0 + 1 ? Math.max(s, hint - 0.01) : s; };
   missions = new Missions(game); game.missions = missions;
   game.metro = new Metro(game, { toast, setPrompt, sfx }); game.music = music;
   if (!game.photoOn) game.platforms = buildPlatforms(scene, world, transit);       // a platform to stand on at every CTrain station
@@ -509,6 +512,7 @@ function loop(now) {
     if (player.mode === 'ride' && game.rideVehicle) { player.x = game.rideVehicle.x; player.y = game.rideVehicle.y; }
     traffic.update(dt, player);
     transit.update(dt, player.x, player.y);
+    if (game.stops) game.stops.update(dt, player.x, player.y);
     { const V = []; for (const v of transit.vehicles) for (const m of v.parts) { const u = m.userData; V.push({ x: m.position.x, y: -m.position.z, h: Math.PI - m.rotation.y, L: u.L > 30 ? 24.8 : (u.L || 12), W: u.W || 2.6, v: v.v || 0, kind: v.rail ? 'train' : 'bus' }); } if (game.mp && game.mp.on) for (const o of game.mp.others.values()) if (o.car && o.vm !== 'heli') { const u = o.car.userData; V.push({ x: o.x, y: o.y, h: o.h, L: u.L || 4.5, W: u.W || 1.9, v: 0, kind: 'car' }); }      // other players' cars: solid
       updateHealth(dt, V); }
     missions.update(dt);
