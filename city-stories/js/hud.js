@@ -88,6 +88,16 @@ export function drawMinimap(player, tiles, camH, target, icons = [], nav = null,
   const rp = nav && nav.path();
   if (rp) { g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 11 / scale; g.stroke(rp); g.strokeStyle = mission ? '#ffc400' : '#b44cff'; g.lineWidth = 7 / scale; g.stroke(rp); }
   g.restore();
+  // other online players: a blue dot with their initial
+  if (game.mp && game.mp.on) for (const o of game.mp.others.values()) {
+    const dx = (o.x - player.x) * scale, dy = -(o.y - player.y) * scale, ca = Math.cos(-camH), sa = Math.sin(-camH);
+    let px = dx * ca - dy * sa, py = dx * sa + dy * ca; const R = W / 2 - 8, d = Math.hypot(px, py); if (d > R) { px *= R / d; py *= R / d; }
+    g.fillStyle = '#1f7ae0'; g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.arc(W / 2 + px, H / 2 + py, 7, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.fillStyle = '#fff'; g.font = 'bold 9px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText((o.name || '?')[0].toUpperCase(), W / 2 + px, H / 2 + py + 0.5); g.textBaseline = 'alphabetic';
+  }
+  if (game.race && game.race.cp) { const c = game.race.cp, dx = (c.x - player.x) * scale, dy = -(c.y - player.y) * scale, ca = Math.cos(-camH), sa = Math.sin(-camH);
+    let px = dx * ca - dy * sa, py = dx * sa + dy * ca; const R = W / 2 - 8, d = Math.hypot(px, py); if (d > R) { px *= R / d; py *= R / d; }
+    g.font = '16px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('🏁', W / 2 + px, H / 2 + py); g.textBaseline = 'alphabetic'; }
   const gps = $('#gps');
   if (rp && nav.remaining) { const m = nav.remaining; gps.hidden = false; gps.textContent = '➤ ' + (m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m / 10) * 10 + ' m'); gps.style.color = mission ? '#ffc400' : '#d9a8ff'; }
   else gps.hidden = true;
@@ -183,6 +193,10 @@ function drawMap() {
     g.textBaseline = 'alphabetic';
   }
   const tg = game.target(); if (tg) dot(tg.x, tg.y, '#ffc400', 9);
+  if (game.mp && game.mp.on) {               // everyone online, with their names
+    g.font = `bold ${12 * dpr}px sans-serif`; g.textAlign = 'left';
+    for (const o of game.mp.others.values()) { dot(o.x, o.y, '#1f7ae0', 7); const [px, py] = P(o.x, o.y); g.fillStyle = '#0d3a73'; g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 3 * dpr; g.strokeText(o.name, px + 9 * dpr, py + 4 * dpr); g.fillText(o.name, px + 9 * dpr, py + 4 * dpr); }
+  }
   const pl = game.player; dot(pl.x, pl.y, '#c8102e', 8);
 }
 function initBigMapInput() {

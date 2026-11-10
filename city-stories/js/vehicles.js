@@ -86,7 +86,7 @@ export function makeKarachiVehicle(kind, tint) {
 // spin wheels by distance travelled and steer the front ones
 export function spinWheels(g, dist, steer = 0) {
   const u = g.userData; if (!u.wheels || !u.wheels.length) return;
-  u.roll = (u.roll || 0) + dist / 0.33;
+  u.roll = (u.roll || 0) + dist / (u.wheelR || 0.33);
   for (const w of u.wheels) { if (w.bike) w.pv.rotation.z = -u.roll; else w.rotation.x = u.roll; }
   for (const f of u.front || []) f.rotation.y = steer;
 }

@@ -78,7 +78,7 @@ function addSpecialLandmarks(g, world) {
     g.add(grp);
   }
   const s = lm('Scotiabank Saddledome');
-  if (s) {   // hyperbolic paraboloid roof (saddle)
+  if (s && false) {      // the Saddledome now has its own detailed model (houses3d.js)   // hyperbolic paraboloid roof (saddle)
     const wall = new THREE.Mesh(new THREE.CylinderGeometry(58, 58, 22, 40, 1, true), new THREE.MeshLambertMaterial({ color: 0x9aa3a8, side: THREE.DoubleSide })); wall.position.set(s.x, 11 + ground(s.x, s.y), -s.y);
     g.add(wall);
     const roof = new THREE.Mesh(new THREE.CircleGeometry(60, 40), new THREE.MeshLambertMaterial({ color: 0xcfd3d6, side: THREE.DoubleSide }));
@@ -185,7 +185,7 @@ export async function loadSky3D(scene) {
   for (let i = 0; i < n; i++) {
     const ix = dv.getInt16(o, true), iy = dv.getInt16(o + 2, true), len = dv.getUint32(o + 4, true); o += 8;
     const ox = ix * 500, oy = iy * 500;
-    const { geos, n: nb } = buildB3D(new Uint8Array(buf, o, len), false, (x, y) => ground(x + ox, y + oy)); o += len; total += nb;
+    const { geos, n: nb } = buildB3D(new Uint8Array(buf, o, len), false, (x, y) => ground(x + ox, y + oy), { ox, oy }); o += len; total += nb;
     const tg = new THREE.Group(); tg.position.set(ox, 0, -oy);
     const add = (geo, mat) => { if (!geo) return; const m = new THREE.Mesh(geo, mat); m.castShadow = true; m.receiveShadow = true; tg.add(m); };
     for (let k = 0; k < 4; k++) add(geos['house' + k], MAT.wallHouses[k]);

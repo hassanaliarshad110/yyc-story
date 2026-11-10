@@ -3,6 +3,7 @@
 // Grandstand, a country music stage, an entrance arch, fireworks every night and big crowds in cowboy hats.
 // Downtown gets a street party stage at Olympic Plaza. Crowds are instanced (one draw call per body part).
 import * as THREE from 'three';
+import { drawLyricsOn } from './lyrics.js';
 import { Character, HAT_COLORS } from './rig.js';
 import { ground } from './terrain.js';
 import { rotY } from './player.js';
@@ -169,6 +170,7 @@ class Stage {
     g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.font = '800 50px "Segoe UI", Roboto, sans-serif'; g.fillText(o.screen, W / 2, 66);
     g.font = '600 26px "Segoe UI", Roboto, sans-serif'; g.fillText(o.screenSub, W / 2, 116);
+    if (!o.quiet) drawLyricsOn(g, W);            // the song's words on the big screen while it plays
     this.tex.needsUpdate = true;
   }
   update(dt, near, night, live) {
@@ -259,7 +261,7 @@ export class Stampede {
     for (let i = 0; i < 14; i++, seed++) this.crowd.add({ x: 503 - i * 0.9, y: -626 + (i % 2) * 0.7, h: Math.PI * 0.5 }, seed);
     this.fireworks = new Fireworks(g, 420, -1260);
     // downtown: a street party stage at Olympic Plaza
-    const ps = new Stage(this.plazaG, -62, 34, 0, { w: 14, d: 7, h: 8.5, title: 'STREET PARTY', sub: 'STAMPEDE ON OLYMPIC PLAZA', color: '#1d4e8f', screen: 'YAHOO!', screenSub: 'STAMPEDE STREET PARTY', hue: 200, band: 3, seed: 21 });
+    const ps = new Stage(this.plazaG, -62, 34, 0, { w: 14, d: 7, h: 8.5, title: 'STREET PARTY', sub: 'STAMPEDE ON OLYMPIC PLAZA', color: '#1d4e8f', screen: 'YAHOO!', screenSub: 'STAMPEDE STREET PARTY', hue: 200, band: 3, seed: 21, quiet: true });
     this.plazaStage = ps;
     this.plazaCrowd = new Crowd(this.plazaG, mob ? 70 : 150);
     for (let i = 0; i < (mob ? 70 : 150); i++, seed++) { const [x, y] = local(ps.x, ps.y, 0, (H(seed, 40) - 0.5) * 34, 4 + H(seed, 41) * 40); this.plazaCrowd.add({ x, y, h: Math.PI + (H(seed, 42) - 0.5) * 0.5, dance: H(seed, 43) < 0.8, zone: H(seed, 43) < 0.8 ? null : { x0: -110, x1: -15, y0: 40, y1: 118 } }, seed); }
@@ -465,8 +467,7 @@ export class Stampede {
     if (plaza) {
       const d = Math.hypot(px - this.plazaStage.x, py - this.plazaStage.y), near = d < 400;
       if (near) { this.plazaCrowd.update(dt, px, py); for (const c of this.cooks) c.animate(dt, { talk: true }); }
-      this.plazaStage.update(dt, near, night, live);
-      if (live) level = Math.max(level, stageVolume(d));
+      this.plazaStage.update(dt, near, night, false);      // the street party has no live band: the song plays only at Stampede Park
     }
     return (this.level = Math.max(0, Math.min(1, level)));
   }

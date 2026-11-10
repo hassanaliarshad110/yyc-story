@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { makeBus, makeTrain } from './actors.js';
 import { rotY, TYRE_Y } from './player.js';
+import { spinWheels } from './vehicles.js';
 
 export class Path {
   constructor(pts) {
@@ -77,6 +78,8 @@ export class Transit {
       const b = i ? v.path.at(v.s - i * 25.1 - (v.rail ? 12 : 0)) : a;
       const g = this.groundY(b.x, b.y, v.gys[i] ?? null, v.rail); if (g != null) v.gys[i] = v.gys[i] == null ? g : v.gys[i] + (g - v.gys[i]) * Math.min(1, dt * 10 || 1);
       m.position.set(b.x, (v.gys[i] ?? 0) + (v.rail ? 0.1 : TYRE_Y), -b.y); m.rotation.y = rotY(b.h);
+      if (dt && m.userData.wheels && m.userData.wheels.length) spinWheels(m, Math.hypot(b.x - (m.userData.lx ?? b.x), b.y - (m.userData.ly ?? b.y)));
+      m.userData.lx = b.x; m.userData.ly = b.y;
     });
     v.gy = v.gys[0] ?? 0;
   }

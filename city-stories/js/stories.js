@@ -68,19 +68,19 @@ const SRC = {
 const IMRAN = 'Imran (friend)', MAYA = 'Maya (best friend)', LINDA = 'Linda (daughter)', PRIYA = 'Priya (neighbour)';
 const NAT = 'Natalia', AMIRA = 'Amira (new student)', JORDAN = 'Jordan', PRINCIPAL = 'Ms. Okafor (principal)', BULLY = 'Older student', CLASSMATE = 'Classmate';
 const SOFIA = 'Sofia (tour guide)', LEO = 'Leo';
-const MAYA_LOOK = { skin: 0x8d5a3b, shirt: 0xe0a020, pants: 0x2a3a5a, hair: 0x15100d, long: true, fem: true, scale: 0.93 };
-const KID_LOOK = { skin: 0xc49a76, shirt: 0x58a0d8, pants: 0x34404c, hair: 0x6b4a2a, scale: 0.78, bag: 0x9b2a2a };
-const BULLY_LOOKS = [0, 1, 2].map(i => ({ skin: [0xb98260, 0xe0b090, 0x8d5a3b][i], shirt: [0x222222, 0x8a1c1c, 0x2e4a2e][i], pants: 0x23252b, hair: 0x15100d, scale: 0.97 }));
-const CLASS_LOOKS = [0, 1, 2].map(i => ({ skin: [0xe0b090, 0x8d5a3b, 0xc49a76][i], shirt: [0xc04a7a, 0x3a7ac0, 0xd0a030][i], pants: 0x2c3040, hair: [0x4a2e1a, 0x15100d, 0x15100d][i], long: i !== 1, fem: i !== 1, scale: 0.9 }));
+const MAYA_LOOK = { glb: 'teen_girl', skin: 0x8d5a3b, shirt: 0xe0a020, pants: 0x2a3a5a, hair: 0x15100d, long: true, fem: true, scale: 0.93 };
+const KID_LOOK = { glb: 'kid_boy', skin: 0xc49a76, shirt: 0x58a0d8, pants: 0x34404c, hair: 0x6b4a2a, scale: 0.78, bag: 0x9b2a2a };
+const BULLY_LOOKS = [0, 1, 2].map(i => ({ glb: 'npc_teen', gscale: [1.02, 0.98, 1.0][i], skin: [0xb98260, 0xe0b090, 0x8d5a3b][i], shirt: [0x222222, 0x8a1c1c, 0x2e4a2e][i], pants: 0x23252b, hair: 0x15100d, scale: 0.97 }));
+const CLASS_LOOKS = [0, 1, 2].map(i => ({ glb: i === 1 ? 'npc_teen' : 'teen_girl', gscale: [1.0, 0.97, 0.96][i], skin: [0xe0b090, 0x8d5a3b, 0xc49a76][i], shirt: [0xc04a7a, 0x3a7ac0, 0xd0a030][i], pants: 0x2c3040, hair: [0x4a2e1a, 0x15100d, 0x15100d][i], long: i !== 1, fem: i !== 1, scale: 0.9 }));
 // the extra people in the "Beyond the Mask" music video at the end of Natalia's story
 const MV_LOOKS = {
   bully: BULLY_LOOKS,
-  mom: { skin: 0xc49a76, shirt: 0x5a7a4a, pants: 0x2a2a30, hair: 0x4a2e1a, long: true, fem: true },
-  dad: { skin: 0xc49a76, shirt: 0x3a4a6a, pants: 0x3b3f4a, hair: 0x15100d },
-  teacher: { skin: 0xe0b090, shirt: 0x8a6a3a, pants: 0x2a2e38, hair: 0x6b4a2a, scale: 1.0 },
-  community: [{ skin: 0x8d5a3b, shirt: 0xc8102e, pants: 0x222222, hair: 0x15100d }, { skin: 0xe1b899, shirt: 0x2bb3c0, pants: 0x2a3a5a, hair: 0xa07040, long: true, fem: true },
-    { skin: 0xb07a52, shirt: 0xf2b705, pants: 0x3b3f4a, hair: 0x15100d, hijab: 0x2a2a3a, fem: true }, { skin: 0x5c3a24, shirt: 0x2f8f4e, pants: 0x222222, hair: 0x15100d },
-    { skin: 0xd2b090, shirt: 0x7a2e8c, pants: 0x2a2e38, hair: 0xd2d0cc, scale: 0.97 }, { skin: 0xc69373, shirt: 0xe8742a, pants: 0x1d3557, hair: 0x15100d, scale: 0.8 }],
+  mom: { glb: 'npc_dress', skin: 0xc49a76, shirt: 0x5a7a4a, pants: 0x2a2a30, hair: 0x4a2e1a, long: true, fem: true },
+  dad: { glb: 'npc_suit', skin: 0xc49a76, shirt: 0x3a4a6a, pants: 0x3b3f4a, hair: 0x15100d },
+  teacher: { glb: 'npc_cowboy', skin: 0xe0b090, shirt: 0x8a6a3a, pants: 0x2a2e38, hair: 0x6b4a2a, scale: 1.0 },
+  community: [{ glb: 'npc_suit', skin: 0x8d5a3b, shirt: 0xc8102e, pants: 0x222222, hair: 0x15100d }, { glb: 'npc_dress', skin: 0xe1b899, shirt: 0x2bb3c0, pants: 0x2a3a5a, hair: 0xa07040, long: true, fem: true },
+    { glb: 'npc_hijab', skin: 0xb07a52, shirt: 0xf2b705, pants: 0x3b3f4a, hair: 0x15100d, hijab: 0x2a2a3a, fem: true }, { glb: 'npc_sikh', skin: 0x5c3a24, shirt: 0x2f8f4e, pants: 0x222222, hair: 0x15100d },
+    { glb: 'npc_cowboy', skin: 0xd2b090, shirt: 0x7a2e8c, pants: 0x2a2e38, hair: 0xd2d0cc, scale: 0.97 }, { glb: 'kid_boy2', skin: 0xc69373, shirt: 0xe8742a, pants: 0x1d3557, hair: 0x15100d, scale: 0.8 }],
 };
 const NAT_END = `<p>You stood up to bullies safely, helped a new student feel welcome, stopped an online pile-on, taught younger kids what to do and spoke up in front of the whole school. Keep looking out for each other!</p><p style="margin-top:14px"><b>YYC City Stories — a game by Hassan Ali</b></p>`;
 const T = (en, fr, pa, ur, tl, ar) => ({ en, fr, pa, ur, tl, ar });
@@ -138,7 +138,7 @@ const ALI = [
         body: `<ul><li>Adults pay <b>$4.00</b> a ride; a fare is good for <b>90 minutes</b> on buses and the CTrain.</li><li>Pay with the <b>My Fare</b> app (activate the ticket before you board), at a ticket machine at any CTrain station, or with cash on the bus.</li><li>Low income? The City's <b>Fair Entry</b> program includes a sliding-scale monthly transit pass.</li></ul>` });
       await M.goto(P.airportStop, 'Walk to the Airport Express stop at the Domestic Terminal', 10);
       await M.ride('500', P.airportStop, P.downtownStop, 'Route 500 Airport Express');
-      M.npc({ skin: 0xa86c48, shirt: 0x2f5f8f, pants: 0x2a2e38, hair: 0x15100d }, g.player.x + 3, g.player.y + 2, Math.PI);
+      M.npc({ glb: 'npc_sikh', skin: 0xa86c48, shirt: 0x2f5f8f, pants: 0x2a2e38, hair: 0x15100d }, g.player.x + 3, g.player.y + 2, Math.PI);
       await say(IMRAN, `There you are! This is downtown. Tomorrow we start your to-do list: newcomer centre, driver's licence, car and insurance. Calgary is going to be good to you.`);
     },
   },
@@ -290,7 +290,7 @@ const NATALIA = [
     async run(M, g, P) {
       const s = openSpot(g, P.mandela.x, P.mandela.y, 40, 160);
       const maya = M.actor(MAYA_LOOK, s.x - 9, s.y - 6, 0.5);
-      const amira = M.actor({ skin: 0xc8956a, shirt: 0x2f6f8f, pants: 0x2a2e3c, hijab: 0x6a2a4a, fem: true, sleeve: 1, scale: 0.92 }, s.x, s.y, Math.PI);
+      const amira = M.actor({ glb: 'amira', skin: 0xc8956a, shirt: 0x2f6f8f, pants: 0x2a2e3c, hijab: 0x6a2a4a, fem: true, sleeve: 1, scale: 0.92 }, s.x, s.y, Math.PI);
       const grp = [[7, 3], [8.2, 4.4], [6.4, 4.8]].map(([dx, dy], i) => M.actor(CLASS_LOOKS[i], s.x + dx, s.y + dy, Math.atan2(-dx, -dy) + 0.6));
       grp.forEach(c => M.pose(c, { talk: true }));
       await say(MAYA, `See the new girl by herself? That's Amira. She eats lunch alone every day, and that group keeps whispering about her.`);
@@ -338,7 +338,7 @@ const NATALIA = [
       const a3 = await quiz({ q: 'Who should you tell?', opts: ['A teacher or another trusted adult', 'Nobody. It\'s only online'], a: 0, explain: 'In Alberta, students must report bullying, even when it happens online.' });
       await M.goto(P.mandela, 'Go to school and find Jordan', 45);
       const s = openSpot(g, P.mandela.x, P.mandela.y, 40, 160);
-      const jordan = M.actor({ skin: 0xe0b090, shirt: 0x3a6a3a, pants: 0x2a2e38, hair: 0x6b4a2a, scale: 0.93 }, s.x + 9, s.y - 3, Math.PI * 0.8);
+      const jordan = M.actor({ glb: 'npc_teen', skin: 0xe0b090, shirt: 0x3a6a3a, pants: 0x2a2e38, hair: 0x6b4a2a, scale: 0.93 }, s.x + 9, s.y - 3, Math.PI * 0.8);
       const grp = [[0, 3], [1.4, 4], [-1.3, 4.2], [0.2, 5.3]].map(([dx, dy], i) => M.actor(CLASS_LOOKS[i % 3], s.x + dx, s.y + dy, Math.atan2(-dx, -dy) + (i % 2 ? 0.8 : -0.8)));
       grp.forEach(c => M.pose(c, { talk: true }));
       const p = g.player;
@@ -375,7 +375,7 @@ const NATALIA = [
       ];
       for (let i = 0; i < 3; i++) {
         const s = nearRoad(g, P.mandela.x, P.mandela.y, 80 + i * 70, 200 + i * 80);
-        const n = M.npc({ skin: [0xc49a76, 0x8d5a3b, 0xe0b090][i], shirt: [0xd04a8a, 0x2a8a5a, 0x5a4ad0][i], pants: 0x34404c, hair: 0x15100d, scale: 0.75, long: i === 0, fem: i === 0 }, s.x, s.y, 0);
+        const n = M.npc({ glb: ['kid_girl', 'kid_boy', 'kid_boy2'][i], skin: [0xc49a76, 0x8d5a3b, 0xe0b090][i], shirt: [0xd04a8a, 0x2a8a5a, 0x5a4ad0][i], pants: 0x34404c, hair: 0x15100d, scale: 0.75, long: i === 0, fem: i === 0 }, s.x, s.y, 0);
         await M.goto({ x: s.x, y: s.y, name: 'group ' + (i + 1), real: false }, `Talk to group ${i + 1} of 3`, 5);
         const ok = await quiz(lessons[i]); if (ok) M.earn(2);
         n.visible = false;
@@ -389,11 +389,11 @@ const NATALIA = [
       prepareSong();                 // the song for the music video at the end starts loading now
       await say(MAYA, `Natalia! The principal asked you to speak at the anti-bullying assembly. Everyone is outside waiting for you!`);
       const s = openSpot(g, P.mandela.x, P.mandela.y, 40, 170, 10);
-      const principal = M.actor({ skin: 0x6b4430, shirt: 0x7a2a3a, pants: 0x2a2a30, hair: 0x15100d, long: true, fem: true }, s.x - 2.2, s.y + 0.4, Math.PI);
+      const principal = M.actor({ glb: 'principal', skin: 0x6b4430, shirt: 0x7a2a3a, pants: 0x2a2a30, hair: 0x15100d, long: true, fem: true }, s.x - 2.2, s.y + 0.4, Math.PI);
       const crowd = [];
       for (let r = 0; r < 3; r++) for (let c = 0; c < 5; c++) {
         const x = s.x - 4 + c * 2 + (r % 2) * 0.6, y = s.y - 5 - r * 1.8, i = r * 5 + c;
-        const look = i === 2 ? { skin: 0xc8956a, shirt: 0x2f6f8f, pants: 0x2a2e3c, hijab: 0x6a2a4a, fem: true, sleeve: 1, scale: 0.92 } : i === 7 ? { skin: 0xe0b090, shirt: 0x3a6a3a, pants: 0x2a2e38, hair: 0x6b4a2a, scale: 0.93 } : i === 4 ? KID_LOOK : { ...CLASS_LOOKS[i % 3], shirt: [0x2a5a9a, 0xb04a2a, 0x2a8a6a, 0x8a2a8a, 0xc0a020][i % 5], scale: 0.86 + (i % 4) * 0.03 };
+        const look = i === 2 ? { glb: 'amira', skin: 0xc8956a, shirt: 0x2f6f8f, pants: 0x2a2e3c, hijab: 0x6a2a4a, fem: true, sleeve: 1, scale: 0.92 } : i === 7 ? { glb: 'npc_teen', skin: 0xe0b090, shirt: 0x3a6a3a, pants: 0x2a2e38, hair: 0x6b4a2a, scale: 0.93 } : i === 4 ? KID_LOOK : { ...CLASS_LOOKS[i % 3], shirt: [0x2a5a9a, 0xb04a2a, 0x2a8a6a, 0x8a2a8a, 0xc0a020][i % 5], scale: 0.86 + (i % 4) * 0.03 };
         crowd.push(M.actor(look, x, y, 0));
       }
       const maya = M.actor(MAYA_LOOK, s.x + 1.8, s.y + 0.3, Math.PI);

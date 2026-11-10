@@ -6,7 +6,7 @@ OpenStreetMap contributors (ODbL), Copernicus Sentinel-2 imagery.
 Voices for the story dialogue were generated with free, open text-to-speech models:
 - English and French: Kokoro (Apache License 2.0).
 - Urdu, Punjabi, Tagalog and Arabic: Meta MMS-TTS (CC BY-NC 4.0, non-commercial use).
-People, homes, vehicles and Historic City Hall are 3D models made for this game. Homes are fitted to the footprints and heights of the City of Calgary 3D buildings.
+People, animals, homes, vehicles and landmarks (Historic City Hall, The Bow, Brookfield Place, TELUS Sky, the Saddledome, Nelson Mandela High School, the Westwinds Superstore) are 3D models made for this game. Homes are fitted to the footprints and heights of the City of Calgary 3D buildings.
 Online play: positions and chat pass through the game's small server; voice chat goes straight between nearby players and is never recorded.
 
 This game is free and non-commercial, made for public awareness of City of Calgary services.

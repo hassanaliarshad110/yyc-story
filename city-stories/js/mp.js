@@ -6,6 +6,8 @@ import { Character } from './rig.js';
 import { LOOKS } from './player.js';
 import { ground } from './terrain.js';
 import { toast } from './hud.js';
+import { ask } from './ask.js';
+import { tr } from './i18n.js';
 
 // set once the server is deployed (Cloudflare Workers)
 export const MP_URL = 'wss://yyc-city-stories-mp.hasssanaliarshad.workers.dev/room/calgary';
@@ -54,9 +56,9 @@ export class Multiplayer {
     setTimeout(() => d.classList.add('old'), 12000);
   }
   // ---------------------------------------------------------------- connection
-  join() {
+  async join(given) {
     let name = ''; try { name = localStorage.getItem('yyc-mp-name') || ''; } catch (e) { }
-    name = (prompt('Your name for online play (others will see it):', name || '') || '').trim().slice(0, 20);
+    name = (given || (await ask(tr('mpName'), { input: name || '' })) || '').trim().slice(0, 20);
     if (!name) return; try { localStorage.setItem('yyc-mp-name', name); } catch (e) { }
     this.name = name; this.on = true; this.$('#mp-online').classList.add('on');
     this.connect();
@@ -76,6 +78,7 @@ export class Multiplayer {
   }
   clearAll() { for (const id of [...this.others.keys()]) this.drop(id); for (const id of [...this.peers.keys()]) this.hangup(id); }
   send(m) { if (this.ws && this.ws.readyState === 1) this.ws.send(JSON.stringify(m)); }
+  game(d, to) { this.send(to ? { t: 'g', to, d } : { t: 'g', d }); }
   chat(text) { this.send({ t: 'chat', text }); this.feed(this.name, text); }
   onMsg(m) {
     if (m.t === 'welcome') { this.id = m.id; for (const p of m.players || []) this.upsert(p.id, p.name, p.look, p.p); }
@@ -84,6 +87,7 @@ export class Multiplayer {
     else if (m.t === 'leave') { const o = this.others.get(m.id); if (o) this.feed('', `${o.name} left`); this.drop(m.id); this.hangup(m.id); }
     else if (m.t === 'chat') { this.feed(m.name, m.text); const o = this.others.get(m.id); if (o) this.bubble(o, m.text); }
     else if (m.t === 'rtc') this.onRtc(m.from, m.d);
+    else if (m.t === 'g' && this.onGame) this.onGame(m.id, m.name, m.d);
   }
   // ---------------------------------------------------------------- other players
   upsert(id, name, look, p) {
@@ -93,7 +97,7 @@ export class Multiplayer {
       const L = LOOKS[look] || LOOKS.ali, ch = new Character(L); ch.g.add(tag(name)); this.scene.add(ch.g);
       o = { id, name, look, ch, x: p[0], y: p[1], z: p[2], h: p[3], tx: p[0], ty: p[1], tz: p[2], th: p[3], sp: 0 }; this.others.set(id, o);
     }
-    o.tx = p[0]; o.ty = p[1]; o.tz = p[2]; o.th = p[3]; o.mode = p[4]; o.anim = p[5]; o.seen = performance.now();
+    o.tx = p[0]; o.ty = p[1]; o.tz = p[2]; o.th = p[3]; o.mode = p[4]; o.anim = p[5]; o.sc = p[6] || 0; o.hp = p[7] ?? 100; o.seen = performance.now();
   }
   drop(id) { const o = this.others.get(id); if (!o) return; this.scene.remove(o.ch.g); this.others.delete(id); }
   bubble(o, text) {
@@ -147,7 +151,7 @@ export class Multiplayer {
     if ((this.sendT -= dt) <= 0 && this.ws && this.ws.readyState === 1) {
       this.sendT = 0.16;
       const anim = player.mode === 'foot' ? (Math.abs(player.v) > 3.5 ? 'run' : Math.abs(player.v) > 0.3 ? 'walk' : 'idle') : player.mode;
-      this.send({ t: 'pos', x: player.x, y: player.y, z: player.gy, h: player.h, mode: player.mode, anim });
+      this.send({ t: 'pos', x: player.x, y: player.y, z: player.gy, h: player.h, mode: player.mode, anim, sc: this.g.score || 0, hp: this.g.hp ?? 100 });
     }
     const now = performance.now(), near = [];
     for (const o of this.others.values()) {

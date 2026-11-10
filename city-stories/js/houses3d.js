@@ -3,14 +3,11 @@
 // Calgary house of the same kind (bungalow, two-storey, split-level, infill, townhouse row), fitted to
 // its real footprint and height and turned to face its street. Farther away the plain shapes stay.
 import * as THREE from 'three';
-import { GLTFLoader } from '../vendor/jsm/loaders/GLTFLoader.js';
-import { DRACOLoader } from '../vendor/jsm/loaders/DRACOLoader.js';
-import { HOUSES } from './tiles.js';
+import { loader, warm } from './gltf.js';
+import { HOUSES, B3D_SKIP } from './tiles.js';
 import { SWAP } from './materials.js';
 import { ground } from './terrain.js';
 
-const loader = new GLTFLoader();
-{ const d = new DRACOLoader(); d.setDecoderPath('./vendor/draco/'); loader.setDRACOLoader(d); }
 
 const KINDS = ['2storey', 'bungalow', 'infill', 'split', 'townrow', 'porch'];
 const MODEL = {};           // kind -> { geo, mat, dx, dy, dz } (front of the house along +x)
@@ -88,23 +85,45 @@ export async function loadHouses(tiles) {
   try {
     await Promise.all(KINDS.map(async k => { MODEL[k] = await loadModel(`data/models/lod_house_${k}.glb`); }));
     HOUSES.place = place; HOUSES.drop = drop; ready = true;
+    { const g = new THREE.Group(); for (const k of KINDS) { const im = new THREE.InstancedMesh(MODEL[k].geo, MODEL[k].mat, 1); im.setMatrixAt(0, new THREE.Matrix4()); im.castShadow = true; g.add(im); } warm(g); }
     for (const t of tiles.tiles.values()) if (t.hcands && !t.houses) t.houses = place(...t.hcands);     // tiles built while the models were loading
     return true;
   } catch (e) { console.warn('houses', e); return false; }
 }
 
-// ---- Historic City Hall (1911), on its real footprint at Macleod Trail and 7 Avenue SE; the clock tower faces Macleod Trail (west)
-export async function loadCityHall(scene) {
-  try {
-    const gl = await loader.loadAsync('data/models/cityhall.glb'); const o = gl.scene;
-    o.traverse(n => { if (n.isMesh) { const m = n.material; n.material = new THREE.MeshLambertMaterial({ map: m.map, normalMap: m.normalMap || null }); n.castShadow = true; n.receiveShadow = true; } });
-    const b = new THREE.Box3().setFromObject(o), sz = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
-    const inner = new THREE.Group(); inner.add(o); o.position.set(-c.x, -b.min.y, -c.z);
-    // footprint 44.6 m (east-west) by 34.4 m, tower 32.6 m high; the model's front (+x) turned to face west
-    inner.scale.set(39 / sz.x, 32.6 / sz.y, 34 / sz.z);
-    const g = new THREE.Group(); g.add(inner);
-    const x = 52.2, y = 84.5; g.position.set(x, ground(x, y) - 0.3, -y); g.rotation.y = Math.PI - 0.06;
-    g.name = 'historic city hall'; scene.add(g);
-    return g;
-  } catch (e) { console.warn('city hall', e); return null; }
+// ---- landmarks drawn by their own models, each on its real footprint (the City's plain 3D building is left out there)
+// size: [east-west, height, north-south] in metres before turning; rot: turn (radians, anticlockwise from above); front: the model's +x
+export const LANDMARKS = [
+  // Historic City Hall (1911), Macleod Trail and 7 Avenue SE; the clock tower faces Macleod Trail (west)
+  { file: 'cityhall', x: 52.2, y: 84.5, size: [39, 32.6, 34], rot: Math.PI - 0.06, skip: [51, 85, 8] },
+  // The Bow (2012), Centre Street and 5 Avenue SE: a curved tower, its long side running north-east
+  { file: 'bow', x: -289, y: 286, size: [92, 236, 46], rot: Math.PI / 4, skip: [-288.7, 285.8, 10] },
+  // Brookfield Place East (2017), 6 Avenue SW
+  { file: 'brookfield', x: -408, y: 290, size: [56, 247, 44], rot: 0, skip: [-408.1, 288.1, 10] },
+  // TELUS Sky (2019), Centre Street and 7 Avenue SW
+  { file: 'telussky', x: -379, y: 162, size: [46, 222, 40], rot: 0, skip: [-378.9, 162.2, 10] },
+  // Scotiabank Saddledome (1983), Stampede Park
+  { file: 'saddledome', x: 431, y: -877, size: [150, 43, 150], rot: 0, skip: [429.8, -872.8, 12] },
+  // Nelson Mandela High School (2016), 45 Saddletowne Circle NE; entrance to the north
+  { file: 'mandela', x: 7623.4, y: 8542.5, size: [128, 16.3, 133], rot: Math.PI / 2, skip: [7643.3, 8540.8, 10] },
+  // Real Canadian Superstore, 3633 Westwinds Drive NE (2005)
+  { file: 'superstore', x: 6060.9, y: 7167.1, size: [153.7, 13.7, 116], rot: Math.PI / 2, skip: [6066, 7135.5, 10] },
+];
+for (const L of LANDMARKS) B3D_SKIP.push(L.skip);
+export async function loadLandmarks(scene) {
+  const out = [];
+  await Promise.all(LANDMARKS.map(async L => {
+    try {
+      const gl = await loader.loadAsync(`data/models/${L.file}.glb`); const o = gl.scene;
+      o.traverse(n => { if (n.isMesh) { const m = n.material; n.material = new THREE.MeshLambertMaterial({ map: m.map, normalMap: m.normalMap || null }); n.castShadow = true; n.receiveShadow = true; } });
+      const b = new THREE.Box3().setFromObject(o), sz = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
+      const inner = new THREE.Group(); inner.add(o); o.position.set(-c.x, -b.min.y, -c.z);
+      inner.scale.set(L.size[0] / sz.x, L.size[1] / sz.y, L.size[2] / sz.z);
+      const g = new THREE.Group(); g.add(inner);
+      g.position.set(L.x, ground(L.x, L.y) - 0.3, -L.y); g.rotation.y = L.rot;
+      g.name = L.file; warm(g.clone()); scene.add(g); out.push(g);
+    } catch (e) { console.warn('landmark', L.file, e); }
+  }));
+  return out;
 }
+export const loadCityHall = loadLandmarks;

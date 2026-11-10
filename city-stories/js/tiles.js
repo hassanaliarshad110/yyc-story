@@ -226,8 +226,10 @@ const FLAT_ROOF = new THREE.Color(0x8d8a85), GLASS_ROOF = new THREE.Color(0x6c78
 const LIGHT_COLS = [0x3aa0ff, 0xb05aff, 0xff4a7a, 0xffb02a, 0x2affd0, 0xf2f6ff, 0xff6a2a, 0x5a7aff].map(c => new THREE.Color(c));
 // opt: { ox, oy, swap } — swap: plain houses that a detailed model can replace up close go in their own
 // geometry (shouse0..3, sroof) tagged with each house's centre, and come back as `cands`
-export const HOUSES = { place: null, drop: null };      // detailed house models (houses3d.js) hook in here
-export const B3D_SKIP = [[51, 85, 8]];        // landmarks drawn by their own models (world x, y, radius): Historic City Hall
+export const HOUSES = { place: null, drop: null };
+// extra walkable surfaces (CTrain platforms): oriented boxes { x, y, fx, fy, hl, hw, top }
+export const PLATFORMS = [];      // detailed house models (houses3d.js) hook in here
+export const B3D_SKIP = [];        // landmarks drawn by their own models (world x, y, radius); filled by houses3d.js
 export function buildB3D(buf, skipTall = true, groundAt = gl, opt = {}) {
   const G = { house0: new GeoBuilder(), house1: new GeoBuilder(), house2: new GeoBuilder(), house3: new GeoBuilder(), apt: new GeoBuilder(), comm: new GeoBuilder(), shop: new GeoBuilder(), tower: new GeoBuilder(), roof: new GeoBuilder(), crown: new GeoBuilder(), wash: new GeoBuilder() };
   if (opt.swap) for (const k of ['shouse0', 'shouse1', 'shouse2', 'shouse3', 'sroof']) { G[k] = new GeoBuilder(); G[k].hc = []; }
@@ -392,7 +394,7 @@ function offsetRing(pts, d) {
   return out;
 }
 // nearest road point (tile-local), from a coarse grid of points every ~6 m along local roads
-function roadIndex(roads) {
+export function roadIndex(roads) {
   const cells = new Map(), C = 25;
   for (const r of roads || []) {
     if ([1, 2, 8, 11, 12].includes(r.kind) || (r.flags & 4) || r.rings[0].z) continue;
@@ -1269,6 +1271,10 @@ export class TileManager {
         if (z <= cur + step && z > best) best = z;
       }
     }
+    if (!only) for (const P of PLATFORMS) {
+      const dx = x - P.x, dy = y - P.y; if (Math.abs(dx) > P.hl + P.hw || Math.abs(dy) > P.hl + P.hw) continue;
+      if (Math.abs(dx * P.fx + dy * P.fy) <= P.hl && Math.abs(dx * P.fy - dy * P.fx) <= P.hw && P.top <= cur + step && P.top > best) best = P.top;
+    }
     if (lift && best === g0) for (const t of this.tilesNear(x, y, 40)) { if (!t.pave) continue; const l = t.pave.lift(x - t.ox, y - t.oy); if (l) return g0 + l; }
     return best;
   }
@@ -1304,19 +1310,34 @@ export class TileManager {
   // the roof height of the building at (x, y), or null (helicopters land on roofs)
   // ---------------------------------------------------------------- never stuck: spots a person (or car) can stand on and leave
   // inside a building: a roof is over this spot, well above the ground (and above whoever stands there)
-  insideBuilding(x, y, gy = ground(x, y)) { const r = this.roofAt(x, y); return r != null && r > gy + 2.2 && gy < ground(x, y) + 3; }
+  insideBuilding(x, y, gy = ground(x, y)) { const r = this.roofAt(x, y); return r != null && r > gy + 2.2 && gy < ground(x, y) + 3 && this.inFootprint(x, y); }
+  // inside the walls of a building that stands on the ground (canopies, overhangs and skywalks have no walls down to the street)
+  inFootprint(x, y) {
+    let any = false;
+    for (const t of this.tilesNear(x, y, 60)) {
+      if (!t.roofs3d) continue; any = true; const lx = x - t.ox, ly = y - t.oy;
+      for (const o of t.roofs3d) {
+        if (lx < o.mnx || lx > o.mxx || ly < o.mny || ly > o.mxy) continue;
+        let c = 0; const E = o.E;
+        for (let i = 0; i < E.length; i += 4) { const ay = E[i + 1], by = E[i + 3]; if ((ay > ly) !== (by > ly) && lx < E[i] + (ly - ay) / (by - ay) * (E[i + 2] - E[i])) c++; }
+        if (c & 1) return true;
+      }
+    }
+    return !any;          // no outlines here (older tiles): trust the roof alone
+  }
   // the buildings around this spot have loaded (so a check here means something)
   readyAt(x, y) { const t = this.tileAt(x, y); return !!(t && t.coll && (t.hgrid || t.layers)); }
   standable(x, y, r = 0.45) { return !this.insideBuilding(x, y) && !this.collide(x, y, r).hit; }
   // can you walk from (x, y) to somewhere `need` metres away? (a flood fill on a 0.8 m grid, so no wall slips between two cells)
-  reaches(x, y, r = 0.45, need = 24, cap = 3500) {
+  reaches(x, y, r = 0.45, need = 24, cap = 3500, roofs = true) {
     const S = 0.8, seen = new Set(['0,0']), q = [[0, 0]];
     for (let h = 0; h < q.length && seen.size < cap; h++) {
       const [i, j] = q[h];
       if (Math.hypot(i * S, j * S) >= need) return true;
       for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const k = (i + di) + ',' + (j + dj); if (seen.has(k)) continue; seen.add(k);
-        if (this.standable(x + (i + di) * S, y + (j + dj) * S, r)) q.push([i + di, j + dj]);
+        const qx = x + (i + di) * S, qy = y + (j + dj) * S;
+        if (roofs ? this.standable(qx, qy, r) : !this.collide(qx, qy, r).hit) q.push([i + di, j + dj]);
       }
     }
     return seen.size >= cap;            // a very big open area counts as free

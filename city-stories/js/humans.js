@@ -3,13 +3,10 @@
 // bone names, so one set of clips drives them all. Until a model has loaded, the simpler built-in
 // people (rig.js) stand in, so the game never waits on a download.
 import * as THREE from 'three';
-import { GLTFLoader } from '../vendor/jsm/loaders/GLTFLoader.js';
-import { DRACOLoader } from '../vendor/jsm/loaders/DRACOLoader.js';
+import { loader, warm } from './gltf.js';
 import { clone as skClone } from '../vendor/jsm/utils/SkeletonUtils.js';
 import { setGlbFactory, hatGroup } from './rig.js';
 
-const loader = new GLTFLoader();
-{ const d = new DRACOLoader(); d.setDecoderPath('./vendor/draco/'); loader.setDRACOLoader(d); }
 
 const MODELS = new Map();       // name -> { scene, hipsY, height } once loaded
 const PENDING = new Map();      // name -> promise
@@ -35,10 +32,8 @@ function prep(name, gl) {
     if (o.isBone && o.name === 'Hips') hips = o;
     if (o.isMesh) {
       o.castShadow = true; o.frustumCulled = false;
-      const m = o.material, npc = name.startsWith('npc_');
-      if (m && npc) {      // simpler lighting for the crowd
-        o.material = new THREE.MeshLambertMaterial({ map: m.map, normalMap: m.normalMap || null, side: THREE.FrontSide });
-      } else if (m) { m.metalness = 0; m.roughness = Math.max(0.6, m.roughness ?? 1); m.envMapIntensity = 0; }
+      const m = o.material;      // the same simple lighting for everyone: one shader, quick to draw
+      if (m) o.material = new THREE.MeshLambertMaterial({ map: m.map, normalMap: m.normalMap || null, side: THREE.FrontSide });
     }
   });
   scene.updateMatrixWorld(true);
@@ -50,7 +45,7 @@ export function loadHuman(name) {
   if (MODELS.has(name)) return Promise.resolve(true);
   if (!PENDING.has(name)) PENDING.set(name, (async () => {
     try { if (!CLIPS) await (PENDING.get('_clips') || (PENDING.set('_clips', loadClips()), PENDING.get('_clips')));
-      const gl = await loader.loadAsync(`data/chars/${name}.glb`); MODELS.set(name, prep(name, gl)); return true; }
+      const gl = await loader.loadAsync(`data/chars/${name}.glb`); MODELS.set(name, prep(name, gl)); warm(skClone(gl.scene)); return true; }
     catch (e) { console.warn('model', name, e); return false; }
   })());
   return PENDING.get(name);

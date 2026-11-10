@@ -2,11 +2,8 @@
 // the city bus and the CTrain car. Each is fitted to its real length, width and height and faces +z
 // like the other vehicles. Until a model has loaded, the simpler vehicles stand in.
 import * as THREE from 'three';
-import { GLTFLoader } from '../vendor/jsm/loaders/GLTFLoader.js';
-import { DRACOLoader } from '../vendor/jsm/loaders/DRACOLoader.js';
+import { loader, warm } from './gltf.js';
 
-const loader = new GLTFLoader();
-{ const d = new DRACOLoader(); d.setDecoderPath('./vendor/draco/'); loader.setDRACOLoader(d); }
 
 // real sizes (metres): length, width, height
 export const CAR3D = {
@@ -31,17 +28,65 @@ async function load(kind) {
   geo.translate(-c.x, -b.min.y, -c.z); geo.scale(R.W / s.x, R.H / s.y, R.L / s.z);
   geo.computeBoundingSphere(); geo.userData.shared = true;
   const m = mesh.material;
-  READY[kind] = { geo, mat: new THREE.MeshLambertMaterial({ map: m.map, normalMap: m.normalMap || null }) };
+  READY[kind] = { geo, mat: new THREE.MeshLambertMaterial({ map: m.map, normalMap: m.normalMap || null }), wheels: WHEEL_R[kind] ? splitWheels(geo, R.W, WHEEL_R[kind]) : null };
 }
-export async function loadCars3D() { await Promise.all(Object.keys(CAR3D).map(k => load(k).catch(e => console.warn('vehicle model', k, e)))); }
+// tyre radius by vehicle (m); the CTrain's wheels are hidden under its skirts
+const WHEEL_R = { pickup: 0.42, offroad: 0.43, police: 0.38, peace: 0.39, bus: 0.5 };
+// find the wheels in the model so they can turn: the low points at the sides give the axles, and the
+// triangles inside each tyre's circle become their own piece, spun round the axle
+function splitWheels(geo, W, r) {
+  const P = geo.attributes.position, n = P.count, idx = geo.index ? geo.index.array : Uint32Array.from({ length: n }, (_, i) => i);
+  const zs = [];
+  for (let i = 0; i < n; i++) if (P.getY(i) < 0.1 && Math.abs(P.getX(i)) > W / 2 - 0.45) zs.push(P.getZ(i));
+  if (zs.length < 8) return null;
+  zs.sort((a, b) => a - b);
+  const axles = []; let st = zs[0], prev = zs[0];
+  for (const z of zs.slice(1).concat([Infinity])) { if (z - prev > 0.8) { axles.push((st + prev) / 2); st = z; } prev = z; }
+  if (axles.length < 2 || axles.length > 4) return null;
+  // first guess: a circle of the tyre radius standing on the ground at each axle; then refit each tyre's
+  // centre and size to the points found, and take only what lies inside that circle
+  const K = axles.length * 2, lab = new Int8Array(n), C = [];
+  for (let a = 0; a < axles.length; a++) for (let sd = 0; sd < 2; sd++) C.push({ y: r, z: axles[a], r, x: sd ? 1 : -1 });
+  for (let pass = 0; pass < 2; pass++) {
+    lab.fill(0);
+    for (let i = 0; i < n; i++) {
+      const x = P.getX(i), y = P.getY(i), z = P.getZ(i); if (Math.abs(x) < W / 2 - 0.36) continue;
+      for (let k = 0; k < K; k++) { const c = C[k]; if ((x > 0) !== (c.x > 0)) continue; const dz = z - c.z, dy = y - c.y; if (dz * dz + dy * dy < c.r * c.r * (pass ? 0.98 : 0.9)) { lab[i] = k + 1; break; } }
+    }
+    if (pass) break;
+    for (let k = 0; k < K; k++) {        // refit from the points inside
+      let y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity, cnt = 0;
+      for (let i = 0; i < n; i++) if (lab[i] === k + 1) { const y = P.getY(i), z = P.getZ(i); y0 = Math.min(y0, y); y1 = Math.max(y1, y); z0 = Math.min(z0, z); z1 = Math.max(z1, z); cnt++; }
+      if (cnt > 10) { const c = C[k]; c.z = (z0 + z1) / 2; c.r = Math.max(0.25, Math.min(r * 1.15, Math.max(y1 - y0, z1 - z0) / 2 + 0.02)); c.y = Math.max(c.r, y0 + c.r); }
+    }
+  }
+  const parts = Array.from({ length: K + 1 }, () => []);
+  for (let t = 0; t < idx.length; t += 3) { const a = lab[idx[t]], k = a && a === lab[idx[t + 1]] && a === lab[idx[t + 2]] ? a : 0; parts[k].push(idx[t], idx[t + 1], idx[t + 2]); }
+  const sub = list => { const g = new THREE.BufferGeometry(); for (const k in geo.attributes) g.setAttribute(k, geo.attributes[k]); g.setIndex(list); g.boundingSphere = geo.boundingSphere; g.userData.shared = true; return g; };
+  const wheels = [];
+  for (let k = 1; k <= K; k++) {
+    if (parts[k].length < 30) continue;
+    let sx = 0, c = 0; for (const v of parts[k]) { sx += P.getX(v); c++; }
+    const a = (k - 1) >> 1, cc = C[k - 1];
+    wheels.push({ geo: sub(parts[k]), p: [sx / c, cc.y, cc.z], front: a === axles.length - 1 });
+  }
+  if (wheels.length < 4) return null;
+  return { body: sub(parts[0]), wheels };
+}
+export async function loadCars3D() { await Promise.all(Object.keys(CAR3D).map(k => load(k).catch(e => console.warn('vehicle model', k, e)))); const g = new THREE.Group(); for (const k in READY) { const m = makeCar3D(k); if (m) g.add(m); } warm(g); }
 export const car3dReady = k => !!READY[k];
 
 // a Group facing +z with userData { L, W, kind } like the other vehicles; null if the model hasn't loaded
 export function makeCar3D(kind) {
   const r = READY[kind]; if (!r) return null;
-  const g = new THREE.Group(), m = new THREE.Mesh(r.geo, r.mat); m.castShadow = true; m.receiveShadow = true; g.add(m);
-  const R = CAR3D[kind];
-  g.userData = { L: R.L, W: R.W, kind: kind === 'pickup' ? 'truck' : kind === 'offroad' ? 'suv' : kind, model: kind, wheels: [], front: [] };
+  const g = new THREE.Group(), W = r.wheels, m = new THREE.Mesh(W ? W.body : r.geo, r.mat); m.castShadow = true; m.receiveShadow = true; g.add(m);
+  const R = CAR3D[kind], wheels = [], front = [];
+  if (W) for (const w of W.wheels) {             // each tyre on its own pivot at the axle: spins as you drive, the front ones steer
+    const pv = new THREE.Group(); pv.rotation.order = 'YXZ'; pv.position.set(w.p[0], w.p[1], w.p[2]);
+    const wm = new THREE.Mesh(w.geo, r.mat); wm.position.set(-w.p[0], -w.p[1], -w.p[2]); wm.castShadow = true; pv.add(wm); g.add(pv);
+    wheels.push(pv); if (w.front) front.push(pv);
+  }
+  g.userData = { L: R.L, W: R.W, kind: kind === 'pickup' ? 'truck' : kind === 'offroad' ? 'suv' : kind, model: kind, wheels, front, wheelR: WHEEL_R[kind] || 0.4 };
   if (kind === 'police' || kind === 'peace') {          // flashing roof lights for the chase
     const a = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.1, 0.22), new THREE.MeshBasicMaterial({ color: kind === 'peace' ? 0xffa020 : 0xff2020 }));
     const b = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.1, 0.22), new THREE.MeshBasicMaterial({ color: 0x2a5cff }));

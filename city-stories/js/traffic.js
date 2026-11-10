@@ -118,29 +118,52 @@ export class Traffic {
       this.scene.add(car.mesh); this.cars.push(car); return;
     }
   }
-  place(car, side) {
-    const p = car.piece, s = car.dir > 0 ? car.s : p.len - car.s;
+  // a point along a road piece in the car's lane: s metres from the start in the direction of travel
+  pathAt(p, dir, s, side) {
+    s = Math.max(0, Math.min(p.len, s)); const ss = dir > 0 ? s : p.len - s;
     let acc = 0;
     for (let i = 1; i < p.pts.length; i++) {
       const a = p.pts[i - 1], b = p.pts[i], l = Math.hypot(b[0] - a[0], b[1] - a[1]);
-      if (acc + l >= s || i === p.pts.length - 1) {
-        const u = l ? Math.min(1, Math.max(0, (s - acc) / l)) : 0;
-        let h = Math.atan2(b[0] - a[0], b[1] - a[1]); if (car.dir < 0) h += Math.PI;
+      if (acc + l >= ss || i === p.pts.length - 1) {
+        const u = l ? Math.min(1, Math.max(0, (ss - acc) / l)) : 0;
+        let h = Math.atan2(b[0] - a[0], b[1] - a[1]); if (dir < 0) h += Math.PI;
         const off = side ?? (p.oneway ? 0 : Math.max(1.8, p.w / 4));
-        const zgy = p.zs ? p.zs[i - 1] + (p.zs[i] - p.zs[i - 1]) * u : null;
+        const z = p.zs ? p.zs[i - 1] + (p.zs[i] - p.zs[i - 1]) * u : null;
         const [dx, dy] = dirOf(h);
-        const tx = a[0] + (b[0] - a[0]) * u + dy * off, ty = a[1] + (b[1] - a[1]) * u - dx * off;   // keep right
-        if (!car.placed) { car.x = tx; car.y = ty; car.h = h; car.placed = true; }
-        else {   // smooth through bends and turns
-          car.x += (tx - car.x) * 0.5; car.y += (ty - car.y) * 0.5;
-          const dh = Math.atan2(Math.sin(h - car.h), Math.cos(h - car.h)); car.h += dh * 0.35;
-        }
-        car.gy = zgy != null ? zgy : ground(car.x, car.y);
-        car.mesh.position.set(car.x, car.gy + TYRE_Y, -car.y); car.mesh.rotation.y = rotY(car.h);
-        return;
+        return { x: a[0] + (b[0] - a[0]) * u + dy * off, y: a[1] + (b[1] - a[1]) * u - dx * off, h, z };   // keep right
       }
       acc += l;
     }
+    return { x: p.pts[0][0], y: p.pts[0][1], h: 0, z: null };
+  }
+  // the curve a car follows through an intersection: from R metres before the corner to R metres into the next road
+  turnCurve(c) {
+    const p = c.piece, [q, e] = c.next, qd = e === 0 ? 1 : -1, R = Math.min(9, p.len * 0.45, q.len * 0.45);
+    return { R, P0: this.pathAt(p, c.dir, p.len - R), P1: this.pathAt(p, c.dir, p.len), P2: this.pathAt(q, qd, R) };
+  }
+  place(car, side) {
+    const p = car.piece;
+    let pt = this.pathAt(p, car.dir, car.s, side), T = null, t = 0;
+    if (side == null && !car.parked) {
+      if (car.next && p.len - car.s < (car.turnR ?? 9)) { T = car.turn || (car.turn = this.turnCurve(car)); car.turnR = T.R; t = (T.R - (p.len - car.s)) / (2 * T.R); }
+      else if (car.prevTurn && car.s < car.prevTurn.R) { T = car.prevTurn; t = 0.5 + car.s / (2 * T.R); }
+      else car.prevTurn = null;
+    }
+    if (T && t >= 0 && t <= 1) {            // smooth arc round the corner (a quadratic curve), facing along it
+      const u = 1 - t, A = T.P0, B = T.P1, C = T.P2;
+      const x = u * u * A.x + 2 * u * t * B.x + t * t * C.x, y = u * u * A.y + 2 * u * t * B.y + t * t * C.y;
+      const tx = 2 * u * (B.x - A.x) + 2 * t * (C.x - B.x), ty = 2 * u * (B.y - A.y) + 2 * t * (C.y - B.y);
+      pt = { x, y, h: Math.hypot(tx, ty) > 1e-4 ? Math.atan2(tx, ty) : pt.h, z: pt.z };
+    }
+    if (!car.placed) { car.x = pt.x; car.y = pt.y; car.h = pt.h; car.placed = true; }
+    else {   // gentle through bends
+      const k = T ? 0.6 : 0.35;
+      car.x += (pt.x - car.x) * k; car.y += (pt.y - car.y) * k;
+      const dh = Math.atan2(Math.sin(pt.h - car.h), Math.cos(pt.h - car.h)); car.h += dh * k;
+    }
+    car.gy = pt.z != null ? pt.z : ground(car.x, car.y);
+    car.mesh.position.set(car.x, car.gy + TYRE_Y, -car.y); car.mesh.rotation.y = rotY(car.h);
+    car.steer = T ? Math.max(-0.5, Math.min(0.5, Math.atan2(Math.sin(pt.h - (car.lastH ?? pt.h)), 1) * 8)) : 0; car.lastH = pt.h;
   }
   endKey(car) { const p = car.piece; return nkey(car.dir > 0 ? p.pts[p.pts.length - 1] : p.pts[0]); }
   pickNext(car) {
@@ -172,6 +195,7 @@ export class Traffic {
       if (p.len < 200 && toEnd < 25) target = Math.min(target, 9);
       // the intersection ahead
       const k = this.endKey(c), n = this.node(k);
+      if (!c.next && toEnd < 12) c.next = this.pickNext(c);
       if (n.deg >= 3) {
         if (!c.next) c.next = this.pickNext(c);
         const stopAt = Math.max(0, toEnd - 7);     // stop line, 7 m before the middle of the intersection
@@ -208,9 +232,10 @@ export class Traffic {
         const nx = c.next || this.pickNext(c);
         if (!nx) { c.dead = true; continue; }
         if (n.holder === c) setTimeout(() => { if (n.holder === c) n.holder = null; }, 900);
+        c.next = nx; c.prevTurn = c.turn || this.turnCurve(c); c.turn = null; c.turnR = null;
         const [q, e] = nx; c.s -= p.len; c.piece = q; c.dir = e === 0 ? 1 : -1; c.next = null; c.stopped = false; c.waitT = 0;
       }
-      this.place(c); spinWheels(c.mesh, c.v * dt);
+      this.place(c); spinWheels(c.mesh, c.v * dt, c.steer || 0);
       // ground height (photo mode) every few frames
       c.mesh.position.y = c.gy + TYRE_Y;
     }
@@ -230,6 +255,7 @@ export class Traffic {
           let nx = a.dx, ny = a.dy, d = a.d; if (d < 0.01) { nx = player.x - c.x; ny = player.y - c.y; d = Math.hypot(nx, ny) || 1; }
           nx /= d; ny /= d;
           const push = R - a.d; player.x += nx * push; player.y += ny * push;
+          if (!pc && c.v > 2.5 && this.onHitPlayer) this.onHitPlayer(c.v, nx, ny);        // a moving car hits you on foot
           if (pc) { const into = -(pfx * nx + pfy * ny) * Math.sign(player.v); if (into > 0.3 && Math.abs(player.v) > 2) { player.v *= 0.55; if (player.onCrash) player.onCrash(); } }
         }
       }

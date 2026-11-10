@@ -1,6 +1,7 @@
 // A concert at the Scotiabank Saddledome every night: a stage with lights and a big screen, a dancing crowd,
 // and "Under One Sky" playing (louder the closer you get).
 import * as THREE from 'three';
+import { drawLyricsOn } from './lyrics.js';
 import { Character, HAT_COLORS } from './rig.js';
 import { ground } from './terrain.js';
 import { rotY } from './player.js';
@@ -70,6 +71,7 @@ export class Concert {
     for (let i = 0; i < 32; i++) { const v = 0.25 + 0.75 * Math.abs(Math.sin(t * 6 + i * 0.7) * Math.sin(t * 2.3 + i * 0.31)); g.fillStyle = `hsla(${(i * 11 + t * 60) % 360},90%,60%,0.75)`; g.fillRect(8 + i * 15.6, Hh - v * 120, 11, v * 120); }
     g.fillStyle = '#fff'; g.font = '800 54px "Segoe UI", Roboto, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('UNDER ONE SKY', W / 2, 70);
     g.font = '600 26px "Segoe UI", Roboto, sans-serif'; g.fillText('LIVE TONIGHT · SADDLEDOME', W / 2, 118);
+    drawLyricsOn(g, W);            // the song's words on the big screen while it plays
     this.tex.needsUpdate = true;
   }
   // returns how loud the concert should be where the player is (0..1)
