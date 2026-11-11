@@ -15,7 +15,7 @@ function swapped(m) { const c = m.clone(); c.userData = { ...m.userData }; c.onB
 export function initMaterials() {
   // lit-window maps match each facade's window openings
   const NIGHT = {
-    house: [[[18, 18, 28, 26]], 0.4, 'warm'], house_brick: [[[20, 12, 24, 22]], 0.4, 'warm'], house_stucco: [[[16, 16, 32, 28]], 0.4, 'warm'], house_stone: [[[18, 10, 28, 24]], 0.4, 'warm'],
+    house: [[[18, 18, 28, 26]], 0.68, 'warm'], house_brick: [[[20, 12, 24, 22]], 0.68, 'warm'], house_stucco: [[[16, 16, 32, 28]], 0.68, 'warm'], house_stone: [[[18, 10, 28, 24]], 0.68, 'warm'],
     apt: [[[8, 10, 22, 34], [36, 14, 20, 24]], 0.5, 'warm'], comm: [[[8, 14, 48, 30]], 0.45, 'cool', true], shop: [[[2, 22, 60, 40]], 0.9, 'shop'], tower: [[[2, 4, 60, 52]], 0.55, 'cool', true],
   };
   const wall = (kind) => {

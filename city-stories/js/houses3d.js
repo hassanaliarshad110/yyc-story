@@ -23,31 +23,11 @@ async function loadModel(url) {
   const geo = mesh.geometry.clone(); geo.applyMatrix4(mesh.matrixWorld);
   geo.computeBoundingBox(); const b = geo.boundingBox, c = b.getCenter(new THREE.Vector3());
   geo.translate(-c.x, -b.min.y, -c.z); geo.computeBoundingBox(); geo.userData.shared = true;
-  const m = mesh.material, mat = homeWindows(new THREE.MeshLambertMaterial({ map: m.map }));
+  const m = mesh.material, mat = new THREE.MeshLambertMaterial({ map: m.map });
   const s = geo.boundingBox.getSize(new THREE.Vector3());
   return { geo, mat, dx: s.x, dy: s.y, dz: s.z };
 }
 
-// lit windows after dark, like the plain houses farther away: the glass in each model's own texture (dark, bluish,
-// on a wall) glows warm; about two homes in three have lights on, and not every window in a lit home
-function homeWindows(mat) {
-  mat.onBeforeCompile = sh => {
-    sh.uniforms.lmNight = LM_NIGHT;
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vHW; varying float vLit;')
-      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n{ vec4 hw = modelMatrix * instanceMatrix * vec4(transformed, 1.0); vHW = hw.xyz; vec3 o = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz; vLit = fract(sin(dot(o.xz, vec2(12.9898, 78.233))) * 43758.5453); }');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float lmNight; varying vec3 vHW; varying float vLit;')
-      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-        if (lmNight > 0.01 && vLit < 0.68) {
-          vec3 tc = diffuseColor.rgb; float lu = dot(tc, vec3(0.299, 0.587, 0.114));
-          vec3 wn = inverseTransformDirection(normal, viewMatrix);
-          float glass = step(abs(wn.y), 0.35) * smoothstep(0.5, 0.3, lu) * smoothstep(0.0, 0.03, tc.b - tc.r);
-          float cell = fract(sin(dot(floor(vHW * vec3(0.55, 0.45, 0.55)), vec3(12.99, 78.23, 37.71))) * 43758.55);
-          totalEmissiveRadiance += glass * step(cell, 0.75) * lmNight * mix(vec3(1.0, 0.66, 0.32), vec3(0.95, 0.78, 0.5), cell) * 0.8;
-        }`);
-  };
-  mat.customProgramCacheKey = () => 'home-windows';
-  return mat;
-}
 // which model suits a house: townhouse rows and duplexes have their own; detached homes by height and age
 function kindFor(c) {
   if (c.k === 19) return 'townrow';
@@ -91,14 +71,15 @@ function drop(T) { live.delete(T); for (const { im } of T.list) im.dispose(); }
 
 // every half second: the homes within reach get their models, the rest keep the plain shapes
 let tick = 0;
-// high: flying well above the roofs; the detailed homes are left out then (from up there they only added a ring of
-// homes that changed shape and went dark around you as you flew)
-let wasHigh = false;
+// the detailed homes are for daytime on the ground. Flying high, or after dark, every home keeps the City's plain shape
+// with its lit windows (the detailed models have no lights of their own: a ring of dark, changing homes followed you)
+let wasOff = false;
 export function updateHouses(dt, px, py, high = false) {
   if (!ready) return;
-  if (high !== wasHigh) { wasHigh = high; tick = 0; }
+  const off = high || LM_NIGHT.value > (wasOff ? 0.35 : 0.45);
+  if (off !== wasOff) { wasOff = off; tick = 0; }
   if ((tick -= dt) > 0) return; tick = 0.5;
-  const r = high ? 0 : R;
+  const r = off ? 0 : R;
   SWAP.u.set(px, -py, r);
   for (const T of live) for (const { im, arr } of T.list) {
     let n = 0;

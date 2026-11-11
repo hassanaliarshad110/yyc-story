@@ -14,7 +14,8 @@ function atlas() {
   g.font = '700 80px "Segoe UI", Roboto, Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
   for (let i = 0; i < CH.length; i++) { const cx = (i % COLS) * CW + CW / 2, cy = Math.floor(i / COLS) * CHH + CHH / 2 + 4; g.fillText(CH[i], cx, cy); }
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-  MAT = new THREE.MeshLambertMaterial({ map: tex, vertexColors: true, transparent: true, alphaTest: 0.35, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  // self-lit (like a porch-lit number), so it reads at night too
+  MAT = new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, transparent: true, alphaTest: 0.35, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   return MAT;
 }
 const cell = i => { const cx = i % COLS, cy = Math.floor(i / COLS); return [cx * CW / (COLS * CW), 1 - (cy + 1) * CHH / 512, (cx + 1) * CW / (COLS * CW), 1 - cy * CHH / 512]; };

@@ -1199,6 +1199,7 @@ export class TileManager {
   }
   pumpStep() {
     if (!this.gen) { const job = this.queue.shift(); if (!job) return false; this.genJob = job; this.gen = this.buildTile(job); }
+    if (this.genJob.lite) { while (!this.gen.next().done); this.gen = null; return true; }      // far tiles are light: one go
     if (this.gen.next().done) this.gen = null;
     return true;
   }

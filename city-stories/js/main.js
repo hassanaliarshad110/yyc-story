@@ -570,7 +570,8 @@ function loop(now) {
     for (const n of (missions ? missions.npcs : [])) if (!n.userData.gy) { const g = game.groundY(n.position.x, -n.position.z, null); if (g != null) { n.position.y = g; n.userData.gy = true; } }
   }
   { const sp = player.mode === 'foot' ? 0 : player.v || 0, d = dirOf(player.h); tiles.update(player.x, player.y, d[0] * sp, d[1] * sp); }
-  tiles.pumpFor(!game.started ? 40 : tiles.queue.length > 8 ? (mobile ? 10 : 14) : (mobile ? 5 : 8), player.x, player.y);
+  { const fast = Math.abs(player.v || 0) > 20 || player.mode === 'heli';      // flying or driving fast: build more per frame so the map keeps up
+    tiles.pumpFor(!game.started ? 40 : fast || tiles.queue.length > 8 ? (mobile ? 14 : 18) : (mobile ? 6 : 8), player.x, player.y); }
   if (game.started) game.signs.update(dt, player.x, player.y);
   if (game.started && game.r311 && player.mode !== 'heli') game.r311.update(dt, player.x, player.y);
   if (game.started && (game._homeT = (game._homeT || 0) - dt) <= 0) { game._homeT = 2; if (Math.hypot(player.x - P.home.x, player.y - P.home.y) < 320 && (!game.homeCars || game.homeCars.some(c => !c || c.dead) || !game.homeTree)) homeStreet(); }
