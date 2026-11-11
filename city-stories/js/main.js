@@ -543,7 +543,7 @@ function loop(now) {
     if (L && L.glb && !player.char.mixer && humanReady(L.glb)) { const hc = player.char.hatC; player.setLook(player.look); if (hc != null) player.char.setHat(hc); }
   }
   if (game.started) {
-    updateHouses(dt, player.x, player.y);
+    updateHouses(dt, player.x, player.y, player.mode === 'heli' && player.gy - ground(player.x, player.y) > 18);
     if (game.platforms) game.platforms.update(dt, player.x, player.y);
     if (game.life) game.life.update(dt, player.x, player.y);
     if (game.mp) game.mp.update(dt, player, camH);

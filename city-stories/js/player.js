@@ -164,8 +164,8 @@ export class Player {
     v.alt = Math.max(floor, Math.min(400, v.alt + v.vy * dt));
     if (v.alt <= floor + 0.01) { if (v.vy < -5 && this.onCrash) this.onCrash(); v.vy = Math.max(0, v.vy); }
     const flying = v.alt - floor > 0.4 || (v.alt > floor + 0.1 && up);
-    if (flying) { v.v += inp.y * (inp.y > 0 ? 19 : 14) * dt; v.h += inp.x * 1.5 * dt; }
-    v.v *= Math.pow(flying ? 0.8 : 0.05, dt); v.v = Math.max(-15, Math.min(83.3, v.v));      // top speed 300 km/h
+    if (flying) { v.v += inp.y * (inp.y > 0 ? 36 : 22) * dt; v.h += inp.x * 1.5 * dt; }
+    v.v *= Math.pow(flying ? 0.8 : 0.05, dt); v.v = Math.max(-15, Math.min(138.9, v.v));      // top speed 500 km/h
     const [dx, dy] = dirOf(v.h), nx = v.x + dx * v.v * dt, ny = v.y + dy * v.v * dt;
     if (v.alt < this.heliFloor(nx, ny) - 0.3) { if (Math.abs(v.v) > 6 && this.onCrash) this.onCrash(); v.v *= -0.25; } else { v.x = nx; v.y = ny; }
     v.pitch += ((flying ? inp.y * 0.2 + v.v * 0.004 : 0) - v.pitch) * Math.min(1, dt * 3);
