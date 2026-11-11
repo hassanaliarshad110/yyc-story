@@ -181,7 +181,7 @@ export class Player {
     const c = this.tiles.collide(v.x - dy * 2.6, v.y + dx * 2.6, 0.45); this.x = c.x; this.y = c.y; this.gy = ground(this.x, this.y); this.v = 0; this.sync(); return true;
   }
   enter(car) {
-    this.seat = null; this.onBike = car.mesh.userData.kind === 'bike';
+    this.seat = null; this.onBike = car.mesh.userData.kind === 'bike'; if (car.mesh.userData.rider) { car.mesh.remove(car.mesh.userData.rider.g); car.mesh.userData.rider = null; }
     this.mode = 'car'; this.car = car; this.x = car.x; this.y = car.y; this.h = car.h; this.v = 0; car.player = true; this.sync();
   }
   exit() {

@@ -99,10 +99,14 @@ export class Multiplayer {
     if (!p || id === this.id) return;
     let o = this.others.get(id);
     if (!o) {
-      const L = LOOKS[look] || LOOKS.ali, ch = new Character(L); ch.g.add(tag(name)); this.scene.add(ch.g);
-      o = { id, name, look, ch, x: p[0], y: p[1], z: p[2], h: p[3], tx: p[0], ty: p[1], tz: p[2], th: p[3], sp: 0 }; this.others.set(id, o);
+      const L = LOOKS[look] || LOOKS.ali, ch = new Character(L), tg = tag(name); ch.g.add(tg); this.scene.add(ch.g);
+      o = { id, name, look, ch, tagS: tg, tm: '', x: p[0], y: p[1], z: p[2], h: p[3], tx: p[0], ty: p[1], tz: p[2], th: p[3], sp: 0 }; this.others.set(id, o);
     }
     o.tx = p[0]; o.ty = p[1]; o.tz = p[2]; o.th = p[3]; o.mode = p[4]; o.anim = p[5]; o.sc = p[6] || 0; o.hp = p[7] ?? 100; o.seen = performance.now();
+    o.ride = p[9] || '';
+    if ((p[8] || '') !== (o.tm || '')) {       // their crew: the name tag turns red or blue
+      o.tm = p[8] || ''; if (o.tagS) o.ch.g.remove(o.tagS); o.tagS = tag((o.tm === 'r' ? '🔴 ' : o.tm === 'b' ? '🔵 ' : '') + name); o.ch.g.add(o.tagS);
+    }
   }
   drop(id) { const o = this.others.get(id); if (!o) return; this.scene.remove(o.ch.g); if (o.car) this.scene.remove(o.car); this.others.delete(id); }
   bubble(o, text) {
@@ -166,7 +170,7 @@ export class Multiplayer {
       this.sendT = 0.16;
       const veh = player.mode === 'car' && player.car ? (player.car.mesh.userData.model || player.car.mesh.userData.kind || 'car') : '';
       const anim = player.mode === 'foot' ? (Math.abs(player.v) > 3.5 ? 'run' : Math.abs(player.v) > 0.3 ? 'walk' : 'idle') : veh ? 'v:' + String(veh).slice(0, 8) : player.mode;
-      this.send({ t: 'pos', x: player.x, y: player.y, z: player.mode === 'heli' && this.g.heli ? this.g.heli.alt : player.gy, h: player.h, mode: player.mode, anim, sc: this.g.score || 0, hp: this.g.hp ?? 100 });
+      const gm = this.g.games; this.send({ t: 'pos', x: player.x, y: player.y, z: player.mode === 'heli' && this.g.heli ? this.g.heli.alt : player.gy, h: player.h, mode: player.mode, anim, sc: this.g.score || 0, hp: this.g.hp ?? 100, tm: (gm && gm.team) || '', ride: (gm && gm.ride && gm.ride.id) || '' });
     }
     const now = performance.now(), near = [];
     for (const o of this.others.values()) {

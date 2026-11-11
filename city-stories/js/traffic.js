@@ -5,6 +5,8 @@ import { spinWheels } from './vehicles.js';
 import { ground } from './terrain.js';
 import { L } from './tiles.js';
 import { dirOf, rotY, TYRE_Y } from './player.js';
+import { Character } from './rig.js';
+import { NPCS, humanReady } from './humans.js';
 
 const SPEED = { 1: 27, 2: 20, 3: 15, 4: 13.5, 5: 12, 6: 9, 7: 5.5, 8: 14, 9: 11, 10: 11 };
 const DRIVE = new Set([1, 2, 3, 4, 5, 6, 8, 9]);
@@ -97,7 +99,11 @@ export class Traffic {
       const mid = p.pts[p.pts.length >> 1], d = Math.hypot(mid[0] - px, mid[1] - py);
       if (d < 80 || d > 380) continue;
       const dir = p.oneway ? 1 : (Math.random() < 0.5 ? 1 : -1);
-      const r0 = Math.random(), cops = this.cars.reduce((n, c) => n + (c.mesh.userData.police ? 1 : 0), 0), car = { mesh: makeCar(cops < 2 || r0 < 0.06 ? 'police' : r0 < 0.22 ? 'truck' : Math.random() < 0.35 ? 'suv' : 'car'), piece: p, dir, s: Math.random() * p.len, v: SPEED[p.kind] * 0.7, x: 0, y: 0, h: 0, gy: 0, wait: 0 };
+      const r0 = Math.random(), cops = this.cars.reduce((n, c) => n + (c.mesh.userData.police ? 1 : 0), 0), car = { mesh: makeCar(cops < 2 || r0 < 0.06 ? 'police' : r0 < 0.18 ? 'truck' : r0 < 0.4 ? 'bike' : Math.random() < 0.35 ? 'suv' : 'car'), piece: p, dir, s: Math.random() * p.len, v: SPEED[p.kind] * 0.7, x: 0, y: 0, h: 0, gy: 0, wait: 0 };
+      if (car.mesh.userData.kind === 'bike' && !car.mesh.userData.rider) {      // someone riding it
+        const glb = NPCS[Math.random() * NPCS.length | 0], rider = new Character(humanReady(glb) ? { glb } : { skin: 0xc69373, shirt: 0x333a44, pants: 0x22262c, hair: 0x15100d });
+        const ks = car.mesh.scale.x || 1; rider.g.scale.setScalar(1 / ks); rider.g.position.set(0, -0.12 / ks, -0.12 / ks); rider.animate(0.02, { sit: true }); car.mesh.add(rider.g); car.mesh.userData.rider = rider;
+      }
       this.place(car);
       if (this.cars.some(o => Math.hypot(o.x - car.x, o.y - car.y) < 12)) continue;      // never spawn on top of another car
       car.mesh.position.y = car.gy + TYRE_Y;
@@ -110,7 +116,7 @@ export class Traffic {
       if (!p || ![5, 6].includes(p.kind) || p.oneway) continue;
       const mid = p.pts[p.pts.length >> 1], d = Math.hypot(mid[0] - px, mid[1] - py);
       if (d < 25 || d > 220) continue;
-      const r1 = Math.random(), car = { mesh: makeCar(r1 < 0.15 ? 'bike' : r1 < 0.19 ? 'police' : Math.random() < 0.1 ? 'truck' : 'car'), piece: p, dir: Math.random() < 0.5 ? 1 : -1, s: 10 + Math.random() * Math.max(1, p.len - 20), v: 0, parked: true, x: 0, y: 0, h: 0, gy: 0 };
+      const r1 = Math.random(), car = { mesh: makeCar(r1 < 0.28 ? 'bike' : r1 < 0.32 ? 'police' : Math.random() < 0.1 ? 'truck' : 'car'), piece: p, dir: Math.random() < 0.5 ? 1 : -1, s: 10 + Math.random() * Math.max(1, p.len - 20), v: 0, parked: true, x: 0, y: 0, h: 0, gy: 0 };
       if (p.len < 30) continue;
       this.place(car, p.w / 2 - 1.1);          // at the curb, inside the road
       if (this.tiles.collide(car.x, car.y, 1.1).hit || this.cars.some(o => Math.hypot(o.x - car.x, o.y - car.y) < 7)) continue;

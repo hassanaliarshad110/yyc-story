@@ -39,7 +39,7 @@ export class Challenges {
   constructor(game, scene, games) {
     this.g = game; this.scene = scene; this.games = games; this.c = null; this.auto = 90 + Math.random() * 60; this.objs = [];
     const bar = document.getElementById('gamebar');
-    if (bar) { const b = document.createElement('button'); b.id = 'g-ch'; b.title = 'Online challenge (G)'; b.textContent = '🎯'; bar.insertBefore(b, bar.querySelector('#g-board')); b.onclick = () => this.button(); this.btn = b; }
+    if (bar) { const b = document.createElement('button'); b.id = 'g-ch'; b.className = 'g-x'; b.title = 'Online challenge (G)'; b.textContent = '🎯'; bar.insertBefore(b, bar.querySelector('#g-board')); b.onclick = () => this.button(); this.btn = b; }
     const info = this.info = document.createElement('div'); info.id = 'g-chinfo'; info.hidden = true; document.body.appendChild(info);
     addEventListener('keydown', e => { if (this.g.started && e.code === 'KeyG' && !e.repeat && e.target.tagName !== 'INPUT') this.button(); });
   }
@@ -74,7 +74,7 @@ export class Challenges {
     this.c = null; this.info.hidden = true; if (this.btn) this.btn.classList.remove('on');
     if (this.g.setWaypointRaw && this._wp) { this.g.setWaypointRaw(null); this._wp = false; }
   }
-  score(n, why) { this.games.setScore(this.g.score + n); this.games.popup(`+${n} ${why || ''}`); if (this.g.sfx && this.g.sfx.coin) this.g.sfx.coin(); }
+  score(n, why) { this.games.popup(`+${n} ${why || ''}`); this.pts = (this.pts || 0) + n; if (this.g.sfx && this.g.sfx.coin) this.g.sfx.coin(); }      // challenge points (separate from splats)
   onNet(id, name, d) {
     if (d.k === 'ch') { const p = this.g.player; if (!this.c && p && Math.hypot(d.x - p.x, d.y - p.y) < 1600 && d.t0 + LEN[d.type] * 1000 > Date.now()) this.start(d, name); return; }
     const c = this.c; if (!c || d.cid !== c.cid) return;
@@ -97,13 +97,13 @@ export class Challenges {
     const now = Date.now(), left = c.t0 + LEN[c.type] * 1000 - now, t = performance.now() / 1000;
     this.info.hidden = false;
     if (now < c.t0) { this.info.textContent = `${NAME[c.type]} starts in ${Math.ceil((c.t0 - now) / 1000)}`; return; }
-    if (left <= 0) { this.end(`${NAME[c.type]} is over. Your score: ⭐ ${this.g.score}`); return; }
+    if (left <= 0) { this.end(`${NAME[c.type]} is over. Your challenge points: ${this.pts || 0}`); return; }
     const mm = Math.floor(left / 60000), ss = Math.floor(left / 1000) % 60;
     if (c.type === 'hunt') {
       const n = c.pts.length - c.taken.size; this.info.textContent = `${NAME.hunt} · ${n} hats left · ${mm}:${String(ss).padStart(2, '0')}`;
       for (const m of this.objs) { m.rotation.y += dt * 1.5; m.children[0].parent.position.y += Math.sin(t * 2 + m.userData.i) * 0.003; }
       c.pts.forEach(([x, y], i) => { if (c.taken.has(i) || Math.hypot(x - p.x, y - p.y) > 3.2) return; c.taken.add(i); this.removeHat(i); this.score(2, '🤠'); if (mp) mp.game({ k: 'ch-take', cid: c.cid, i }); });
-      if (c.taken.size >= c.pts.length) { if (mp) mp.game({ k: 'ch-end', cid: c.cid }); this.end(`🤠 All the hats are found! Your score: ⭐ ${this.g.score}`); }
+      if (c.taken.size >= c.pts.length) { if (mp) mp.game({ k: 'ch-end', cid: c.cid }); this.end(`🤠 All the hats are found! Your challenge points: ${this.pts || 0}`); }
     } else if (c.type === 'hill') {
       const k = Math.min(c.pts.length - 1, Math.floor((now - c.t0) / 40000)), [x, y] = c.pts[k];
       c.ring.position.set(x, ground(x, y), -y); c.ring.rotation.y += dt * 0.6;

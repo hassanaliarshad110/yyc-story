@@ -90,10 +90,10 @@ export class Signs {
   constructor(scene, tiles) { this.scene = scene; this.tiles = tiles; this.live = new Map(); this.t = 0; this.slots = new Map(); }
   update(dt, x, y) {
     if ((this.t -= dt) > 0) return; this.t = 0.4;
-    const want = businessesNear(x, y, 220).slice(0, 40), keep = new Set();
+    const want = businessesNear(x, y, 220).slice(0, 40), keep = new Set(); let made = 0;
     for (const { b } of want) {
       keep.add(b);
-      if (this.live.has(b)) continue;
+      if (this.live.has(b) || made >= 4) continue;       // a few new signs at a time, so they never cause a hitch
       // a shop in a plaza: its sign goes on the plaza's sign band, along the street side
       const pz = plazaAt(b.x, b.y);
       const w = pz ? plazaWall(pz, b) : wallFor(this.tiles, b); if (!w) continue;
@@ -129,7 +129,7 @@ export class Signs {
       }
       m.position.set(px + nx * 0.12, base + y0, -(py + ny * 0.12)); m.rotation.y = Math.atan2(nx, -ny);
       m.userData.biz = b; m.userData.key = w.key; m.userData.slot = pos;
-      this.scene.add(m); this.live.set(b, m);
+      this.scene.add(m); this.live.set(b, m); made++;
     }
     for (const [b, m] of this.live) if (!keep.has(b)) { this.scene.remove(m); m.geometry.dispose(); m.material.map.dispose(); m.material.dispose(); this.live.delete(b); const u = this.slots.get(m.userData.key); if (u) { const i = u.indexOf(m.userData.slot); if (i >= 0) u.splice(i, 1); if (!u.length) this.slots.delete(m.userData.key); } }
   }

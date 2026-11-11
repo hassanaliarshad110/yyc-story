@@ -75,7 +75,7 @@ export class Requests311 {
   near(x, y, r) {
     const out = [], n = Math.ceil(r / CELL), cx = Math.floor(x / CELL), cy = Math.floor(y / CELL);
     for (let i = -n; i <= n; i++) for (let j = -n; j <= n; j++) for (const q of this.grid.get((cx + i) + ',' + (cy + j)) || []) { const d = Math.hypot(q.x - x, q.y - y); if (d < r) out.push([d, q]); }
-    return out.sort((a, b) => a[0] - b[0]).slice(0, 160).map(a => a[1]);
+    return out.sort((a, b) => a[0] - b[0]).slice(0, matchMedia('(pointer: coarse)').matches ? 60 : 160).map(a => a[1]);
   }
   update(dt, x, y) {
     if (!this.list.length || (this.t -= dt) > 0) return; this.t = 0.5;

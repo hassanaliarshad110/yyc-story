@@ -274,3 +274,25 @@ body.hurt #game, body.hurt canvas { filter: saturate(1.6) brightness(1.15) sepia
 body.cine #gamebar, body.cine #hpbar, body.cine #mpbar { display: none; }
 #g-chinfo { position: fixed; left: 50%; top: 64px; transform: translateX(-50%); z-index: 26; background: rgba(15, 23, 32, .82); color: #fff; font: 600 14px system-ui, sans-serif; padding: 6px 14px; border-radius: 16px; border: 1px solid rgba(255, 210, 74, .6); white-space: nowrap; pointer-events: none; }
 body.cine #g-chinfo { display: none; }
+#dead { position: fixed; left: 50%; top: 42%; transform: translate(-50%, -50%); z-index: 40; background: rgba(20, 10, 18, .82); color: #fff; font: 800 22px system-ui, sans-serif; padding: 16px 26px; border-radius: 18px; border: 2px solid #ff5a7a; pointer-events: none; text-align: center; }
+body.hurt #dead { border-color: #fff; }
+.g-team-r { color: #ff5a5a !important; } .g-team-b { color: #5aa8ff !important; }
+#g-ride { background: #2ad06a !important; }
+#g-board .g-round { font-size: 11px; opacity: .85; margin-bottom: 2px; }
+#g-crew.off { opacity: .45; }
+/* phones: smaller buttons, and the less-used game buttons tucked behind ⋯ */
+#g-more { display: none; }
+@media (max-width: 600px), (pointer: coarse) and (max-width: 900px) {
+  .btn-round { width: 42px !important; height: 42px !important; font-size: 18px !important; border-width: 1.5px; }
+  .btn-round.big { width: 52px !important; height: 52px !important; font-size: 23px !important; }
+  #gamebar { top: 200px; gap: 5px; max-width: 170px; }
+  #gamebar > button { width: 36px; height: 36px; font-size: 16px; border-width: 1.5px; }
+  #gamebar #g-score { font-size: 13px; padding: 3px 8px; }
+  #g-more { display: block; }
+  #gamebar:not(.more) > .g-x { display: none; }
+  #gamebar #g-board { font-size: 11px; max-width: 160px; }
+  #mpbar > button { width: 36px; height: 36px; font-size: 16px; }
+  #hpbar { transform: translateX(-50%) translateY(46px) scale(.85); }
+  #g-board > div:nth-child(n+5) { display: none; }
+  #buttons { grid-template-columns: repeat(4, auto); gap: 6px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); }
+}

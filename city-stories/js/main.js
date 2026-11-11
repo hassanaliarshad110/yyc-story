@@ -38,6 +38,7 @@ import { loadBusinesses, Signs } from './business.js';
 import { Requests311 } from './r311.js';
 import { Leaves } from './leaves.js';
 import { TrafficStops } from './stops.js';
+import { Gatherings } from './gatherings.js';
 import { loadPlazas, Plazas, PLAZA_NIGHT } from './plazas.js';
 import { loadParks, ParkAssets, parksCredit } from './parks.js';
 import { loadFields, Fields } from './fields.js';
@@ -62,7 +63,7 @@ import { setHalloweenNight } from './halloween.js';
 
 const mobile = matchMedia('(pointer: coarse)').matches || innerWidth < 760;
 const saved = (() => { try { return JSON.parse(localStorage.getItem('yyc-settings')) || {}; } catch (e) { return {}; } })();
-const game = window.game = { input,
+const game = window.game = { mobile, input,
   paused: false, clock: 9.0, name: 'Ayaan', look: 'ayaan', waypoint: null, rideVehicle: null,
   settings: { v: 2, radius: saved.v === 2 ? (saved.radius ?? (mobile ? 2 : 3)) : Math.max(saved.radius || 0, mobile ? 2 : 3), shadows: saved.shadows ?? !mobile, photo: saved.photo ?? true, glow: saved.glow ?? true },
 };
@@ -144,7 +145,7 @@ async function boot() {
   await Promise.all([loadHero(), loadVehicles(), loadBusinesses(), loadParks(), loadSigns(), loadBillboards(), loadFields(), loadLyrics(), loadTreeModels(), loadPlazas()]);
   tiles = new TileManager(scene, world, { radius: game.photoOn ? Math.max(1, game.settings.radius - 1) : game.settings.radius, meshes: !game.photoOn, onTile: (t, added) => { if (added) { tilePaths(t); buildFuel(t, tiles); } traffic && traffic.onTile(t, added); } });
   tiles.far = mobile ? 1 : 2; if (!game.photoOn) scene.fog.far = fogFar();
-  game.tiles = tiles; game.signs = new Signs(scene, tiles); game.r311 = new Requests311(scene, camera, world, canvas, tiles); game.leaves = new Leaves(scene, tiles, mobile ? 110 : 220); game.plazas = new Plazas(scene);
+  game.tiles = tiles; game.signs = new Signs(scene, tiles); game.r311 = new Requests311(scene, camera, world, canvas, tiles); game.leaves = new Leaves(scene, tiles, mobile ? 60 : 220); game.plazas = new Plazas(scene);
   // compile the shaders of newly loaded models off to the side, so the first time one appears the game doesn't stall
   WARM.fn = obj => { obj.position.set(camera.position.x, -500, camera.position.z); obj.traverse(o => { o.frustumCulled = false; }); scene.add(obj);
     const done = () => scene.remove(obj); try { renderer.compileAsync(obj, camera, scene).then(done, done); } catch (e) { done(); } };
@@ -161,7 +162,7 @@ async function boot() {
   player.onStep = run => sfx.step(run);
   player.onPlace = () => { if (game.unstick) game.unstick.pending = true; };
   traffic = new Traffic(scene, tiles, world, { max: mobile ? 14 : 28, parked: mobile ? 16 : 32 }); game.traffic = traffic;
-  transit = new Transit(scene, world, { bus: mobile ? 5 : 9, train: mobile ? 1 : 2 }); game.transit = transit; transit.cars = () => traffic.cars; traffic.transit = transit; game.stops = new TrafficStops(game, scene, traffic);
+  transit = new Transit(scene, world, { bus: mobile ? 5 : 9, train: mobile ? 1 : 2 }); game.transit = transit; transit.cars = () => traffic.cars; traffic.transit = transit; game.stops = new TrafficStops(game, scene, traffic); game.gather = new Gatherings(game, scene);
   // trains ride on the track's own height; where a raised track's height isn't known (a gap in the data, a tile still
   // loading) they keep the height they had instead of dropping into the deck
   transit.groundY = (x, y, hint, rail) => { if (!rail) return tiles.surfaceAt(x, y, hint ?? ground(x, y), 1.5, 1); const s = tiles.surfaceAt(x, y, 0, 1e9, 3), g0 = ground(x, y); return hint != null && s < g0 + 0.3 && hint > g0 + 1 ? Math.max(s, hint - 0.01) : s; };
@@ -390,7 +391,8 @@ game.openReal = openReal;
 
 // ---------------------------------------------------------------- actions
 onAction('vehicle', () => {
-  if (!game.started || game.paused || player.mode === 'ride') return;
+  if (game.started && !game.paused && game.ridePass && game.ridePass(player)) return;      // riding with another player
+  if (!game.started || game.paused || player.mode === 'ride' || game.deadT > 0) return;
   if (player.mode === 'heli') {
     if (player.exitHeli()) { sfx.door(); $('#speed').hidden = true; } else toast('Land first: hold Shift (⚡) to go down.');
     return;
@@ -503,7 +505,7 @@ function loop(now) {
   const dt = Math.min(game.dtMax || 0.05, (now - last) / 1000); last = now;
   input.onFoot = !!player && player.mode === 'foot';
   const inp = readInput();
-  if (game.cine) { inp.x = 0; inp.y = 0; inp.sprint = false; inp.jump = false; }
+  if (game.cine || game.deadT > 0) { inp.x = 0; inp.y = 0; inp.sprint = false; inp.jump = false; }
   const blocked = game.paused || mapOpen() || phoneOpen() || realOpen();
   if (game.started && player) watchStuck(dt, blocked ? { x: 0, y: 0 } : inp);       // runs during dialogs too, so you are never left inside a wall
   if (game.started && !blocked) {
@@ -513,6 +515,7 @@ function loop(now) {
     traffic.update(dt, player);
     transit.update(dt, player.x, player.y);
     if (game.stops) game.stops.update(dt, player.x, player.y);
+    if (game.gather) game.gather.update(dt, player.x, player.y);
     { const V = []; for (const v of transit.vehicles) for (const m of v.parts) { const u = m.userData; V.push({ x: m.position.x, y: -m.position.z, h: Math.PI - m.rotation.y, L: u.L > 30 ? 24.8 : (u.L || 12), W: u.W || 2.6, v: v.v || 0, kind: v.rail ? 'train' : 'bus' }); } if (game.mp && game.mp.on) for (const o of game.mp.others.values()) if (o.car && o.vm !== 'heli') { const u = o.car.userData; V.push({ x: o.x, y: o.y, h: o.h, L: u.L || 4.5, W: u.W || 1.9, v: 0, kind: 'car' }); }      // other players' cars: solid
       updateHealth(dt, V); }
     missions.update(dt);
