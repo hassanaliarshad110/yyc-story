@@ -8,8 +8,8 @@ import { humanReady, loadHuman, NPCS } from './humans.js';
 import { standY } from './tiles.js';
 import { toast } from './hud.js';
 
-const NAMES = ['MapleMike', 'ChinookKid', 'BowRiverBen', 'StampedeSam', 'PrairiePriya', 'NoseHillNova', 'PeaksPete', 'YYCYasmin', 'PrinceIslandPaz',
-  'RundleRaj', 'KensingtonKai', 'InglewoodIzzy', 'TuxedoTariq', 'BridgelandBea', 'SaddletowneSid', 'MartindaleMo', 'FishCreekFin', 'EauClaireEli', 'HawkwoodHana', 'GlenmoreGus'];
+const NAMES = ['Paramjeet', 'Chris', 'Maryam', 'Simi', 'Ali', 'Hassan', 'Hussain', 'Fatima', 'Muhammad', 'Emma', 'Liam', 'Olivia', 'Noah', 'Sophie', 'Jack',
+  'Emily', 'Ryan', 'Grace', 'Daniel', 'Hannah'];
 const LOOKS = [...NPCS, 'teen_girl', 'kid_boy2'];
 const COL = { r: '#ff4a4a', b: '#4a9aff' };
 
