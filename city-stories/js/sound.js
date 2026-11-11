@@ -22,7 +22,7 @@ export function unlockAudio() {
   // plus a soft firing pulse (the cylinders) and a faint upper harmonic so it reads on phone speakers too
   const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), o3 = ctx.createOscillator(), o3g = ctx.createGain(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
   const puls = ctx.createGain(), pl = ctx.createOscillator(), plg = ctx.createGain();
-  o1.type = 'triangle'; o2.type = 'sine'; o3.type = 'sawtooth'; o3g.gain.value = 0.18; lp.type = 'lowpass'; lp.frequency.value = 260; lp.Q.value = 0.8; g.gain.value = 0;
+  o1.type = 'triangle'; o2.type = 'sine'; o3.type = 'sawtooth'; o3g.gain.value = 0.12; lp.type = 'lowpass'; lp.frequency.value = 260; lp.Q.value = 0.8; g.gain.value = 0;
   pl.type = 'sine'; plg.gain.value = 0.22; puls.gain.value = 0.78; pl.connect(plg); plg.connect(puls.gain);
   o1.connect(lp); o2.connect(lp); o3.connect(o3g); o3g.connect(lp); lp.connect(puls); puls.connect(g); g.connect(master); o1.start(); o2.start(); o3.start(); pl.start();
   S.eng = { o1, o2, o3, pl, lp, g };
@@ -84,7 +84,7 @@ export function updateAudio(dt, st) {
     e.o1.frequency.setTargetAtTime(f, t, 0.08); e.o2.frequency.setTargetAtTime(f * 0.5, t, 0.08); e.o3.frequency.setTargetAtTime(f * 2, t, 0.08); e.pl.frequency.setTargetAtTime(f * (st.bike ? 0.5 : 0.25), t, 0.08);
     e.lp.frequency.setTargetAtTime((st.bike ? 320 : 220) + sp * 6 + (st.throttle || 0) * 80, t, 0.1);
     // a soft hum, much quieter than before, and quieter again while the radio plays
-    e.g.gain.setTargetAtTime((0.008 + (st.throttle || 0) * 0.004 + Math.min(0.004, sp * 0.00015)) * S.engVol * (st.radio ? 0.6 : 1), t, 0.12);
+    e.g.gain.setTargetAtTime((0.0045 + (st.throttle || 0) * 0.003 + Math.min(0.003, sp * 0.0001)) * S.engVol * (st.radio ? 0.6 : 1), t, 0.12);
   } else e.g.gain.setTargetAtTime(0, t, 0.15);
   // the engine loops: pitch (playback speed) rises with speed and throttle, quieter while the radio plays
   const L = S.loops || {}, rad = st.radio ? 0.6 : 1;
