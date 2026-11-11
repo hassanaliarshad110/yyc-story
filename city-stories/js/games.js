@@ -45,8 +45,7 @@ export class Games {
       <button id="g-weapon" title="Switch weapon (Q)">🙌</button>
       <button id="g-fire" title="Shoot / throw (F)" hidden>💥</button>
       <button id="g-more" title="More">⋯</button>
-      <button id="g-team" class="g-x" title="Join a crew: solo, red or blue (no friendly fire)">👥</button>
-      <button id="g-crew" class="g-x" title="Crews fight / truce (K)">⚔️</button>
+      <button id="g-team" title="Join a crew: red or blue, until the round ends (no friendly fire)">👥</button>
       <button id="g-ride" title="Get out (F)" hidden>🚪</button>
       <button id="g-race" class="g-x" title="Start or join a street race (R)">🏁</button>
       <div id="g-board"></div>`;
@@ -57,7 +56,6 @@ export class Games {
     $('#g-race').onclick = () => this.raceButton();
     $('#g-team').onclick = () => this.cycleTeam();
     $('#g-more').onclick = () => bar.classList.toggle('more');
-    $('#g-crew').onclick = () => this.crew.toggle();
     $('#g-ride').onclick = () => this.leaveRide();
     addEventListener('keydown', e => {
       if (!this.g.started || e.target.tagName === 'INPUT') return;
@@ -133,9 +131,10 @@ export class Games {
   get myId() { return this.g.mp && this.g.mp.on ? this.g.mp.id : 'me'; }
   friend(o) { return this.team && o.tm === this.team; }
   cycleTeam() {
-    this.team = this.team === '' ? 'r' : this.team === 'r' ? 'b' : '';
+    if (this.team && this.teamRound === this.round) { toast(`You're in the ${this.team === 'r' ? '🔴 Red' : '🔵 Blue'} crew until round ${this.round} ends.`); return; }
+    this.team = this.team === 'r' ? 'b' : this.team === 'b' ? '' : 'r'; this.teamRound = this.team ? this.round : 0;
     const b = this.$('#g-team'); b.textContent = this.team === 'r' ? '🔴' : this.team === 'b' ? '🔵' : '👥';
-    toast(this.team ? `${this.team === 'r' ? '🔴 Red' : '🔵 Blue'} crew: your crew-mates can't splat you, and you can't splat them.` : '👥 Playing solo.');
+    toast(this.team ? `${this.team === 'r' ? '🔴 Red' : '🔵 Blue'} crew until this round ends: your crew-mates won't splat you, and you can't splat them.` : '👥 Playing solo.');
     this.updateHeld();
   }
   // I hit someone (a player id, or a rival); water only counts as a shot every 0.3 s per target
@@ -209,7 +208,7 @@ export class Games {
       const car = d.w === 'car', dmg = Math.max(1, Math.min(car ? 40 : 20, +d.dmg || DMG));
       let nx = 0, ny = 0; if (o) { const dx = p.x - o.x, dy = p.y - o.y, l = Math.hypot(dx, dy) || 1; nx = dx / l * 0.3; ny = dy / l * 0.3; }
       if (car) { nx *= 6; ny *= 6; }
-      if (hurt(dmg, nx, ny, car ? 'car' : 'splash', id)) this.popup(`${car ? '🚗' : (WEAPONS[d.w] || WEAPONS[1]).icon} ${name}`, '#8fd0ff');
+      hurt(dmg, nx, ny, car ? 'car' : 'splash', id);
     }
     else if (d.k === 'dead') { if (d.by === this.myId) this.kill(name); else toast(`💥 ${name} was splatted`, 1800); }
     else if (d.k === 'round') this.winRound(name, true);
@@ -325,7 +324,7 @@ export class Games {
         if (p.mode === 'foot' && !this.g.deadT && !(s.from.team && s.from.team === this.team)) {
           const dz = s.z - p.gy; if (dz >= 0 && dz < 1.9 && Math.hypot(s.x - p.x, s.y - p.y) < 0.55) {
             gone = true; hitAt = [s.x, s.y, p.gy];
-            if (!w.splash && (s.w !== 1 || performance.now() - (this.lastHit.get('me' + s.from.name) || 0) > 300)) { this.lastHit.set('me' + s.from.name, performance.now()); if (hurt(DMG, (p.x - s.from.x) * 0.02, (p.y - s.from.y) * 0.02, 'splash', s.from.id)) this.popup(`${(WEAPONS[s.w] || WEAPONS[1]).icon} ${s.from.name}`, '#8fd0ff'); }
+            if (!w.splash && (s.w !== 1 || performance.now() - (this.lastHit.get('me' + s.from.name) || 0) > 300)) { this.lastHit.set('me' + s.from.name, performance.now()); hurt(DMG, (p.x - s.from.x) * 0.02, (p.y - s.from.y) * 0.02, 'splash', s.from.id); }
           }
         }
         if (!gone) { const b = this.crew.hitTest(s); if (b) { gone = true; hitAt = [s.x, s.y, b.gy]; } }
