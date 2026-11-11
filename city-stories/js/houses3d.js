@@ -3,10 +3,10 @@
 // Calgary house of the same kind (bungalow, two-storey, split-level, infill, townhouse row), fitted to
 // its real footprint and height and turned to face its street. Farther away the plain shapes stay.
 import * as THREE from 'three';
-import { loader, warm } from './gltf.js';
-import { HOUSES, B3D_SKIP } from './tiles.js';
-import { SWAP } from './materials.js';
-import { ground } from './terrain.js';
+import { loader, warm } from './gltf.js?v=11111647';
+import { HOUSES, B3D_SKIP } from './tiles.js?v=11111647';
+import { SWAP } from './materials.js?v=11111647';
+import { ground } from './terrain.js?v=11111647';
 
 
 const KINDS = ['2storey', 'bungalow', 'infill', 'split', 'townrow', 'porch'];
@@ -129,6 +129,42 @@ export const LANDMARKS = [
 for (const L of LANDMARKS) B3D_SKIP.push(L.skip);
 const FILES = {};
 export const LM_GROUPS = [];
+// the top of each landmark model on a 2 m grid (so the helicopter lands on it and you can stand on it); built from the
+// model's triangles once it is placed
+const LM_ROOFS = [];
+function roofGrid(g) {
+  g.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(g), C = 2, x0 = box.min.x, y0 = -box.max.z, nx = Math.ceil((box.max.x - x0) / C) + 1, ny = Math.ceil((box.max.z - box.min.z) / C) + 1;
+  const h = new Float32Array(nx * ny).fill(-1e9), v = new THREE.Vector3();
+  const put = (i, j, z) => { if (i >= 0 && j >= 0 && i < nx && j < ny && z > h[i * ny + j]) h[i * ny + j] = z; };
+  g.traverse(o => {
+    if (!o.isMesh) return;
+    const pa = o.geometry.attributes.position, ix = o.geometry.index, n = pa.count, P = new Float32Array(n * 3);
+    for (let k = 0; k < n; k++) { v.fromBufferAttribute(pa, k).applyMatrix4(o.matrixWorld); P[k * 3] = v.x; P[k * 3 + 1] = -v.z; P[k * 3 + 2] = v.y; }
+    const T = ix ? ix.count / 3 : n / 3;
+    for (let t = 0; t < T; t++) {
+      const a = (ix ? ix.getX(t * 3) : t * 3) * 3, b = (ix ? ix.getX(t * 3 + 1) : t * 3 + 1) * 3, c = (ix ? ix.getX(t * 3 + 2) : t * 3 + 2) * 3;
+      const ax = P[a], ay = P[a + 1], az = P[a + 2], bx = P[b], by = P[b + 1], bz = P[b + 2], cx = P[c], cy = P[c + 1], cz = P[c + 2];
+      const i0 = Math.floor((Math.min(ax, bx, cx) - x0) / C), i1 = Math.floor((Math.max(ax, bx, cx) - x0) / C), j0 = Math.floor((Math.min(ay, by, cy) - y0) / C), j1 = Math.floor((Math.max(ay, by, cy) - y0) / C);
+      const d = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
+      if (Math.abs(d) < 1e-6 || (i0 === i1 && j0 === j1)) { const z = Math.max(az, bz, cz); for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) put(i, j, z); continue; }      // a wall (or a small piece): its top
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+        const px = x0 + (i + 0.5) * C, py = y0 + (j + 0.5) * C, l1 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / d, l2 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / d, l3 = 1 - l1 - l2;
+        if (l1 < -0.05 || l2 < -0.05 || l3 < -0.05) continue;
+        put(i, j, l1 * az + l2 * bz + l3 * cz);
+      }
+    }
+  });
+  LM_ROOFS.push({ x0, y0, nx, ny, C, h, x1: x0 + nx * C, y1: y0 + ny * C });
+}
+export function landmarkRoofAt(x, y) {
+  let best = null;
+  for (const R of LM_ROOFS) {
+    if (x < R.x0 || y < R.y0 || x >= R.x1 || y >= R.y1) continue;
+    const z = R.h[Math.floor((x - R.x0) / R.C) * R.ny + Math.floor((y - R.y0) / R.C)]; if (z > -1e8 && (best == null || z > best)) best = z;
+  }
+  return best;
+}
 // night on the landmarks: lit windows (a random mix of warm and cool offices, floor by floor), a soft floodlight wash up
 // the walls and a brighter crown; LM_NIGHT is set with the city's other night lights (0 day .. 1 night)
 export const LM_NIGHT = { value: 0 }, LM_TIME = { value: 0 };
@@ -208,6 +244,7 @@ export async function loadLandmarks(scene) {
       g.position.set(L.x, g0 - extra - 0.3, -L.y); g.rotation.y = L.rot;
       if (L.file === 'saddledome') { g.updateMatrixWorld(true); const led = roofLEDs(g, L); if (led) scene.add(led); }
       g.name = L.file; g.userData.bld = 1; g.userData.lm = L; warm(g.clone()); scene.add(g); out.push(g); LM_GROUPS.push(g);
+      setTimeout(() => { try { roofGrid(g); } catch (e) { console.warn('landmark roof', L.file, e); } }, 300 + LM_ROOFS.length * 120);
     } catch (e) { console.warn('landmark', L.file, e); }
   }));
   return out;

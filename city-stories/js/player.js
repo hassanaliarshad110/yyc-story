@@ -1,10 +1,11 @@
 // The player: walking, running and driving. Heading h: 0 = north, clockwise (east = PI/2).
 import * as THREE from 'three';
-import { Character, heroReady } from './rig.js';
-import { spinWheels } from './vehicles.js';
-import { lightsOn } from './carlights.js';
-import { ground } from './terrain.js';
-import { syncHeli } from './heli.js';
+import { Character, heroReady } from './rig.js?v=11111647';
+import { spinWheels } from './vehicles.js?v=11111647';
+import { lightsOn } from './carlights.js?v=11111647';
+import { blockPush } from './stagekit.js?v=11111647';
+import { ground } from './terrain.js?v=11111647';
+import { syncHeli } from './heli.js?v=11111647';
 
 export const dirOf = h => [Math.sin(h), Math.cos(h)];           // (east, north)
 export const rotY = h => Math.PI - h;
@@ -22,6 +23,17 @@ export const LOOKS = {
   leo: { glb: 'leo', hero: true, name: 'Leo', skin: 0xe8c4a0, shirt: 0xe07020, pants: 0x3a4a3a, hair: 0xa0703a, bag: 0x2a4a6a },
 };
 
+// a hang glider: a bright delta wing with a keel and a control bar you hold
+function makeGlider() {
+  const g = new THREE.Group(), sail = new THREE.MeshLambertMaterial({ color: 0xff3d2e, side: THREE.DoubleSide }), sail2 = new THREE.MeshLambertMaterial({ color: 0xffd23a, side: THREE.DoubleSide }), bar = new THREE.MeshLambertMaterial({ color: 0x30343a });
+  const tri = (pts, m) => { const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pts.flat(), 3)); geo.computeVertexNormals(); g.add(new THREE.Mesh(geo, m)); };
+  // nose at +z (forward), wing tips out to the sides and back
+  tri([[0, 0.15, 2.2], [-4.6, -0.25, -1.4], [0, 0.05, -0.9]], sail); tri([[0, 0.15, 2.2], [0, 0.05, -0.9], [4.6, -0.25, -1.4]], sail2);
+  const keel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 3.2, 5), bar); keel.rotation.x = Math.PI / 2; keel.position.set(0, 0.08, 0.6); g.add(keel);
+  for (const s of [-1, 1]) { const st = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.45, 5), bar); st.position.set(s * 0.32, -0.66, 0.35); st.rotation.z = s * 0.38; g.add(st); }
+  const cb = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.2, 5), bar); cb.rotation.z = Math.PI / 2; cb.position.set(0, -1.32, 0.35); g.add(cb);
+  return g;
+}
 export class Player {
   constructor(scene, tiles, look = 'ayaan') {
     this.scene = scene; this.tiles = tiles;
@@ -46,6 +58,12 @@ export class Player {
     } else if (this.mode === 'foot') {
       this.person.visible = true; this.person.position.set(this.x, this.gy + FOOT_Y, -this.y); this.person.rotation.set(0, rotY(this.h), 0);
     } else this.person.visible = false;
+    // the glider over your head while you glide
+    if (this.glide && !this.wing) { this.wing = makeGlider(); this.person.parent && this.person.parent.add(this.wing); }
+    if (this.wing) {
+      this.wing.visible = !!this.glide && this.mode === 'foot';
+      if (this.wing.visible) { this.wing.position.set(this.x, this.gy + 2.25, -this.y); this.wing.rotation.order = 'YXZ'; this.wing.rotation.set(-0.12, rotY(this.h), 0); }
+    }
   }
   // sit down on the nearest park bench or picnic table (E), get up by moving or pressing E again
   toggleSeat() {
@@ -81,11 +99,25 @@ export class Player {
       this.pitch = (this.pitch || 0) + (want - (this.pitch || 0)) * Math.min(1, dt * 10);
     } else this.pitch = 0;
     if (this.air > 0) { this.gy += (target - this.gy) * Math.min(1, dt * 18); return; }
-    if (target >= this.gy - slope) { this.gy += (target - this.gy) * Math.min(1, dt * 18); this.vy = 0; }
-    else { this.vy = (this.vy || 0) - 22 * dt; this.gy = Math.max(target, this.gy + this.vy * dt); if (this.gy <= target) this.vy = 0; }
+    if (target >= this.gy - slope) { this.gy += (target - this.gy) * Math.min(1, dt * 18); this.vy = 0; if (this.glide) this.landGlide(); }
+    else {
+      this.vy = (this.vy || 0) - 22 * dt;
+      // falling on foot from high up (off a tower, out of the helicopter): the glider opens
+      if (this.mode === 'foot' && !this.glide && this.gy - target > 7 && this.vy < -5) this.glide = true;
+      if (this.glide) this.vy = Math.max(this.vy, -2.8 - Math.max(0, (this.gv || 12) - 12) * 0.35);
+      this.gy = Math.max(target, this.gy + this.vy * dt); if (this.gy <= target) { this.vy = 0; if (this.glide) this.landGlide(); }
+    }
   }
   // building walls only matter near the ground
-  collide(x, y, r) { return this.gy - ground(this.x, this.y) > 3.5 ? { x, y, hit: false } : this.tiles.collide(x, y, r); }
+  // up high (on a roof, gliding): the only walls are taller buildings; stages and other solid boxes everywhere
+  collide(x, y, r) {
+    if (this.gy - ground(this.x, this.y) > 3.5) {
+      const rf = this.tiles.roofAt(x, y); if (rf != null && rf > this.gy + 0.6) return { x: this.x, y: this.y, hit: true };
+      return blockPush(x, y, r, this.gy);
+    }
+    const c = this.tiles.collide(x, y, r), b = blockPush(c.x, c.y, r, this.gy);
+    return { x: b.x, y: b.y, hit: c.hit || b.hit };
+  }
   // on foot, the Karachi way: W/S/A/D (or the stick) move relative to the camera and you turn to face where you go
   walk(dt, inp, camH) {
     if (this.auto) {                 // scripted walk in a cutscene
@@ -94,6 +126,12 @@ export class Player {
       else { const st = Math.min(d, a.sp * dt); this.x += dx / d * st; this.y += dy / d * st; this.v = a.sp; this.h += angDiff(this.h, Math.atan2(dx, dy)) * Math.min(1, dt * 10); }
       this.char.animate(dt, { speed: this.v, ...(this.act || {}) });
       return;
+    }
+    if (this.glide) {                // under the glider: always moving forward; steer, dive (forward) or float (back)
+      this.h += (inp.x || 0) * 1.3 * dt; this.gv = 12 + Math.max(-1, Math.min(1, inp.y || 0)) * 5;
+      const [gx, gy] = dirOf(this.h), c = this.collide(this.x + gx * this.gv * dt, this.y + gy * this.gv * dt, 0.45);
+      if (c.hit) this.gv *= 0.5; this.x = c.x; this.y = c.y; this.v = this.gv; inp.jump = false;
+      this.char.animate(dt, { glide: 1 }); return;
     }
     let sp = 2.6, running = false;
     const [fx, fy] = dirOf(camH), rx = fy, ry = -fx;                 // forward and right of the camera
@@ -154,6 +192,7 @@ export class Player {
     else car.mesh.children.forEach(o => { if (o.geometry && o.geometry.type === 'CylinderGeometry' && o.position.y < 0.6) o.rotation.x += this.v * dt / 0.36; });
   }
   // helicopter, the Karachi way: Space up, Shift down, W/S forward and back, A/D turn, F to get out on the ground
+  landGlide() { this.glide = false; this.gv = 0; this.v = 0; if (this.onLand) this.onLand(); }
   heliFloor(x, y) { const r = this.tiles.roofAt ? this.tiles.roofAt(x, y) : null; return Math.max(ground(x, y), r ?? -1e9); }
   fly(dt, inp) {
     const v = this.heli, floor = this.heliFloor(v.x, v.y);
@@ -177,9 +216,17 @@ export class Player {
   enterHeli(hc) { this.seat = null; this.mode = 'heli'; this.heli = hc; hc.rot = hc.rot || 0; this.x = hc.x; this.y = hc.y; this.h = hc.h; this.v = 0; this.gy = hc.alt; this.sync(); }
   exitHeli() {
     const v = this.heli; if (!v) return false;
-    if (v.alt - this.heliFloor(v.x, v.y) > 0.7) return false;           // land first
-    const [dx, dy] = dirOf(v.h); this.mode = 'foot'; this.heli = null; v.v = 0; v.vy = 0;
-    const c = this.tiles.collide(v.x - dy * 2.6, v.y + dx * 2.6, 0.45); this.x = c.x; this.y = c.y; this.gy = ground(this.x, this.y); this.v = 0; this.sync(); return true;
+    const [dx, dy] = dirOf(v.h), floor = this.heliFloor(v.x, v.y);
+    if (v.alt - floor > 0.7) {             // in the air: jump out (the glider opens as you fall); the helicopter comes down on its own
+      this.mode = 'foot'; this.heli = null; v.falling = true; v.rot = Math.max(v.rot, 0.5);
+      this.x = v.x - dy * 2.2; this.y = v.y + dx * 2.2; this.gy = v.alt - 0.5; this.vy = -6; this.v = 0; this.sync(); return 'eject';
+    }
+    this.mode = 'foot'; this.heli = null; v.v = 0; v.vy = 0;
+    // step out beside it: onto the roof if it landed on one (or the ground)
+    const sx = v.x - dy * 2.6, sy = v.y + dx * 2.6, onRoof = floor - ground(v.x, v.y) > 2;
+    const c = onRoof ? { x: sx, y: sy } : this.tiles.collide(sx, sy, 0.45);
+    this.x = c.x; this.y = c.y; this.gy = onRoof ? Math.max(this.heliFloor(c.x, c.y), floor - 0.2) : ground(this.x, this.y); if (onRoof && this.heliFloor(c.x, c.y) < floor - 1) { this.x = v.x - dy * 1.4; this.y = v.y + dx * 1.4; this.gy = floor; }
+    this.v = 0; this.sync(); return true;
   }
   enter(car) {
     this.seat = null; this.onBike = car.mesh.userData.kind === 'bike'; if (car.mesh.userData.rider) { car.mesh.remove(car.mesh.userData.rider.g); car.mesh.userData.rider = null; }

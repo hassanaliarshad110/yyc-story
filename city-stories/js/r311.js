@@ -2,8 +2,8 @@
 // each request near you. The open data only gives each request's community, so every icon sits at its own random spot
 // inside that community (the same spot every time). Tap an icon to see what the request is about.
 import * as THREE from 'three';
-import { ground } from './terrain.js';
-import { card } from './hud.js';
+import { ground } from './terrain.js?v=11111647';
+import { card } from './hud.js?v=11111647';
 
 const CELL = 200;
 const ICONS = [

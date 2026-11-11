@@ -1,11 +1,11 @@
 // Life in the neighbourhoods: children playing in parks and in front of homes, and wildlife in the parks
 // (jackrabbits hopping about, and now and then a young black bear wandering through a wooded park).
 import * as THREE from 'three';
-import { L, standY } from './tiles.js';
-import { ground } from './terrain.js';
-import { loader, warm } from './gltf.js';
-import { Character } from './rig.js';
-import { humanReady } from './humans.js';
+import { L, standY } from './tiles.js?v=11111647';
+import { ground } from './terrain.js?v=11111647';
+import { loader, warm } from './gltf.js?v=11111647';
+import { Character } from './rig.js?v=11111647';
+import { humanReady } from './humans.js?v=11111647';
 
 const KIDS = ['kid_boy', 'kid_girl', 'kid_boy2'];
 const GREEN = new Set([5, 6, 9, 13, 14]), WOODS = 6;      // parks, woods, meadows, sports fields, playgrounds

@@ -1,67 +1,70 @@
 // YYC Story — a game by Hassan Ali. Main loop: renderer, sky, camera, game state.
 import * as THREE from 'three';
-import { initMaterials, setNight, MAT } from './materials.js';
-import { setMaxAnisotropy } from './textures.js';
-import { TileManager, SPEED_LIMIT, loadTreeModels, TREE_M } from './tiles.js';
-import { buildWorldMeshes, prepLookups, communityAt, wardAt, loadSky3D } from './world.js';
-import { Player, dirOf, angDiff, LOOKS } from './player.js';
-import { Traffic } from './traffic.js';
-import { Transit } from './transit.js';
-import { Missions, P } from './missions.js';
-import { initHUD, tilePaths, drawMinimap, openMap, closeMap, mapOpen, refreshMap, toast, setObjective, setPrompt, nextPressed, say, card, $ } from './hud.js';
-import { initPhone, openPhone, closePhone, phoneOpen } from './phone.js';
-import { initRealView, openReal, closeReal, realOpen } from './realview.js';
-import { initInput, readInput, input, onAction } from './input.js';
-import { makeCar } from './actors.js';
-import { loadHero } from './rig.js';
-import { loadHumans, humanReady, loadHuman, VIEW } from './humans.js';
-import { loadHouses, loadCityHall, updateHouses, setHouseRange, LM_NIGHT, updateLandmarks } from './houses3d.js';
-import { loadCars3D, makeCar3D } from './cars3d.js';
-import { WARM } from './gltf.js';
-import { Multiplayer } from './mp.js';
-import { ask } from './ask.js';
-import { initHealth, hurt, updateHealth } from './health.js';
-import { buildPlatforms } from './platforms.js';
-import { buildFuel } from './fuel.js';
-import { Games } from './games.js';
-import { Life } from './life.js';
-import { loadVehicles, makeKarachiVehicle } from './vehicles.js';
-import { sfx, unlockAudio, updateAudio } from './sound.js';
-import { Sky } from './sky.js';
+import { initMaterials, setNight, MAT } from './materials.js?v=11111647';
+import { setMaxAnisotropy } from './textures.js?v=11111647';
+import { TileManager, SPEED_LIMIT, loadTreeModels, TREE_M } from './tiles.js?v=11111647';
+import { buildWorldMeshes, prepLookups, communityAt, wardAt, loadSky3D } from './world.js?v=11111647';
+import { Player, dirOf, angDiff, LOOKS } from './player.js?v=11111647';
+import { Traffic } from './traffic.js?v=11111647';
+import { Transit } from './transit.js?v=11111647';
+import { Missions, P } from './missions.js?v=11111647';
+import { initHUD, tilePaths, drawMinimap, openMap, closeMap, mapOpen, refreshMap, toast, setObjective, setPrompt, nextPressed, say, card, $ } from './hud.js?v=11111647';
+import { initPhone, openPhone, closePhone, phoneOpen } from './phone.js?v=11111647';
+import { initRealView, openReal, closeReal, realOpen } from './realview.js?v=11111647';
+import { initInput, readInput, input, onAction } from './input.js?v=11111647';
+import { makeCar } from './actors.js?v=11111647';
+import { loadHero } from './rig.js?v=11111647';
+import { loadHumans, humanReady, loadHuman, VIEW } from './humans.js?v=11111647';
+import { loadHouses, loadCityHall, updateHouses, setHouseRange, LM_NIGHT, updateLandmarks, landmarkRoofAt } from './houses3d.js?v=11111647';
+import { ROOF_EXTRA } from './tiles.js?v=11111647';
+ROOF_EXTRA.fn = landmarkRoofAt;
+import { loadCars3D, makeCar3D } from './cars3d.js?v=11111647';
+import { WARM } from './gltf.js?v=11111647';
+import { Multiplayer } from './mp.js?v=11111647';
+import { ask } from './ask.js?v=11111647';
+import { initHealth, hurt, updateHealth } from './health.js?v=11111647';
+import { buildPlatforms } from './platforms.js?v=11111647';
+import { buildFuel } from './fuel.js?v=11111647';
+import { Games } from './games.js?v=11111647';
+import { Life } from './life.js?v=11111647';
+import { loadVehicles, makeKarachiVehicle } from './vehicles.js?v=11111647';
+import { sfx, unlockAudio, updateAudio } from './sound.js?v=11111647';
+import { Sky } from './sky.js?v=11111647';
 import { EffectComposer } from '../vendor/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from '../vendor/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../vendor/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from '../vendor/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from '../vendor/jsm/postprocessing/OutputPass.js';
-import { loadTerrain, ground } from './terrain.js';
-import { loadBusinesses, Signs } from './business.js';
-import { Requests311 } from './r311.js';
-import { Leaves } from './leaves.js';
-import { TrafficStops } from './stops.js';
-import { Gatherings } from './gatherings.js';
-import { loadPlazas, Plazas, PLAZA_NIGHT } from './plazas.js';
-import { loadParks, ParkAssets, parksCredit } from './parks.js';
-import { loadFields, Fields } from './fields.js';
-import { loadLyrics, updateLyrics } from './lyrics.js';
-import { GOOGLE_KEY } from './config.js';
-import { music } from './music.js';
+import { loadTerrain, ground } from './terrain.js?v=11111647';
+import { loadBusinesses, Signs } from './business.js?v=11111647';
+import { Requests311 } from './r311.js?v=11111647';
+import { Leaves } from './leaves.js?v=11111647';
+import { TrafficStops } from './stops.js?v=11111647';
+import { Gatherings } from './gatherings.js?v=11111647';
+import { loadPlazas, Plazas, PLAZA_NIGHT } from './plazas.js?v=11111647';
+import { loadParks, ParkAssets, parksCredit } from './parks.js?v=11111647';
+import { loadFields, Fields } from './fields.js?v=11111647';
+import { loadLyrics, updateLyrics } from './lyrics.js?v=11111647';
+import { GOOGLE_KEY } from './config.js?v=11111647';
+import { music } from './music.js?v=11111647';
 window.__music = music;
-import { newHeli, idleHeli } from './heli.js';
-import { Concert } from './concert.js';
-import { Stampede, STAMPEDE } from './stampede.js';
-import { Metro } from './metro.js';
-import { Buses } from './buses.js';
-import { Signals, loadSigns } from './signals.js';
-import { HouseNumbers } from './numbers.js';
-import { People } from './people.js';
-import { initIntro } from './intro.js';
-import { CHARACTERS } from './stories.js';
-import { tr } from './i18n.js';
-import { Billboards, loadBillboards } from './billboards.js';
-import { Navigator, loadRoute } from './route.js';
-import { setHalloweenNight } from './halloween.js';
-import { setCarLightsNight } from './carlights.js';
-import { QUALITY, guessQuality, DynRes, FpsMeter, GradeShader, setEnvNight } from './graphics.js';
+import { newHeli, idleHeli, syncHeli } from './heli.js?v=11111647';
+import { Concert } from './concert.js?v=11111647';
+import { Stampede, STAMPEDE } from './stampede.js?v=11111647';
+import { Metro } from './metro.js?v=11111647';
+import { Buses } from './buses.js?v=11111647';
+import { Signals, loadSigns } from './signals.js?v=11111647';
+import { HouseNumbers } from './numbers.js?v=11111647';
+import { People } from './people.js?v=11111647';
+import { initIntro } from './intro.js?v=11111647';
+import { CHARACTERS } from './stories.js?v=11111647';
+import { tr } from './i18n.js?v=11111647';
+import { Billboards, loadBillboards } from './billboards.js?v=11111647';
+import { Navigator, loadRoute } from './route.js?v=11111647';
+import { setHalloweenNight } from './halloween.js?v=11111647';
+import { setCarLightsNight } from './carlights.js?v=11111647';
+import { stageAt, setPerforming } from './stagekit.js?v=11111647';
+import { QUALITY, guessQuality, DynRes, FpsMeter, GradeShader, setEnvNight } from './graphics.js?v=11111647';
 
 const mobile = matchMedia('(pointer: coarse)').matches || innerWidth < 760;
 const saved = (() => { try { return JSON.parse(localStorage.getItem('yyc-settings')) || {}; } catch (e) { return {}; } })();
@@ -411,10 +414,10 @@ onAction('vehicle', () => {
   if (game.started && !game.paused && game.ridePass && game.ridePass(player)) return;      // riding with another player
   if (!game.started || game.paused || player.mode === 'ride' || game.deadT > 0) return;
   if (player.mode === 'heli') {
-    if (player.exitHeli()) { sfx.door(); $('#speed').hidden = true; } else toast('Land first: hold Shift (⚡) to go down.');
+    const r = player.exitHeli(); if (r) { sfx.door(); $('#speed').hidden = true; if (r === 'eject') toast('Jumped! 🪂 The glider opens as you fall: steer with ← →, forward to dive, back to float.', 5000); }
     return;
   }
-  if (player.mode === 'foot' && game.heli && Math.hypot(game.heli.x - player.x, game.heli.y - player.y) < 6) {
+  if (player.mode === 'foot' && !player.glide && game.heli && !game.heli.falling && Math.hypot(game.heli.x - player.x, game.heli.y - player.y) < 6 && Math.abs(game.heli.alt - player.gy) < 4) {
     player.enterHeli(game.heli); sfx.door(); $('#speed').hidden = false; music.radio(true);
     toast(input.touch ? 'Helicopter! ⤴️ up · ⚡ down · stick: forward and turn · 🚗 get out (on the ground)' : 'Helicopter! Space: up · Shift: down · W/S: forward/back · A/D: turn · F: get out (on the ground)', 6000);
     return;
@@ -437,10 +440,23 @@ onAction('heli', () => {                   // call the helicopter to where you a
   placeHeli(); sfx.blip();
 });
 onAction('horn', () => { if (game.started && player.mode === 'car') sfx.horn(player.onBike); });
+// on a stage deck, at the mic: rap the song yourself (the crowd dances, your name goes up on the screen)
+let onStage = null;
+function toggleMic() {
+  if (onStage) { endSet(); toast('Great set! 🎤'); return true; }
+  const at = stageAt(player.x, player.y, player.gy); if (!at || !at.nearMic) return false;
+  const s = at.s; onStage = s; s.who = (game.mp && game.mp.name) || 'YOU';
+  player.x = s.mic[0] - Math.sin(s.face) * 0.6; player.y = s.mic[1] - Math.cos(s.face) * 0.6; player.h = s.face; player.faceH = s.face; player.v = 0;
+  player.act = { dance: 3 }; setPerforming(s, true); music.concert(1);
+  toast('🎤 You\'re on! Rap along with the words on the screen. Walk away or press E (✋) to finish.', 5000); return true;
+}
+function endSet() { if (!onStage) return; setPerforming(onStage, false); onStage = null; player.act = null; }
+game.stageMic = () => onStage;
 onAction('interact', () => {
   if (nextPressed()) return; if (game.cine && missions.skipLine()) return; if (game.cine) return; if (!game.started) return; if (missions.interact()) return;
   if (game.metro.boardWait) { game.metro.boardWait(); return; }
   if (game.buses.boardWait) { game.buses.boardWait(); return; }
+  if (player.mode === 'foot' && toggleMic()) return;
   if (player.mode === 'foot' && game.people && game.people.near) { checkIn(); return; }
   if (player.mode === 'foot' && !player.seat && !game.metro.trip && !missions.boardWait && game.metro.stationAt(player.x, player.y)) { game.metro.open(player.x, player.y); return; }
   if (player.mode === 'foot' && !player.seat && !game.buses.trip && !game.metro.trip && !missions.boardWait) { const bs = game.buses.stopAt(player.x, player.y); if (bs) { game.buses.open(bs); return; } }
@@ -553,9 +569,18 @@ function loop(now) {
     updateAudio(dt, { driving: player.mode === 'car' && !blocked, bike: player.onBike, speed: player.v, throttle: Math.max(0, inp.y), day: game.day ?? 1, cars: near, foot: player.mode === 'foot', heli: player.mode === 'heli', rotor: game.heli ? game.heli.rot : 0, radio });
     music.radio(radio);
     const cLvl = game.concert ? game.concert.update(dt, player.x, player.y, game.clock) : 0, sLvl = game.stampede ? game.stampede.update(dt, player.x, player.y, game.clock) : 0;
-    music.concert(Math.max(cLvl, sLvl));
+    music.concert(onStage ? 1 : Math.max(cLvl, sLvl));
     updateLyrics(Math.max(cLvl, sLvl), music.el, !!game.cine || game.paused);
-    if (game.heli && player.mode !== 'heli') idleHeli(game.heli, dt);
+    if (game.heli && player.mode !== 'heli') {
+      const v = game.heli;
+      if (v.falling) {          // left in the air: it settles down to the ground (or a roof) by itself
+        const f = player.heliFloor(v.x, v.y); v.vy = Math.max(-9, (v.vy || 0) - 4 * dt); v.alt = Math.max(f, v.alt + v.vy * dt);
+        const [hx, hy] = dirOf(v.h); v.x += hx * v.v * dt; v.y += hy * v.v * dt; v.v *= Math.pow(0.5, dt); v.pitch *= Math.pow(0.3, dt); v.roll *= Math.pow(0.3, dt);
+        if (v.alt <= f + 0.01) { v.falling = false; v.vy = 0; v.v = 0; }
+        syncHeli(v);
+      }
+      idleHeli(v, dt);
+    }
   }
   music.update(dt);
   inp.jump = false;
@@ -624,7 +649,11 @@ function loop(now) {
       const c = !nearHeli && traffic.nearestCar(player.x, player.y, 5), seat = !c && !nearHeli && !player.seat && game.parks && game.parks.seatNear(player.x, player.y);
       const stn = !nearHeli && !c && !game.metro.trip && !game.metro.boardWait && game.metro.stationAt(player.x, player.y);
       const bstop = !nearHeli && !c && !stn && !game.buses.trip && !game.buses.boardWait && game.buses.stopAt(player.x, player.y);
+      const stg = !nearHeli && !c && stageAt(player.x, player.y, player.gy);
+      if (onStage && Math.hypot(player.x - onStage.mic[0], player.y - onStage.mic[1]) > 3) endSet();      // walked off: the set is over
       if (game.metro.boardWait || game.buses.boardWait) { /* the board prompt is already showing */ }
+      else if (stg && (stg.nearMic || onStage)) setPrompt(onStage ? 'Press E (✋) to finish your set' : 'Press E (✋) to take the mic and rap 🎤');
+      else if (player.glide) setPrompt('Gliding 🪂 · steer with ← → · forward to dive, back to slow down');
       else if (bstop && !(game.people && game.people.near)) setPrompt(`Press E (✋) to catch a bus at ${bstop.name}`);
       else setPrompt(game.people && game.people.near ? 'Press E (✋) to check in on them' : nearHeli ? 'Press F (🚗) to fly the helicopter' : stn ? `Press E (✋) to take the CTrain from ${stn.name}` : c ? (c.mesh.userData.kind === 'bike' ? 'Press F (🚗) to ride the motorbike' : 'Press F (🚗) to get in the car') : player.seat ? 'Move or press E (✋) to get up' : seat ? (seat.kind === 'table' ? 'Press E (✋) to sit at the picnic table' : 'Press E (✋) to sit on the bench') : null);
     }

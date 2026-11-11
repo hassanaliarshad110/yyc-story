@@ -1,11 +1,11 @@
 // The in-game phone: Calgary 311, Transit, Find help, Map, Missions, Settings.
-import { isMuted, setMuted, engineVolume, setEngineVolume } from './sound.js';
-import { voice, setVoice } from './voice.js';
-import { HALLOWEEN, setHalloween } from './halloween.js';
-import { businessesNear, searchBusinesses, BIZ_CAT } from './business.js';
-import { $, esc, toast, openMap } from './hud.js';
-import { communityAt, wardAt, nearest } from './world.js';
-import { titleOf } from './stories.js';
+import { isMuted, setMuted, engineVolume, setEngineVolume } from './sound.js?v=11111647';
+import { voice, setVoice } from './voice.js?v=11111647';
+import { HALLOWEEN, setHalloween } from './halloween.js?v=11111647';
+import { businessesNear, searchBusinesses, BIZ_CAT } from './business.js?v=11111647';
+import { $, esc, toast, openMap } from './hud.js?v=11111647';
+import { communityAt, wardAt, nearest } from './world.js?v=11111647';
+import { titleOf } from './stories.js?v=11111647';
 
 let game = null;
 export function initPhone(g) {

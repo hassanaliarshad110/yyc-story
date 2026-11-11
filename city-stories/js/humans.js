@@ -3,9 +3,9 @@
 // bone names, so one set of clips drives them all. Until a model has loaded, the simpler built-in
 // people (rig.js) stand in, so the game never waits on a download.
 import * as THREE from 'three';
-import { loader, warm } from './gltf.js';
+import { loader, warm } from './gltf.js?v=11111647';
 import { clone as skClone } from '../vendor/jsm/utils/SkeletonUtils.js';
-import { setGlbFactory, hatGroup } from './rig.js';
+import { setGlbFactory, hatGroup } from './rig.js?v=11111647';
 
 
 const MODELS = new Map();       // name -> { scene, hipsY, height } once loaded
@@ -130,6 +130,15 @@ export class Human {
       else if (t < 0.7) { dir = _v3.copy(f).addScaledVector(up, -0.3).normalize(); w = 1 - (t - 0.42) / 0.28; fore = _v4.copy(dir); }
       else { this.pose = null; return; }
     } else if (P.aim) { dir = _v3.copy(f).addScaledVector(up, -0.08).normalize(); w = P.aim; fore = dir; }
+    else if (P.glide) {            // both hands up on the glider's control bar
+      const side = _v6.set(1, 0, 0).applyQuaternion(g.getWorldQuaternion(_q0));
+      for (const [A, F, Hd, s] of [[B.RightArm, B.RightForeArm, B.RightHand, -1], [B.LeftArm, B.LeftForeArm, B.LeftHand, 1]]) {
+        if (!A || !F || !Hd) continue;
+        point(A, F, _v3.copy(up).multiplyScalar(0.9).addScaledVector(f, 0.35).addScaledVector(side, s * 0.35).normalize(), 1);
+        point(F, Hd, _v4.copy(up).addScaledVector(f, 0.2).addScaledVector(side, s * 0.05).normalize(), 1);
+      }
+      return;
+    }
     else if (P.ride) {             // both hands forward and a little down, on the handlebars
       const side = _v6.set(1, 0, 0).applyQuaternion(g.getWorldQuaternion(_q0));
       for (const [A, F, Hd, s] of [[B.RightArm, B.RightForeArm, B.RightHand, -1], [B.LeftArm, B.LeftForeArm, B.LeftHand, 1]]) {
@@ -159,6 +168,7 @@ export class Human {
     let want;
     if (st.sit || st.ride) want = 'sit';      // on a motorbike: seated, hands on the bars (pose)
     if (st.ride) { if (!this.pose || !this.pose.ride) this.pose = { ride: 1 }; } else if (this.pose && this.pose.ride) this.pose = null;
+    if (st.glide) { if (!this.pose || !this.pose.glide) this.pose = { glide: 1 }; } else if (this.pose && this.pose.glide) this.pose = null;
     else if (sp > 0.3) want = st.run || sp > 3.6 ? 'run' : 'walk';
     else if (st.dance != null) want = 'dance';
     else if (st.wave) want = 'wave';

@@ -1,10 +1,10 @@
 // People on the sidewalks: walkers around you (many more downtown), and people experiencing homelessness
 // sheltering under the downtown bridges, with a way to check in and get them connected to outreach.
 import * as THREE from 'three';
-import { Character, HAT_COLORS } from './rig.js';
-import { NPCS, humanReady } from './humans.js';
-import { ground } from './terrain.js';
-import { L, standY } from './tiles.js';
+import { Character, HAT_COLORS } from './rig.js?v=11111647';
+import { NPCS, humanReady } from './humans.js?v=11111647';
+import { ground } from './terrain.js?v=11111647';
+import { L, standY } from './tiles.js?v=11111647';
 
 const SKINS = [0x8d5a3b, 0xb07a52, 0xe0b896, 0xc49a76, 0x5a3a28, 0xd9a77e, 0xf0cfb0];
 const SHIRTS = [0x2a7de1, 0xc8102e, 0x2f8f5a, 0x222222, 0xe0a020, 0x7a3fa0, 0xf2f2f2, 0x4a5a6a, 0x9b2a2a, 0x1f4f7f];

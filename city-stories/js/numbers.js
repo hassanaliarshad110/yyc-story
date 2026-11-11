@@ -1,8 +1,8 @@
 // House numbers on the front of every building, from the City of Calgary Parcel Address open data.
 // Each address gets a small dark plate with white digits on the wall that faces its street.
 import * as THREE from 'three';
-import { ground } from './terrain.js';
-import { buildHalloween, HALLOWEEN } from './halloween.js';
+import { ground } from './terrain.js?v=11111647';
+import { buildHalloween, HALLOWEEN } from './halloween.js?v=11111647';
 
 const CH = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-', COLS = 8, ROWS = 5, CW = 64, CHH = 96;
 let MAT = null;
@@ -112,10 +112,10 @@ export class HouseNumbers {
       const u = Math.max(Math.min(0.5, 1.2 / el), Math.min(1 - Math.min(0.5, 1.2 / el), best.u));
       const px = w[0] + (w[2] - w[0]) * u + nx * 0.06, py = w[1] + (w[3] - w[1]) * u + ny * 0.06;
       if (w[6]) { spots.push({ x: px, y: py, nx, ny, ex, ey, len: el, u0: u, z0: w[4], z1: lit.has(w) ? 0 : w[5] }); lit.add(w); }
-      const z = Math.min(w[4] + (w[6] ? 2.3 : 3.0), w[5] - 0.35); if (z < w[4] + 1) continue;
+      const z = Math.min(w[4] + (w[6] ? 2.2 : 3.0), w[5] - 0.4); if (z < w[4] + 1) continue;
       // text runs left to right as seen from the street (the wall's own direction, roof on its left)
-      const ux = ex, uy = ey, ch = 0.26, cw = ch * 0.6, pw = cw * lab.length + 0.12;
-      quad(px, py, z, ux, uy, nx, ny, pw, ch + 0.1, SOLID, [0.11, 0.13, 0.16]);
+      const ux = ex, uy = ey, ch = w[6] ? 0.42 : 0.36, cw = ch * 0.6, pw = cw * lab.length + 0.16;      // big enough to read from the street
+      quad(px, py, z, ux, uy, nx, ny, pw, ch + 0.14, SOLID, [0.06, 0.08, 0.12]);
       for (let j = 0; j < lab.length; j++) {
         const c = CH.indexOf(lab[j]); if (c < 0) continue;
         const off = (j - (lab.length - 1) / 2) * cw;

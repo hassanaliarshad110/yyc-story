@@ -1,9 +1,9 @@
 // Calgary Transit in free roam: every real bus stop (City of Calgary open data), catching any bus that serves it,
 // real 2026 fares with the 90-minute transfer, and trip planning: "how do I get there by transit?", step by step.
 import * as THREE from 'three';
-import { ground } from './terrain.js';
-import { dirOf, rotY } from './player.js';
-import { tx, rtl } from './i18n.js';
+import { ground } from './terrain.js?v=11111647';
+import { dirOf, rotY } from './player.js?v=11111647';
+import { tx, rtl } from './i18n.js?v=11111647';
 
 const isStation = n => /CTrain/i.test(n) || (/Station/.test(n) && !/LRT|Terminal|@|Bus/.test(n));
 const FARE = { adult: 4.0, youth: 2.65 }, WALK = 1.25, MAXW = 750;

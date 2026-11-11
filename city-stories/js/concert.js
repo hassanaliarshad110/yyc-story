@@ -1,11 +1,12 @@
 // A concert at the Scotiabank Saddledome every night: a stage with lights and a big screen, a dancing crowd,
 // and "Under One Sky" playing (louder the closer you get).
+import { solidStage } from './stagekit.js?v=11111647';
 import * as THREE from 'three';
-import { drawLyricsOn } from './lyrics.js';
-import { Character, HAT_COLORS } from './rig.js';
-import { ground } from './terrain.js';
-import { rotY } from './player.js';
-import { Dancers } from './dancers.js';
+import { drawLyricsOn } from './lyrics.js?v=11111647';
+import { Character, HAT_COLORS } from './rig.js?v=11111647';
+import { ground } from './terrain.js?v=11111647';
+import { rotY } from './player.js?v=11111647';
+import { Dancers } from './dancers.js?v=11111647';
 
 export const isConcertTime = clock => clock >= 19 || clock < 3;
 const SKIN = [0x8d5a3b, 0xb07a52, 0xc69373, 0xe1b899, 0x5c3a24, 0xa4704e];
@@ -51,6 +52,8 @@ export class Concert {
     const band = [[0, -3], [-6, -5], [6, -5]].map(([ax, ay]) => { const [x, y] = this.local(ax, ay); return { x, y, h: this.face, z: 1.7 }; });
     this.band = new Dancers(this.scene, band, { seed: 5 });
     const mic = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.5, 6), truss); mic.position.set(0, 2.45, -2.5); g.add(mic);
+    // solid: deck (front steps), speakers, the screen; take the mic and the show is yours
+    this.kit = solidStage({ x: this.x, y: this.y, face: this.face, W: 26, D: 12, deckH: 1.7, g, band: this.band, name: 'SADDLEDOME', micAy: -2.5, parts: [[-15.5, -3, 3, 2.4, 6], [15.5, -3, 3, 2.4, 6], [0, -11.5, 17, 0.6, 11.5]] });
     const crowd = [];
     for (let i = 0; i < this.n; i++) {
       const row = Math.floor(i / 7), col = i % 7, ax = (col - 3) * 2.6 + (H(i, 8) - 0.5) * 1.4 + (row % 2) * 1.3, ay = 4 + row * 2.4 + (H(i, 9) - 0.5) * 1.0;
@@ -65,13 +68,13 @@ export class Concert {
     g.fillStyle = grd; g.fillRect(0, 0, W, Hh);
     for (let i = 0; i < 32; i++) { const v = 0.25 + 0.75 * Math.abs(Math.sin(t * 6 + i * 0.7) * Math.sin(t * 2.3 + i * 0.31)); g.fillStyle = `hsla(${(i * 11 + t * 60) % 360},90%,60%,0.75)`; g.fillRect(8 + i * 15.6, Hh - v * 120, 11, v * 120); }
     g.fillStyle = '#fff'; g.font = '800 54px "Segoe UI", Roboto, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('UNDER ONE SKY', W / 2, 70);
-    g.font = '600 26px "Segoe UI", Roboto, sans-serif'; g.fillText('LIVE TONIGHT · SADDLEDOME', W / 2, 118);
+    g.font = '600 26px "Segoe UI", Roboto, sans-serif'; g.fillText(this.kit && this.kit.performing ? '🎤 LIVE ON STAGE: ' + (this.kit.who || 'YOU') : 'LIVE TONIGHT · SADDLEDOME', W / 2, 118);
     drawLyricsOn(g, W);            // the song's words on the big screen while it plays
     this.tex.needsUpdate = true;
   }
   // returns how loud the concert should be where the player is (0..1)
   update(dt, px, py, clock) {
-    const d = Math.hypot(px - this.x, py - this.y), night = isConcertTime(clock);
+    const d = Math.hypot(px - this.x, py - this.y), night = isConcertTime(clock) || !!(this.kit && this.kit.performing);
     if (!this.built) { if (d < 900) this.build(); else return 0; }
     if (night !== this.on) this.setVisible(night);
     if (!night) return 0;
@@ -82,6 +85,7 @@ export class Concert {
       this.wash[0].color.setHSL((this.t * 0.1) % 1, 1, 0.5); this.wash[1].color.setHSL((this.t * 0.1 + 0.5) % 1, 1, 0.5);
       if ((this.st = (this.st || 0) - dt) <= 0) { this.st = 0.12; this.drawScreen(this.t); }
     }
+    if (this.kit.performing) return 1;
     const v = Math.max(0, Math.min(1, 1 - (d - 30) / 170)); return v * v;      // full in front of the stage, silent 200 m away
   }
 }

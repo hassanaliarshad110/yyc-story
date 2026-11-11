@@ -1,6 +1,6 @@
 // Health: cars, buses and trains hurt you, and so do other players' shots (ten shots and you're out). At zero you
 // sit out 5 seconds, then come back a few metres away with full health.
-import { toast } from './hud.js';
+import { toast } from './hud.js?v=11111647';
 let G = null, bar = null, fill = null, inv = 0, regenT = 0;
 export function initHealth(game) {
   G = game; game.hp = 100;

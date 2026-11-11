@@ -1,8 +1,8 @@
 // Streams 500 m map tiles around the player and turns them into 3D meshes plus collision data.
 import * as THREE from 'three';
-import { MAT, nearFade } from './materials.js';
-import { loader } from './gltf.js';
-import { TER, ground, gl } from './terrain.js';
+import { MAT, nearFade } from './materials.js?v=11111647';
+import { loader } from './gltf.js?v=11111647';
+import { TER, ground, gl } from './terrain.js?v=11111647';
 
 export const L = { BLD: 1, ROAD: 2, PATH: 3, RAIL: 4, AREA: 5, WATER: 6, WWAY: 7, POI: 8, STOP: 9, BARR: 10, TREE: 11 };
 const dec = new TextDecoder();
@@ -230,6 +230,8 @@ const LIGHT_COLS = [0x3aa0ff, 0xb05aff, 0xff4a7a, 0xffb02a, 0x2affd0, 0xf2f6ff, 
 export const HOUSES = { place: null, drop: null };
 // extra walkable surfaces (CTrain platforms): oriented boxes { x, y, fx, fy, hl, hw, top }
 export const PLATFORMS = [];
+// more roofs from elsewhere (the landmark models): fn(x, y) -> height or null
+export const ROOF_EXTRA = { fn: null };
 // buildings rebuilt as other models (shopping plazas): an oriented box (centre, length, depth, rotation) on a 200 m grid
 const SKIPG = new Map();
 export function addSkip(x, y, r, L, D, rot) {
@@ -1400,6 +1402,8 @@ export class TileManager {
       const dx = x - P.x, dy = y - P.y; if (Math.abs(dx) > P.hl + P.hw || Math.abs(dy) > P.hl + P.hw) continue;
       if (Math.abs(dx * P.fx + dy * P.fy) <= P.hl && Math.abs(dx * P.fy - dy * P.fx) <= P.hw && P.top <= cur + Math.max(step, 1.35) && P.top > best) best = P.top;      // you can always step up onto a platform
     }
+    // up on a roof (out of the helicopter, off a tower): stand on it
+    if (!only && cur - g0 > 1.5) { const r = this.roofAt(x, y); if (r != null && r <= cur + Math.max(step, 0.6) && r > best) best = r; }
     if (lift && best === g0) for (const t of this.tilesNear(x, y, 40)) { if (!t.pave) continue; const l = t.pave.lift(x - t.ox, y - t.oy); if (l) return g0 + l; }
     return best;
   }
@@ -1488,7 +1492,12 @@ export class TileManager {
     }
     return { x, y, moved: false };
   }
+  // the highest roof at (x, y): the City's buildings and the landmark models (towers, the Saddledome...)
   roofAt(x, y) {
+    const a = this.roofAt0(x, y), b = ROOF_EXTRA.fn ? ROOF_EXTRA.fn(x, y) : null;
+    return a == null ? b : b == null ? a : Math.max(a, b);
+  }
+  roofAt0(x, y) {
     // the City's 3D buildings: the highest roof triangle over (x, y), from each tile's 2.5 m roof grid
     let best = -1e9, any = false;
     for (const t of this.tilesNear(x, y, 60)) {

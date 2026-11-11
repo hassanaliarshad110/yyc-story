@@ -1,5 +1,5 @@
 // In-game question box (instead of the browser's pop-ups, which show the site's address)
-import { tr } from './i18n.js';
+import { tr } from './i18n.js?v=11111647';
 let box = null;
 function build() {
   box = document.createElement('div'); box.id = 'ask'; box.hidden = true;

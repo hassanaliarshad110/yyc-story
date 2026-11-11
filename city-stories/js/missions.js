@@ -1,18 +1,18 @@
 // The story: ten missions, each teaching one City of Calgary service, set at real places.
 import * as THREE from 'three';
-import { standY } from './tiles.js';
-import { say, card, quiz, toast, setObjective, setObjDist, setPrompt, found } from './hud.js';
-import { app311, appHelp, appShop } from './phone.js';
-import { makeMarker } from './actors.js';
-import { loadHuman, humanReady } from './humans.js';
-import { Character } from './rig.js';
-import { sfx } from './sound.js';
-import { ground } from './terrain.js';
-import { wardAt, communityAt } from './world.js';
-import { dirOf } from './player.js';
-import { STORIES, PLACES, titleOf } from './stories.js';
-import { tx, tr, rtl } from './i18n.js';
-import { speak, stopVoice } from './voice.js';
+import { standY } from './tiles.js?v=11111647';
+import { say, card, quiz, toast, setObjective, setObjDist, setPrompt, found } from './hud.js?v=11111647';
+import { app311, appHelp, appShop } from './phone.js?v=11111647';
+import { makeMarker } from './actors.js?v=11111647';
+import { loadHuman, humanReady } from './humans.js?v=11111647';
+import { Character } from './rig.js?v=11111647';
+import { sfx } from './sound.js?v=11111647';
+import { ground } from './terrain.js?v=11111647';
+import { wardAt, communityAt } from './world.js?v=11111647';
+import { dirOf } from './player.js?v=11111647';
+import { STORIES, PLACES, titleOf } from './stories.js?v=11111647';
+import { tx, tr, rtl } from './i18n.js?v=11111647';
+import { speak, stopVoice } from './voice.js?v=11111647';
 const $cine = () => document.getElementById('cine');
 const angDiff = (a, b) => { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
 

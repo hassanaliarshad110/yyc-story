@@ -1,7 +1,7 @@
 // Skinned characters: the hero from Grand Chori Karachi (slimmed for phones) and smooth procedural people,
 // all on the same 19-bone skeleton with walk, run, idle and sit poses.
 import * as THREE from 'three';
-import { KC } from './kc.js';
+import { KC } from './kc.js?v=11111647';
 
 const b64u8 = s => { const b = atob(s), a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; };
 const sst = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };

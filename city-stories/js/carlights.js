@@ -26,25 +26,26 @@ const HEAD = [1.0, 0.93, 0.78], TAIL = [1.0, 0.1, 0.06], BEAM = [0.85, 0.78, 0.6
 // add the lights to a car (once); bounds are measured on the model as it was built (front = +z)
 export function addLights(mesh) {
   const u = mesh.userData; if (u.lights) return u.lights;
-  const rot = mesh.rotation.clone(), pos = mesh.position.clone(); mesh.rotation.set(0, 0, 0); mesh.position.set(0, 0, 0); mesh.updateMatrixWorld(true);
+  // measured in the car's own frame (its own scale too: the lights are its children and get scaled with it)
+  const rot = mesh.rotation.clone(), pos = mesh.position.clone(), scl = mesh.scale.clone(), par = mesh.parent; if (par) par.remove(mesh); mesh.rotation.set(0, 0, 0); mesh.position.set(0, 0, 0); mesh.scale.set(1, 1, 1); mesh.updateMatrixWorld(true);
   const bb = new THREE.Box3(); mesh.traverse(o => { if (o.isMesh && o.name !== 'lights') { o.geometry.computeBoundingBox && !o.geometry.boundingBox && o.geometry.computeBoundingBox(); if (o.geometry.boundingBox) bb.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld)); } });
-  mesh.rotation.copy(rot); mesh.position.copy(pos); mesh.updateMatrixWorld(true);
+  mesh.rotation.copy(rot); mesh.position.copy(pos); mesh.scale.copy(scl); if (par) par.add(mesh); mesh.updateMatrixWorld(true);
   if (bb.isEmpty()) return null;
   const bike = u.kind === 'bike', H = bb.max.y - bb.min.y, hw = (bb.max.x - bb.min.x) / 2, cx = (bb.max.x + bb.min.x) / 2;
   const P = [], C = [], UV = [], I = [];
   const quad = (pts, col, uv) => { const b = P.length / 3; for (let k = 0; k < 4; k++) { P.push(...pts[k]); C.push(...col); UV.push(...uv[k]); } I.push(b, b + 1, b + 2, b, b + 2, b + 3); };
   const DOT = [[0, 0], [0.5, 0], [0.5, 1], [0, 1]];
   // a glow facing out of the front (s = 1) or back (s = -1)
-  const lamp = (x, y, z, w, h, col, s) => quad([[x - w / 2, y - h / 2, z], [x + w / 2, y - h / 2, z], [x + w / 2, y + h / 2, z], [x - w / 2, y + h / 2, z]].map(p => (p[2] += 0.04 * s, p)), col, DOT);
-  const fy = bb.min.y + H * (bike ? 0.68 : 0.42), ry = bb.min.y + H * (bike ? 0.55 : 0.55), fz = bb.max.z, rz = bb.min.z;
-  if (bike) { lamp(cx, fy, fz, 0.5, 0.42, HEAD, 1); lamp(cx, ry, rz, 0.3, 0.24, TAIL, -1); }
+  const lamp = (x, y, z, w, h, col, s) => quad([[x - w / 2, y - h / 2, z], [x + w / 2, y - h / 2, z], [x + w / 2, y + h / 2, z], [x - w / 2, y + h / 2, z]].map(p => (p[2] += 0.01 * s, p)), col, DOT);
+  const fy = bb.min.y + H * (bike ? 0.68 : 0.42), ry = bb.min.y + H * (bike ? 0.55 : 0.55), fz = bb.max.z - (bike ? 0.1 : 0.24), rz = bb.min.z + (bike ? 0.12 : 0.32);      // set into the corners of the body (the nose sticks out past the lamps)
+  if (bike) { lamp(cx, fy, fz, 0.32, 0.26, HEAD, 1); lamp(cx, ry, rz, 0.2, 0.16, TAIL, -1); }
   else {
-    const lx = Math.max(0.3, hw - 0.3);
-    for (const sx of [-1, 1]) { lamp(cx + sx * lx, fy, fz, 0.6, 0.42, HEAD, 1); lamp(cx + sx * lx, ry, rz, 0.42, 0.28, TAIL, -1); }
+    const lx = Math.max(0.3, hw - 0.42);
+    for (const sx of [-1, 1]) { lamp(cx + sx * lx, fy, fz, 0.36, 0.24, HEAD, 1); lamp(cx + sx * lx, ry, rz, 0.3, 0.18, TAIL, -1); }
   }
   // the beam on the road: from the bumper to ~11 m ahead
   const gy = bb.min.y + 0.24, bw = bike ? 2.6 : Math.max(3.2, hw * 3.2), L = bike ? 9 : 11;
-  quad([[cx - bw / 2 * 0.45, gy, fz - 0.2], [cx + bw / 2 * 0.45, gy, fz - 0.2], [cx + bw / 2, gy, fz + L], [cx - bw / 2, gy, fz + L]], BEAM, [[0.5, 0], [1, 0], [1, 1], [0.5, 1]]);
+  quad([[cx - bw / 2 * 0.45, gy, fz + 0.1], [cx + bw / 2 * 0.45, gy, fz + 0.1], [cx + bw / 2, gy, fz + L], [cx - bw / 2, gy, fz + L]], BEAM, [[0.5, 0], [1, 0], [1, 1], [0.5, 1]]);
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); g.setIndex(I);
   const m = new THREE.Mesh(g, mat()); m.renderOrder = 6; m.castShadow = false; m.name = 'lights';

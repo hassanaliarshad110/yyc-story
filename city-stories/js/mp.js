@@ -2,18 +2,18 @@
 // (you hear people near you, louder the closer they are, from the side they're on). Positions and chat go through
 // the game's small server; voice goes straight between players (WebRTC) and is never recorded.
 import * as THREE from 'three';
-import { Character } from './rig.js';
-import { LOOKS } from './player.js';
-import { lightsOn } from './carlights.js';
-import { ground } from './terrain.js';
-import { toast } from './hud.js';
-import { makeCar3D } from './cars3d.js';
-import { makeKarachiVehicle, spinWheels } from './vehicles.js';
-import { makeCar } from './actors.js';
-import { TYRE_Y } from './player.js';
-import { makeHeli } from './heli.js';
-import { ask } from './ask.js';
-import { tr } from './i18n.js';
+import { Character } from './rig.js?v=11111647';
+import { LOOKS } from './player.js?v=11111647';
+import { lightsOn } from './carlights.js?v=11111647';
+import { ground } from './terrain.js?v=11111647';
+import { toast } from './hud.js?v=11111647';
+import { makeCar3D } from './cars3d.js?v=11111647';
+import { makeKarachiVehicle, spinWheels } from './vehicles.js?v=11111647';
+import { makeCar } from './actors.js?v=11111647';
+import { TYRE_Y } from './player.js?v=11111647';
+import { makeHeli } from './heli.js?v=11111647';
+import { ask } from './ask.js?v=11111647';
+import { tr } from './i18n.js?v=11111647';
 
 // set once the server is deployed (Cloudflare Workers)
 export const MP_URL = 'wss://yyc-city-stories-mp.hasssanaliarshad.workers.dev/room/calgary';

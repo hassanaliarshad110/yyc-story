@@ -3,9 +3,9 @@
 // band and a canopy along the side that faces the street, repeated along the building's real length. The plain block
 // from the City's data is left out (tiles.js skips it), and every shop's sign goes up on the band (business.js).
 import * as THREE from 'three';
-import { loader, warm } from './gltf.js';
-import { ground } from './terrain.js';
-import { addSkip } from './tiles.js';
+import { loader, warm } from './gltf.js?v=11111647';
+import { ground } from './terrain.js?v=11111647';
+import { addSkip } from './tiles.js?v=11111647';
 
 const SEG = 30;                       // metres of plaza per model section
 const VARIANTS = ['plaza_a', 'plaza_b'];

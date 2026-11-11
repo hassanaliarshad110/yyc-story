@@ -1,12 +1,12 @@
 // YYC City Stories: five people, five ways into Calgary. Each story is a list of missions that teach real City services.
 // Ali is new to Calgary, Natalia is a student, Chris is a senior and Jean has lived here for years.
-import { say, card, quiz, toast, setObjective, setPrompt, found } from './hud.js';
-import { appHelp, appShop, randomAddressNear } from './phone.js';
-import { businessesNear } from './business.js';
-import { SPEED_LIMIT } from './tiles.js';
-import { wardAt, communityAt } from './world.js';
-import { LANG } from './i18n.js';
-import { prepareSong, playSongVideo, theEnd } from './songvideo.js';
+import { say, card, quiz, toast, setObjective, setPrompt, found } from './hud.js?v=11111647';
+import { appHelp, appShop, randomAddressNear } from './phone.js?v=11111647';
+import { businessesNear } from './business.js?v=11111647';
+import { SPEED_LIMIT } from './tiles.js?v=11111647';
+import { wardAt, communityAt } from './world.js?v=11111647';
+import { LANG } from './i18n.js?v=11111647';
+import { prepareSong, playSongVideo, theEnd } from './songvideo.js?v=11111647';
 
 // real places used by the stories (metres from City Hall; City of Calgary open data and OpenStreetMap)
 export const PLACES = {

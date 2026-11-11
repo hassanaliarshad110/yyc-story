@@ -1,9 +1,9 @@
 // Always-loaded city layers: base ground, big parks and rivers, far roads, the downtown skyline,
 // plus lookups (which community / ward am I in, nearest place of a kind).
 import * as THREE from 'three';
-import { MAT } from './materials.js';
-import { buildFlat, buildRibbons, buildBuildings, buildB3D, AREA_COL, AREA_Y } from './tiles.js';
-import { TER, ground } from './terrain.js';
+import { MAT } from './materials.js?v=11111647';
+import { buildFlat, buildRibbons, buildBuildings, buildB3D, AREA_COL, AREA_Y } from './tiles.js?v=11111647';
+import { TER, ground } from './terrain.js?v=11111647';
 
 export function toLatLon(world, x, y) {
   const p = world.proj; return [p.lat0 + y / p.ky, p.lon0 + x / p.kx];

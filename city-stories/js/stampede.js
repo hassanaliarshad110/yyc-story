@@ -2,12 +2,13 @@
 // (Ferris wheel, swing ride, food and game booths, string lights), the Grandstand Show on the track in front of the
 // Grandstand, a country music stage, an entrance arch, fireworks every night and big crowds in cowboy hats.
 // Downtown gets a street party stage at Olympic Plaza. Crowds are instanced (one draw call per body part).
+import { solidStage } from './stagekit.js?v=11111647';
 import * as THREE from 'three';
-import { drawLyricsOn } from './lyrics.js';
-import { Character, HAT_COLORS } from './rig.js';
-import { ground } from './terrain.js';
-import { rotY } from './player.js';
-import { Dancers } from './dancers.js';
+import { drawLyricsOn } from './lyrics.js?v=11111647';
+import { Character, HAT_COLORS } from './rig.js?v=11111647';
+import { ground } from './terrain.js?v=11111647';
+import { rotY } from './player.js?v=11111647';
+import { Dancers } from './dancers.js?v=11111647';
 
 export const STAMPEDE = { x: 420, y: -820 };             // the middle of Stampede Park (metres from City Hall)
 export const PARK_SPOTS = {
@@ -161,6 +162,8 @@ class Stage {
     this.front = new Dancers(parent, front, { hats: true, seed: o.seed + 7 });
     const mic = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.5, 6), truss); mic.position.set(0, 2.35, -2); g.add(mic);
     this.t = H(o.seed, 9) * 10; this.st = 0;
+    // solid: the deck (up the front steps), the speakers and the screen wall; the mic is yours if you want it
+    this.kit = solidStage({ x, y, face, W, D, deckH: 1.6, g, band: this.band, name: o.title, micAy: -2, parts: [[-W / 2 - 1.8, -2.5, 2.6, 2.2, 5], [W / 2 + 1.8, -2.5, 2.6, 2.2, 5], [0, -D + 0.5, sw + 1, 0.6, 1.6 + sh + 2]] });
   }
   draw(t) {
     const g = this.cx, W = 512, Hh = 256, o = this.o;
@@ -169,12 +172,12 @@ class Stage {
     for (let i = 0; i < 32; i++) { const v = 0.25 + 0.75 * Math.abs(Math.sin(t * 6 + i * 0.7) * Math.sin(t * 2.3 + i * 0.31)); g.fillStyle = `hsla(${(i * 11 + t * 60) % 360},90%,60%,0.7)`; g.fillRect(8 + i * 15.6, Hh - v * 110, 11, v * 110); }
     g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.font = '800 50px "Segoe UI", Roboto, sans-serif'; g.fillText(o.screen, W / 2, 66);
-    g.font = '600 26px "Segoe UI", Roboto, sans-serif'; g.fillText(o.screenSub, W / 2, 116);
-    if (!o.quiet) drawLyricsOn(g, W);            // the song's words on the big screen while it plays
+    g.font = '600 26px "Segoe UI", Roboto, sans-serif'; g.fillText(this.kit && this.kit.performing ? '🎤 LIVE ON STAGE: ' + (this.kit.who || 'YOU') : o.screenSub, W / 2, 116);
+    if (!o.quiet || (this.kit && this.kit.performing)) drawLyricsOn(g, W);            // the song's words on the big screen while it plays
     this.tex.needsUpdate = true;
   }
   update(dt, near, night, live) {
-    this.t += dt;
+    this.t += dt; if (this.kit && this.kit.performing) live = true;      // you're on: the show is on, whatever the time
     for (const b of this.beams) b.visible = night && live;
     this.wash.intensity = night && live ? 30 : 0;
     if (!near) return;
@@ -450,7 +453,7 @@ export class Stampede {
       const near = dPark < 900;
       if (near) {
         if (dPark < 600 || (this._ct = (this._ct || 0) + 1) % 3 === 0) this.crowd.update(dPark < 600 ? dt : dt * 3, px, py);
-        for (const s of this.stages) { const d = Math.hypot(px - s.x, py - s.y); s.update(dt, d < 500, night, live); if (live) level = Math.max(level, stageVolume(d)); }
+        for (const s of this.stages) { const d = Math.hypot(px - s.x, py - s.y); s.update(dt, d < 500, night, live); if (live || s.kit.performing) level = Math.max(level, s.kit.performing ? 1 : stageVolume(d)); }
         // the Ferris wheel and swing ride
         const f = this.ferris; f.a += dt * 0.09; f.wheel.rotation.x = f.a;
         this.gondolas.forEach((gd, k) => { const a = f.a + k / this.gondolas.length * Math.PI * 2; gd.position.set(0, f.HUB + Math.cos(a) * f.R, Math.sin(a) * f.R); });
@@ -467,7 +470,8 @@ export class Stampede {
     if (plaza) {
       const d = Math.hypot(px - this.plazaStage.x, py - this.plazaStage.y), near = d < 400;
       if (near) { this.plazaCrowd.update(dt, px, py); for (const c of this.cooks) c.animate(dt, { talk: true }); }
-      this.plazaStage.update(dt, near, night, false);      // the street party has no live band: the song plays only at Stampede Park
+      this.plazaStage.update(dt, near, night, false);      // the street party has no live band: the song plays only at Stampede Park (unless you take the mic)
+      if (this.plazaStage.kit.performing) level = 1;
     }
     return (this.level = Math.max(0, Math.min(1, level)));
   }

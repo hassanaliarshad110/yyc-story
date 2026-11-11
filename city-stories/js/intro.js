@@ -1,6 +1,6 @@
 // The opening: "Calgary Insight presents", the YYC City Stories title with the song from the chorus,
 // the language choice and the character choice (Ali, Natalia, Chris, Jean).
-import { LANGS, LANG, setLang, tr, pick, dirOfLang } from './i18n.js';
+import { LANGS, LANG, setLang, tr, pick, dirOfLang } from './i18n.js?v=11111647';
 
 const $ = s => document.querySelector(s);
 const AV = { ali: 'linear-gradient(#15100d 30%, #b07a52 30% 64%, #1f6fd1 64%)', natalia: 'linear-gradient(#4a2e1a 36%, #d9a77e 36% 64%, #7a3fa0 64%)', chris: 'linear-gradient(#d2d0cc 30%, #e0b896 30% 64%, #6b5a46 64%)', jean: 'linear-gradient(#15100d 30%, #8d5a3b 30% 64%, #2f8f5a 64%)', leo: 'linear-gradient(#a0703a 30%, #e8c4a0 30% 64%, #e07020 64%)' };
