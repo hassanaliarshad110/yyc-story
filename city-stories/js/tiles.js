@@ -1164,8 +1164,13 @@ export class TileManager {
     while (this.queue.length && (n === 0 || performance.now() - t0 < ms)) { this.pump(); n++; }
     return n;
   }
-  // build at most one tile per call (keeps frames smooth)
+  // build at most one tile per call (keeps frames smooth); a tile that fails to build is dropped so it loads again
   pump() {
+    const job = this.queue[0];
+    try { return this.pumpOne(); }
+    catch (e) { console.warn('tile build', job && job.k, e); if (job) { const t = this.tiles.get(job.k); if (t && !t.group) this.tiles.delete(job.k); else if (t) t.upgrading = false; } return true; }
+  }
+  pumpOne() {
     const job = this.queue.shift(); if (!job) return false;
     let t = this.tiles.get(job.k); if (!t) return true;
     const lite = job.lite, prev = t.group ? t : null;

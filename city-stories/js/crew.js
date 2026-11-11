@@ -27,7 +27,8 @@ export class RivalCrew {
   constructor(game, scene, games, n = 20) {
     if (game.mobile) n = 12;
     this.g = game; this.scene = scene; this.games = games; this.n = n; this.bots = []; this.on = true; this.t = 0;
-    for (const l of LOOKS) loadHuman(l);
+    this.looks = game.mobile ? LOOKS.slice(0, 4) : LOOKS;      // fewer different models on phones (memory)
+    for (const l of this.looks) loadHuman(l);
   }
   toggle() {
     this.on = !this.on; const b = this.games.$('#g-crew'); if (b) b.classList.toggle('off', !this.on);
@@ -45,10 +46,10 @@ export class RivalCrew {
     return null;
   }
   build() {
-    if (!LOOKS.every(humanReady)) return false;
+    if (!this.looks.every(humanReady)) return false;
     const p = this.g.player;
     for (let i = 0; i < this.n; i++) {
-      const team = i % 2 ? 'b' : 'r', ch = new Character({ glb: LOOKS[i % LOOKS.length], gscale: 0.96 + (i % 5) * 0.02 });
+      const team = i % 2 ? 'b' : 'r', ch = new Character({ glb: this.looks[i % this.looks.length], gscale: 0.96 + (i % 5) * 0.02 });
       ch.g.add(tagSprite(NAMES[i], team)); ch.g.visible = false; this.scene.add(ch.g);
       const b = { id: 'crew' + i, bot: true, name: NAMES[i], team, ch, x: p.x, y: p.y, h: 0, gy: 0, hp: 100, kills: 0, deadT: 0, cool: Math.random(), w: [1, 3, 4, 5, 6, 1, 5][i % 7], t: Math.random() * 10, tgt: null, home: null, v: 0 };
       this.bots.push(b); this.place(b);

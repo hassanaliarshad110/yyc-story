@@ -11,7 +11,7 @@ export function loadCrowdModels() { if (asked) return; asked = true; for (const 
 
 export class Dancers {
   // spots: [{ x, y, h }] in map metres; opts: { hats, seed }
-  constructor(parent, spots, opts = {}) { this.parent = parent; this.spots = spots; this.o = opts; this.list = null; this.t = 0; loadCrowdModels(); }
+  constructor(parent, spots, opts = {}) { this.parent = parent; this.spots = spots; this.o = opts; this.list = null; this.t = 0; }      // the models load only once you're close
   build() {
     const names = [...NPCS, ...EXTRA], seed = this.o.seed || 1;
     if (!names.every(humanReady)) return false;
@@ -25,7 +25,7 @@ export class Dancers {
   }
   // near: close enough to animate; on: the show is on (dancing) or off (standing about)
   update(dt, near, on, dance = on) {
-    if (!this.list) { if (!near || !this.build()) return; }
+    if (!this.list) { if (!near) return; loadCrowdModels(); if (!this.build()) return; }
     for (const [c] of this.list) c.g.visible = on;
     if (!near || !on) return;
     this.t += dt;
