@@ -71,6 +71,7 @@ export async function loadHumans(first = []) {
 }
 
 const LOCO = ['idle', 'walk', 'run'];
+export const VIEW = new THREE.Vector3();      // the camera, for distance-based animation rates (set each frame)
 const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3(), _v4 = new THREE.Vector3(), _v5 = new THREE.Vector3(), _v6 = new THREE.Vector3();
 const _q0 = new THREE.Quaternion(), _q1 = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _a = new THREE.Vector3(), _b = new THREE.Vector3();
 // turn a bone (in the world) so it points from itself towards `dir`, blended by w
@@ -129,6 +130,15 @@ export class Human {
       else if (t < 0.7) { dir = _v3.copy(f).addScaledVector(up, -0.3).normalize(); w = 1 - (t - 0.42) / 0.28; fore = _v4.copy(dir); }
       else { this.pose = null; return; }
     } else if (P.aim) { dir = _v3.copy(f).addScaledVector(up, -0.08).normalize(); w = P.aim; fore = dir; }
+    else if (P.ride) {             // both hands forward and a little down, on the handlebars
+      const side = _v6.set(1, 0, 0).applyQuaternion(g.getWorldQuaternion(_q0));
+      for (const [A, F, Hd, s] of [[B.RightArm, B.RightForeArm, B.RightHand, -1], [B.LeftArm, B.LeftForeArm, B.LeftHand, 1]]) {
+        if (!A || !F || !Hd) continue;
+        point(A, F, _v3.copy(f).multiplyScalar(0.75).addScaledVector(up, -0.55).addScaledVector(side, s * 0.18).normalize(), 1);
+        point(F, Hd, _v4.copy(f).addScaledVector(up, -0.25).addScaledVector(side, s * 0.1).normalize(), 1);
+      }
+      return;
+    }
     if (!dir) return;
     point(B.RightArm, B.RightForeArm, dir, w); point(B.RightForeArm, B.RightHand, fore || dir, w);
     if (P.aim && B.LeftArm && B.LeftForeArm && B.LeftHand) {       // both hands on the gun
@@ -138,10 +148,17 @@ export class Human {
   }
   // st: { speed (m/s), run, sit, talk, wave, dance, syncT, offset }  -> true on each footstep
   animate(dt, st = {}) {
+    // people far from the camera move on fewer frames (every 2nd beyond 40 m, every 4th beyond 80 m): on a phone the
+    // skinned characters cost more than the buildings
+    const e = this.g.matrixWorld.elements, dd = (e[12] - VIEW.x) ** 2 + (e[13] - VIEW.y) ** 2 + (e[14] - VIEW.z) ** 2, every = dd > 6400 ? 4 : dd > 1600 ? 2 : 1;
+    this.skipT = (this.skipT || 0) + dt;
+    if (every > 1 && ((this.fc = (this.fc || 0) + 1) % every) !== 0) return false;
+    dt = Math.min(0.25, this.skipT); this.skipT = 0;
     this.t += dt; const sp = st.speed || 0, W = {};
     for (const k in this.acts) W[k] = 0;
     let want;
-    if (st.sit) want = 'sit';
+    if (st.sit || st.ride) want = 'sit';      // on a motorbike: seated, hands on the bars (pose)
+    if (st.ride) { if (!this.pose || !this.pose.ride) this.pose = { ride: 1 }; } else if (this.pose && this.pose.ride) this.pose = null;
     else if (sp > 0.3) want = st.run || sp > 3.6 ? 'run' : 'walk';
     else if (st.dance != null) want = 'dance';
     else if (st.wave) want = 'wave';

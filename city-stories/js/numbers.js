@@ -36,8 +36,12 @@ function blob(ix, iy) {
 
 // walls of a tile: from the 3D buildings if loaded, else the 2D footprints (base = ground, top = height)
 function tileWalls(t, gl) {
-  if (t.walls3d) return t.walls3d;
-  const out = [], B = t.layers && t.layers[1]; if (!B) return out;
+  // the 3D buildings' walls, plus the newer houses built from the map's footprints (they aren't in the 3D data)
+  if (t.walls3d) return t.camBld && t.camBld.length ? t.walls3d.concat(footWalls(t.camBld, gl)) : t.walls3d;
+  return footWalls(t.layers && t.layers[1], gl);
+}
+function footWalls(B, gl) {
+  const out = []; if (!B) return out;
   for (const f of B) {
     const r = f.rings[0], n = r.length / 2; if (n < 3) continue;
     let A = 0; for (let i = 0; i < n; i++) { const j = (i + 1) % n; A += r[i * 2] * r[j * 2 + 1] - r[j * 2] * r[i * 2 + 1]; }

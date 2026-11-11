@@ -2,6 +2,7 @@
 // the city bus and the CTrain car. Each is fitted to its real length, width and height and faces +z
 // like the other vehicles. Until a model has loaded, the simpler vehicles stand in.
 import * as THREE from 'three';
+import { shiny } from './graphics.js';
 import { loader, warm } from './gltf.js';
 
 
@@ -31,7 +32,7 @@ async function load(kind) {
   geo.translate(-c.x, -b.min.y, -c.z); geo.scale(R.W / s.x, R.H / s.y, R.L / s.z);
   geo.computeBoundingSphere(); geo.userData.shared = true;
   const m = mesh.material;
-  READY[kind] = { geo, mat: new THREE.MeshLambertMaterial({ map: m.map }), wheels: WHEEL_R[kind] ? axleWheels(geo, WHEEL_R[kind]) : null };
+  READY[kind] = { geo, mat: shiny(new THREE.MeshLambertMaterial({ map: m.map })), wheels: WHEEL_R[kind] ? axleWheels(geo, WHEEL_R[kind]) : null };
 }
 // tyre radius by vehicle (m); the CTrain's wheels are hidden under its skirts
 const WHEEL_R = { pickup: 0.42, offroad: 0.43, police: 0.38, peace: 0.39, bus: 0.5, sorento: 0.37, rondo: 0.33, veloster: 0.32 };

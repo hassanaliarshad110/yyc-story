@@ -4,7 +4,8 @@ import { makeCar } from './actors.js';
 import { spinWheels } from './vehicles.js';
 import { ground } from './terrain.js';
 import { L } from './tiles.js';
-import { dirOf, rotY, TYRE_Y } from './player.js';
+import { dirOf, rotY, TYRE_Y, BIKE_SEAT, BIKE_BACK } from './player.js';
+import { lightsOn } from './carlights.js';
 import { Character } from './rig.js';
 import { NPCS, humanReady } from './humans.js';
 
@@ -100,9 +101,10 @@ export class Traffic {
       if (d < 80 || d > 380) continue;
       const dir = p.oneway ? 1 : (Math.random() < 0.5 ? 1 : -1);
       const r0 = Math.random(), cops = this.cars.reduce((n, c) => n + (c.mesh.userData.police ? 1 : 0), 0), car = { mesh: makeCar(cops < 2 || r0 < 0.06 ? 'police' : r0 < 0.18 ? 'truck' : r0 < 0.4 ? 'bike' : Math.random() < 0.35 ? 'suv' : 'car'), piece: p, dir, s: Math.random() * p.len, v: SPEED[p.kind] * 0.7, x: 0, y: 0, h: 0, gy: 0, wait: 0 };
+      lightsOn(car.mesh, true);
       if (car.mesh.userData.kind === 'bike' && !car.mesh.userData.rider) {      // someone riding it
         const glb = NPCS[Math.random() * NPCS.length | 0], rider = new Character(humanReady(glb) ? { glb } : { skin: 0xc69373, shirt: 0x333a44, pants: 0x22262c, hair: 0x15100d });
-        const ks = car.mesh.scale.x || 1; rider.g.scale.setScalar(1 / ks); rider.g.position.set(0, -0.12 / ks, -0.12 / ks); rider.animate(0.02, { sit: true }); car.mesh.add(rider.g); car.mesh.userData.rider = rider;
+        const ks = car.mesh.scale.x || 1; rider.g.scale.setScalar(1 / ks); rider.g.position.set(0, BIKE_SEAT / ks, -BIKE_BACK / ks); rider.animate(0.02, { ride: true }); rider.animate(0.5, { ride: true }); car.mesh.add(rider.g); car.mesh.userData.rider = rider;
       }
       this.place(car);
       if (this.cars.some(o => Math.hypot(o.x - car.x, o.y - car.y) < 12)) continue;      // never spawn on top of another car

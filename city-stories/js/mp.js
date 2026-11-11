@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { Character } from './rig.js';
 import { LOOKS } from './player.js';
+import { lightsOn } from './carlights.js';
 import { ground } from './terrain.js';
 import { toast } from './hud.js';
 import { makeCar3D } from './cars3d.js';
@@ -105,7 +106,7 @@ export class Multiplayer {
     o.tx = p[0]; o.ty = p[1]; o.tz = p[2]; o.th = p[3]; o.mode = p[4]; o.anim = p[5]; o.sc = p[6] || 0; o.hp = p[7] ?? 100; o.seen = performance.now();
     o.ride = p[9] || '';
     if ((p[8] || '') !== (o.tm || '')) {       // their crew: the name tag turns red or blue
-      o.tm = p[8] || ''; if (o.tagS) o.ch.g.remove(o.tagS); o.tagS = tag((o.tm === 'r' ? '🔴 ' : o.tm === 'b' ? '🔵 ' : '') + name); o.ch.g.add(o.tagS);
+      o.tm = p[8] || ''; if (o.tagS) o.ch.g.remove(o.tagS); o.tagS = tag((o.tm === 'r' ? '🔴 ' : o.tm === 'b' ? '🔵 ' : o.tm === 'p' ? '🕊️ ' : '') + name); o.ch.g.add(o.tagS);
     }
   }
   drop(id) { const o = this.others.get(id); if (!o) return; this.scene.remove(o.ch.g); if (o.car) this.scene.remove(o.car); this.others.delete(id); }
@@ -170,7 +171,7 @@ export class Multiplayer {
       this.sendT = 0.16;
       const veh = player.mode === 'car' && player.car ? (player.car.mesh.userData.model || player.car.mesh.userData.kind || 'car') : '';
       const anim = player.mode === 'foot' ? (Math.abs(player.v) > 3.5 ? 'run' : Math.abs(player.v) > 0.3 ? 'walk' : 'idle') : veh ? 'v:' + String(veh).slice(0, 8) : player.mode;
-      const gm = this.g.games; this.send({ t: 'pos', x: player.x, y: player.y, z: player.mode === 'heli' && this.g.heli ? this.g.heli.alt : player.gy, h: player.h, mode: player.mode, anim, sc: this.g.score || 0, hp: this.g.hp ?? 100, tm: (gm && gm.team) || '', ride: (gm && gm.ride && gm.ride.id) || '' });
+      const gm = this.g.games; this.send({ t: 'pos', x: player.x, y: player.y, z: player.mode === 'heli' && this.g.heli ? this.g.heli.alt : player.gy, h: player.h, mode: player.mode, anim, sc: this.g.score || 0, hp: this.g.hp ?? 100, tm: gm && !gm.fight ? 'p' : (gm && gm.team) || '', ride: (gm && gm.ride && gm.ride.id) || '' });
     }
     const now = performance.now(), near = [];
     for (const o of this.others.values()) {
@@ -183,7 +184,7 @@ export class Multiplayer {
       o.ch.g.visible = o.mode === 'foot' || o.mode === undefined;
       // their car (or bike): the same model they're driving, where they are
       const vm = o.mode === 'heli' ? 'heli' : o.mode === 'car' && typeof o.anim === 'string' && o.anim.startsWith('v:') ? o.anim.slice(2) : null;
-      if (vm !== o.vm) { if (o.car) { this.scene.remove(o.car); o.car = null; } o.vm = vm; if (vm) { o.car = vm === 'heli' ? makeHeli() : makeCar3D(vm) || makeKarachiVehicle(vm) || makeCar('car'); this.scene.add(o.car); } }
+      if (vm !== o.vm) { if (o.car) { this.scene.remove(o.car); o.car = null; } o.vm = vm; if (vm) { o.car = vm === 'heli' ? makeHeli() : makeCar3D(vm) || makeKarachiVehicle(vm) || makeCar('car'); if (vm !== 'heli') lightsOn(o.car, true); this.scene.add(o.car); } }
       if (o.car && vm === 'heli') { o.car.position.set(o.x, o.z, -o.y); o.car.rotation.set(0, Math.PI - o.h, 0); const u = o.car.userData; o.spin = (o.spin || 0) + dt * 26; if (u.rotor) u.rotor.rotation.y = o.spin; if (u.trotor) u.trotor.rotation.x = o.spin * 1.7; }
       else if (o.car) { o.car.position.set(o.x, (o.z ?? ground(o.x, o.y)) + TYRE_Y, -o.y); o.car.rotation.y = Math.PI - o.h; if (o.car.userData.wheels) spinWheels(o.car, o.sp * dt); }
       o.ch.animate(dt, { speed: o.sp, run: o.anim === 'run' });

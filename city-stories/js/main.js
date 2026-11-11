@@ -14,7 +14,7 @@ import { initRealView, openReal, closeReal, realOpen } from './realview.js';
 import { initInput, readInput, input, onAction } from './input.js';
 import { makeCar } from './actors.js';
 import { loadHero } from './rig.js';
-import { loadHumans, humanReady, loadHuman } from './humans.js';
+import { loadHumans, humanReady, loadHuman, VIEW } from './humans.js';
 import { loadHouses, loadCityHall, updateHouses, setHouseRange, LM_NIGHT, updateLandmarks } from './houses3d.js';
 import { loadCars3D, makeCar3D } from './cars3d.js';
 import { WARM } from './gltf.js';
@@ -60,12 +60,17 @@ import { tr } from './i18n.js';
 import { Billboards, loadBillboards } from './billboards.js';
 import { Navigator, loadRoute } from './route.js';
 import { setHalloweenNight } from './halloween.js';
+import { setCarLightsNight } from './carlights.js';
+import { QUALITY, guessQuality, DynRes, FpsMeter, GradeShader, setEnvNight } from './graphics.js';
 
 const mobile = matchMedia('(pointer: coarse)').matches || innerWidth < 760;
 const saved = (() => { try { return JSON.parse(localStorage.getItem('yyc-settings')) || {}; } catch (e) { return {}; } })();
+// picture quality: Low / Medium / High, first guessed from the device (the first time, its shadows, glow and view distance too)
+const Q0 = QUALITY[saved.q] ? saved.q : guessQuality(mobile);
+if (!QUALITY[saved.q] && saved.v !== 2) { const P0 = QUALITY[Q0]; saved.shadows = P0.shadows; saved.glow = P0.glow; if (saved.v === 2) saved.radius = Math.min(saved.radius ?? P0.radius, P0.radius); }
 const game = window.game = { mobile, input,
   paused: false, clock: 9.0, name: 'Ayaan', look: 'ayaan', waypoint: null, rideVehicle: null,
-  settings: { v: 2, radius: saved.v === 2 ? (saved.radius ?? (mobile ? 2 : 3)) : Math.max(saved.radius || 0, mobile ? 2 : 3), shadows: saved.shadows ?? !mobile, photo: saved.photo ?? true, glow: saved.glow ?? true },
+  settings: { v: 2, radius: saved.v === 2 ? (saved.radius ?? (mobile ? 2 : 3)) : Math.max(saved.radius || 0, mobile ? 2 : 3), shadows: saved.shadows ?? !mobile, photo: saved.photo ?? true, glow: saved.glow ?? true, q: Q0, fps: !!saved.fps },
 };
 game.key = (() => { try { return localStorage.getItem('yyc-gkey') || GOOGLE_KEY; } catch (e) { return GOOGLE_KEY; } })();
 game.photoOn = false;          // the Google 3D city is not used in gameplay; the key is used for real street photos
@@ -73,7 +78,8 @@ game.photoOn = false;          // the Google 3D city is not used in gameplay; th
 // ---------------------------------------------------------------- renderer and scene
 const canvas = $('#c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: !mobile, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.25 : 1.75));
+const dyn = new DynRes(renderer, () => composer); game.dyn = dyn; const fpsMeter = new FpsMeter(); fpsMeter.show(game.settings.fps);
+const QP = () => QUALITY[game.settings.q] || QUALITY.medium;
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = game.settings.shadows; renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -88,19 +94,23 @@ Object.assign(sun.shadow.camera, { left: -140, right: 140, top: 140, bottom: -14
 sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.4;
 scene.add(sun); scene.add(sun.target);
 // night glow: windows, street lights and tower tops bloom softly after dusk (half resolution, off during the day)
-let composer = null, bloom = null;
+let composer = null, bloom = null, grade = null;
+dyn.setBase(Math.min(devicePixelRatio, QP().pr), QP().minScale);
 function glowSetup() {
   if (composer) return;
-  composer = new EffectComposer(renderer); composer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1 : 1.5)); composer.setSize(innerWidth, innerHeight);
+  // on computers the picture keeps its anti-aliasing through the effects (4x MSAA)
+  const rt = new THREE.WebGLRenderTarget(innerWidth, innerHeight, { type: THREE.HalfFloatType, samples: mobile ? 0 : 4 });
+  composer = new EffectComposer(renderer, rt); composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(innerWidth, innerHeight);
   composer.addPass(new RenderPass(scene, camera));
   // any NaN pixel (a bad normal somewhere) would be smeared over the whole screen by the bloom: zero it first
   composer.addPass(new ShaderPass({ uniforms: { tDiffuse: { value: null } }, vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: 'uniform sampler2D tDiffuse; varying vec2 vUv; void main() { vec4 c = texture2D(tDiffuse, vUv); if (!(c.r >= 0.0 && c.r < 1e4) || !(c.g >= 0.0 && c.g < 1e4) || !(c.b >= 0.0 && c.b < 1e4)) c = vec4(0.0, 0.0, 0.0, 1.0); gl_FragColor = c; }' }));
   bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), 0.35, 0.4, 0.86); composer.addPass(bloom);
   composer.addPass(new OutputPass());
+  grade = new ShaderPass(GradeShader); composer.addPass(grade);
 }
 game.setGlow = on => { game.settings.glow = on; saveSettings(); };
-addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); if (composer) composer.setSize(innerWidth, innerHeight); });
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); dyn.apply(); });
 
 // the Rocky Mountains on the western horizon: a painted range on a curved band far away (three copies, the middle one mirrored)
 function addMountains() {
@@ -175,7 +185,7 @@ async function boot() {
   game.mp = new Multiplayer(game, scene);       // play online: other players, chat and voice near you
   game.games = new Games(game, scene); game.games.show(false);
   if (!game.photoOn) { game.life = new Life(game, scene, { mobile }); setTimeout(() => ['kid_boy', 'kid_girl', 'kid_boy2'].forEach(loadHuman), 8000); }     // children playing, rabbits and the odd bear in the parks
-  game.people = new People(scene, tiles, { max: mobile ? 8 : 16, maxDowntown: mobile ? 18 : 40 });
+  game.people = new People(scene, tiles, { max: Math.round((mobile ? 8 : 16) * QP().crowd), maxDowntown: Math.round((mobile ? 18 : 40) * QP().crowd) });
   initHUD(world, game); initPhone(game); initRealView(game); initInput(canvas);
   game.updateMoney();
   intro.ready();
@@ -203,7 +213,7 @@ addEventListener('pointerdown', unlockAudio); addEventListener('keydown', unlock
 $('#btn-menu').onclick = async () => { if (!(await ask(tr('menuAsk')))) return; location.hash = 'menu'; location.reload(); };
 $('#btn-story').onclick = () => startGame('story');
 $('#btn-free').onclick = () => startGame('free');
-$('#btn-online').onclick = () => startGame('free');
+$('#btn-online').onclick = () => startGame('online');
 function startGame(mode) {
   $('#title').hidden = true; $('#hud').hidden = false; game.started = true; intro.stop(); music.title(false);      // no song in the game until you get in a car
   setTimeout(() => game.buses.build(scene), 1200);
@@ -220,9 +230,9 @@ function startGame(mode) {
     placeStart(i);                 // every story starts where its first (or next) mission begins
     missions.start(i);
   } else {
-    placeStart(); setObjective(tr('freeTitle'), tr('freeText'));
-    // free roam is online: other players, chat and voice, water fights and races
-    game.mode = 'free'; if (game.games) game.games.show(true);
+    placeStart(); if (mode === 'online') setObjective(tr('online'), 'Rival crews are out: first to 10 splats wins the round. Q switches weapon, F shoots.'); else setObjective(tr('freeTitle'), tr('freeText'));
+    // free roam is online and peaceful (meet, ride together, race); 🌐 Play online adds the crews and the splat fights
+    game.mode = 'free'; if (game.games) { game.games.show(true); game.games.setFight(mode === 'online'); }
     if (game.mp && !game.mp.on) { let n = ''; try { n = localStorage.getItem('yyc-mp-name') || ''; } catch (e) { } setTimeout(() => game.mp.join(n || undefined), 1500); }
   }
   placeHeli();                             // a helicopter next to you, whichever way you start
@@ -359,6 +369,13 @@ game.camera = camera;
 game.setRadius = r => { game.settings.radius = r; tiles.radius = r; scene.fog.far = fogFar(); saveSettings(); };
 const fogFar = () => 1000 + (game.settings.radius + (tiles ? tiles.far : 1)) * 600;
 game.setShadows = s => { game.settings.shadows = s; renderer.shadowMap.enabled = s; scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); saveSettings(); };
+game.setQuality = q => {
+  const P1 = QUALITY[q]; if (!P1) return; game.settings.q = q;
+  dyn.scale = 1; dyn.setBase(Math.min(devicePixelRatio, P1.pr), P1.minScale);
+  if (game.settings.shadows !== P1.shadows) game.setShadows(P1.shadows);
+  game.settings.glow = P1.glow; game.setRadius(P1.radius); saveSettings();
+};
+game.setFps = on => { game.settings.fps = on; fpsMeter.show(on); saveSettings(); };
 function saveSettings() { try { localStorage.setItem('yyc-settings', JSON.stringify(game.settings)); } catch (e) { } }
 game.findRoadSpot = (x, y, dmin, dmax) => {
   let best = null;
@@ -553,7 +570,7 @@ function loop(now) {
     for (const n of (missions ? missions.npcs : [])) if (!n.userData.gy) { const g = game.groundY(n.position.x, -n.position.z, null); if (g != null) { n.position.y = g; n.userData.gy = true; } }
   }
   { const sp = player.mode === 'foot' ? 0 : player.v || 0, d = dirOf(player.h); tiles.update(player.x, player.y, d[0] * sp, d[1] * sp); }
-  tiles.pumpFor(tiles.queue.length > 8 ? (mobile ? 10 : 14) : (mobile ? 5 : 8), player.x, player.y);
+  tiles.pumpFor(!game.started ? 40 : tiles.queue.length > 8 ? (mobile ? 10 : 14) : (mobile ? 5 : 8), player.x, player.y);
   if (game.started) game.signs.update(dt, player.x, player.y);
   if (game.started && game.r311 && player.mode !== 'heli') game.r311.update(dt, player.x, player.y);
   if (game.started && (game._homeT = (game._homeT || 0) - dt) <= 0) { game._homeT = 2; if (Math.hypot(player.x - P.home.x, player.y - P.home.y) < 320 && (!game.homeCars || game.homeCars.some(c => !c || c.dead) || !game.homeTree)) homeStreet(); }
@@ -569,16 +586,21 @@ function loop(now) {
     const ph = Math.floor(now / 160) % 4;
     for (const c of traffic.cars) { const b = c.mesh.userData.beacons; if (b) { b[0].visible = ph === 0 || ph === 2; b[1].visible = ph === 1 || ph === 3; } }
   }
-  updateCamera(dt);
+  updateCamera(dt); VIEW.copy(camera.position);
   updateSky(player.x, player.y);
   updateLandmarks(dt);
   sky.auroraNight = ((game.dayN || 0) - (game.clock % 24 < 12 ? 1 : 0)) % 2 === 0;
   sky.update(camera, game._skyArgs[0], game._skyArgs[1], game._sunDir, scene.fog.color, dt);
   if (game.photo) game.photo.update(player.x, player.y);
-  const night = 1 - (game.day ?? 1);
+  const night = 1 - (game.day ?? 1); setCarLightsNight(night);
   if (world.towerGlow) world.towerGlow(night, now / 1000);
-  if (game.settings.glow && night > 0.3) { glowSetup(); bloom.strength = Math.min(1, (night - 0.3) * 2) * 0.32; composer.render(dt); }
-  else renderer.render(scene, camera);
+  setEnvNight(night); dyn.tick(dt); fpsMeter.tick(dt, () => `${QP().name} · ${Math.round(renderer.getPixelRatio() * 100)}% · ${renderer.info.render.calls} draws`);
+  const glowOn = game.settings.glow && night > 0.3, gradeOn = QP().grade;
+  if (glowOn || gradeOn) {
+    glowSetup(); bloom.enabled = glowOn; if (glowOn) bloom.strength = Math.min(1, (night - 0.3) * 2) * 0.32;
+    grade.enabled = gradeOn; if (gradeOn) { const u = grade.uniforms; u.uTone.value = 1 - night * 0.5; u.uContrast.value = 0.4 - night * 0.15; u.uSat.value = 1.22 + night * 0.04; u.uVig.value = 0.32 + night * 0.12; }
+    composer.render(dt);
+  } else renderer.render(scene, camera);
   if (!game.started) return;
   // HUD
   if (now - hudT > 90) {

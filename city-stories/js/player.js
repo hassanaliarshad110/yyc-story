@@ -2,12 +2,13 @@
 import * as THREE from 'three';
 import { Character, heroReady } from './rig.js';
 import { spinWheels } from './vehicles.js';
+import { lightsOn } from './carlights.js';
 import { ground } from './terrain.js';
 import { syncHeli } from './heli.js';
 
 export const dirOf = h => [Math.sin(h), Math.cos(h)];           // (east, north)
 export const rotY = h => Math.PI - h;
-export const TYRE_Y = 0.2, FOOT_Y = 0.03;                 // road ribbons sit a little above the ground: wheels and feet rest on top
+export const TYRE_Y = 0.2, FOOT_Y = 0.03, BIKE_SEAT = 0.3, BIKE_BACK = 0.2;      // BIKE_SEAT: the rider's hips sit on the saddle, not in it                 // road ribbons sit a little above the ground: wheels and feet rest on top
 const SEAT_Y = 0.0;                                       // how far the sitting pose is lifted onto a bench seat
 export function angDiff(a, b) { let d = (b - a) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2; return d; }
 
@@ -39,8 +40,8 @@ export class Player {
       if (this.onBike) {          // sit on the motorbike, leaning into turns
         const lean = -this.steer * Math.min(1, Math.abs(this.v) / 15) * 0.35;
         this.car.mesh.rotation.z = lean; this.car.mesh.rotation.order = 'YXZ';
-        this.person.visible = true; this.person.position.set(this.x, this.gy - 0.12 + TYRE_Y, -this.y); this.person.rotation.set(-(this.pitch || 0), rotY(this.h), 0); this.person.rotation.order = 'YXZ'; this.person.rotation.z = lean;
-        const [dx, dy] = dirOf(this.h); this.person.position.x -= dx * 0.12; this.person.position.z += dy * 0.12;
+        this.person.visible = true; this.person.position.set(this.x, this.gy + BIKE_SEAT + TYRE_Y, -this.y); this.person.rotation.set(-(this.pitch || 0), rotY(this.h), 0); this.person.rotation.order = 'YXZ'; this.person.rotation.z = lean;
+        const [dx, dy] = dirOf(this.h); this.person.position.x -= dx * BIKE_BACK; this.person.position.z += dy * BIKE_BACK;
       } else this.person.visible = false;
     } else if (this.mode === 'foot') {
       this.person.visible = true; this.person.position.set(this.x, this.gy + FOOT_Y, -this.y); this.person.rotation.set(0, rotY(this.h), 0);
@@ -62,7 +63,7 @@ export class Player {
       this.walk(dt, inp, camHeading);
       if ((this.inT = (this.inT || 0) - dt) <= 0) { this.inT = 0.3; const o = this.gy - ground(this.x, this.y) < 3 && this.tiles.outside(this.x, this.y); if (o) { this.x = o.x; this.y = o.y; } }   // never stuck inside a building
     }
-    else if (this.mode === 'car') { this.drive(dt, inp); if (this.onBike) this.char.animate(dt, { sit: true }); }
+    else if (this.mode === 'car') { this.drive(dt, inp); if (this.onBike) this.char.animate(dt, { ride: true }); }
     else if (this.mode === 'heli') { this.fly(dt, inp); this.sync(); return; }
     this.height(dt);
     if (this.air > 0) { this.vy -= 16 * dt; this.air = Math.max(0, this.air + this.vy * dt); if (this.air <= 0) this.vy = 0; }
@@ -182,11 +183,11 @@ export class Player {
   }
   enter(car) {
     this.seat = null; this.onBike = car.mesh.userData.kind === 'bike'; if (car.mesh.userData.rider) { car.mesh.remove(car.mesh.userData.rider.g); car.mesh.userData.rider = null; }
-    this.mode = 'car'; this.car = car; this.x = car.x; this.y = car.y; this.h = car.h; this.v = 0; car.player = true; this.sync();
+    this.mode = 'car'; this.car = car; this.x = car.x; this.y = car.y; this.h = car.h; this.v = 0; car.player = true; lightsOn(car.mesh, true); this.sync();
   }
   exit() {
     const car = this.car; if (!car) return;
-    car.player = false; car.parked = true; car.v = 0; car.mesh.rotation.z = 0; this.onBike = false; this.person.rotation.set(0, 0, 0);
+    car.player = false; car.parked = true; car.v = 0; lightsOn(car.mesh, false); car.mesh.rotation.z = 0; this.onBike = false; this.person.rotation.set(0, 0, 0);
     const [dx, dy] = dirOf(this.h);
     this.mode = 'foot'; this.car = null; this.v = 0;
     // step out on the driver's side (left)

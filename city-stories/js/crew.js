@@ -25,10 +25,9 @@ function tagSprite(name, team) {
 
 export class RivalCrew {
   constructor(game, scene, games, n = 20) {
-    if (game.mobile) n = 12;
+    if (game.mobile) n = 12; if (game.settings && game.settings.q === 'low') n = 8;
     this.g = game; this.scene = scene; this.games = games; this.n = n; this.bots = []; this.on = true; this.t = 0;
     this.looks = game.mobile ? LOOKS.slice(0, 4) : LOOKS;      // fewer different models on phones (memory)
-    for (const l of this.looks) loadHuman(l);
   }
   toggle() {
     this.on = !this.on; const b = this.games.$('#g-crew'); if (b) b.classList.toggle('off', !this.on);
@@ -46,6 +45,7 @@ export class RivalCrew {
     return null;
   }
   build() {
+    if (!this.loaded) { this.loaded = true; for (const l of this.looks) loadHuman(l); }      // only loaded when the fight is on
     if (!this.looks.every(humanReady)) return false;
     const p = this.g.player;
     for (let i = 0; i < this.n; i++) {
@@ -88,6 +88,7 @@ export class RivalCrew {
   botHit(b, from) { b.hp -= 10; b.flash = 0.15; if (b.hp <= 0) { this.down(b); this.botKill(from, b); } }
   update(dt) {
     const p = this.g.player; if (!p || this.g.mode !== 'free') return;
+    if (!this.games.fight) { for (const b of this.bots) { b.near = false; b.ch.g.visible = false; } return; }      // peaceful free roam: no crews
     if (!this.bots.length) { if ((this.t -= dt) <= 0) { this.t = 1; this.build(); } return; }
     const me = this.games.team, alive = !(this.g.deadT > 0) && p.mode === 'foot';
     for (const b of this.bots) {

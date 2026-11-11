@@ -1,5 +1,6 @@
 // Cars and the motorbike from Grand Chori Karachi (baked model data in data/veh/*.json), with spinning wheels.
 import * as THREE from 'three';
+import { shiny } from './graphics.js';
 
 const b64u8 = s => { const b = atob(s), a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; };
 const D = {};          // raw data by name
@@ -52,7 +53,7 @@ export async function loadVehicles(names = VEH_KINDS) {
   }
 }
 export const vehiclesReady = () => !!GEO.papurola;
-function mat(n, tint) { const k = n + ':' + (tint || ''); if (!MATS[k]) { const [w, h] = TEXSIZE[n]; MATS[k] = new THREE.MeshLambertMaterial({ map: bakedTex(D[n], w, h, tint ? TINTS[tint] : null), side: THREE.DoubleSide }); } return MATS[k]; }
+function mat(n, tint) { const k = n + ':' + (tint || ''); if (!MATS[k]) { const [w, h] = TEXSIZE[n]; MATS[k] = shiny(new THREE.MeshLambertMaterial({ map: bakedTex(D[n], w, h, tint ? TINTS[tint] : null), side: THREE.DoubleSide })); } return MATS[k]; }
 
 const pick = a => a[Math.random() * a.length | 0];
 // returns a Group facing +z with userData {L, W, kind, wheels:[pivot groups], front:[pivots]}; null if the data is missing

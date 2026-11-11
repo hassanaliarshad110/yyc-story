@@ -1181,29 +1181,39 @@ export class TileManager {
   // build tiles for up to `ms` milliseconds (at least one), nearest to you first
   pumpFor(ms, px, py) {
     const t0 = performance.now();
-    if (this.queue.length > 1 && px != null) {
+    if (!this.gen && this.queue.length > 1 && px != null) {
       const TS = this.TS, d = j => (j.lite ? 1e9 : 0) + Math.hypot((j.ix + 0.5) * TS - px, (j.iy + 0.5) * TS - py);
       this.queue.sort((a, b) => d(a) - d(b));
     }
     let n = 0;
-    while (this.queue.length && (n === 0 || performance.now() - t0 < ms)) { this.pump(); n++; }
+    while ((this.queue.length || this.gen) && (n === 0 || performance.now() - t0 < ms)) { this.pump(); n++; }
     return n;
   }
   // build at most one tile per call (keeps frames smooth); a tile that fails to build is dropped so it loads again
+  // a tile is built in a few steps over several frames (ground, roads, 3D buildings, footprints), so no single frame
+  // stalls on a whole tile (that was the stutter when driving into new streets, worst on phones)
   pump() {
-    const job = this.queue[0];
-    try { return this.pumpOne(); }
-    catch (e) { console.warn('tile build', job && job.k, e); if (job) { const t = this.tiles.get(job.k); if (t && !t.group) this.tiles.delete(job.k); else if (t) t.upgrading = false; } return true; }
+    const job = this.gen ? this.genJob : this.queue[0];
+    try { return this.pumpStep(); }
+    catch (e) { this.gen = null; console.warn('tile build', job && job.k, e); if (job) { const t = this.tiles.get(job.k); if (t && !t.group) this.tiles.delete(job.k); else if (t) t.upgrading = false; } return true; }
   }
-  pumpOne() {
-    const job = this.queue.shift(); if (!job) return false;
+  pumpStep() {
+    if (!this.gen) { const job = this.queue.shift(); if (!job) return false; this.genJob = job; this.gen = this.buildTile(job); }
+    if (this.gen.next().done) this.gen = null;
+    return true;
+  }
+  pumpOne() { do { if (!this.pumpStep()) return false; } while (this.gen); return true; }      // a whole tile at once
+  *buildTile(job) {
     let t = this.tiles.get(job.k); if (!t) return true;
+    const entry = t;
     const lite = job.lite, prev = t.group ? t : null;
     if (prev) { if (!prev.upgrading || lite) return true; t = { ix: job.ix, iy: job.iy, group: null }; }      // a lighter tile becoming a full one
     const ox = job.ix * this.TS, oy = job.iy * this.TS;
     const layers = parseTile(job.buf, ox, oy);
     TER.ox = ox; TER.oy = oy;
     const g = new THREE.Group(); g.position.set(ox, 0, -oy); g.name = 'tile ' + job.k;
+    // between steps: the tile may have been unloaded meanwhile (then drop the half-built one), and other code may have moved TER
+    const gone = () => { if (this.tiles.get(job.k) === entry) { TER.ox = ox; TER.oy = oy; return false; } g.traverse(o => { if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose(); }); return true; };
     if (this.meshes && TER.on) {
       const gg = groundGrid(this.TS, lite ? 25 : 12.5);
       if (gg) {
@@ -1222,6 +1232,7 @@ export class TileManager {
     if (M && layers[L.AREA]) add(buildFlat(layers[L.AREA].sort((a, b) => a.flags - b.flags), f => AREA_COL[f.kind], f => AREA_Y(f.kind)), MAT.ground, { ro: 1 });
     if (M && layers[L.WATER]) add(buildFlat(layers[L.WATER], () => 0x5d8fb8, () => 0.08), MAT.water, { ro: 2 });
     if (M && layers[L.WWAY]) add(buildRibbons(layers[L.WWAY], 0.085, f => f.a / 10, 0x5d8fb8), MAT.waterFlat, { ro: 2 });
+    yield; if (gone()) return;
     // paths and roads
     if (M && layers[L.PATH]) add(buildRibbons(layers[L.PATH].filter(f => !(f.flags & 4)), f => (f.flags & 8) ? 0.13 : 0.11, f => f.kind === 5 ? 3 : (f.kind === 2 ? 5 : 2.2)), MAT.path, { ro: 3 });
     if (M && layers[L.RAIL]) add(buildRibbons(layers[L.RAIL].filter(f => !(f.flags & 4)), 0.17, f => 3.0, 0xffffff, 4), MAT.rail, { ro: 5 });
@@ -1239,6 +1250,7 @@ export class TileManager {
       }
       add(buildGuardrails(layers[L.ROAD], ridx, rails), MAT.guardrail, { cs: !lite });
     }
+    yield; if (gone()) return;
     t.surf = buildSurfaces([[layers[L.ROAD] || [], roadW, 1], [layers[L.PATH] || [], pathW, 2], [layers[L.RAIL] || [], railW, 3]]);
     const byTex = {};
     for (const r of roads) (byTex[ROAD_TEX(r.kind)] ||= []).push(r);
@@ -1249,6 +1261,7 @@ export class TileManager {
       add(buildRibbons(sw, 0.13, () => 1.8, 0xffffff, 4, f => f.a / 20 + 1.1), MAT.sidewalk, { ro: 2 });
       add(buildRibbons(sw, 0.13, () => 1.8, 0xffffff, 4, f => -(f.a / 20 + 1.1)), MAT.sidewalk, { ro: 2 });
     }
+    yield; if (gone()) return;
     // buildings
     let coll = null;
     if (M && job.bbuf) {      // the City's 3D buildings: real roofs and heights
@@ -1262,6 +1275,7 @@ export class TileManager {
       if (cands && cands.length) { t.hcands = [cands, roadIndex(layers[L.ROAD]), g, ox, oy]; if (HOUSES.place) t.houses = HOUSES.place(...t.hcands); }
       for (const [k, mt] of [['apt', MAT.wallApt], ['comm', MAT.wallComm], ['shop', MAT.wallShop], ['tower', MAT.wallTower]]) { const m = add(geos[k], mt, { cs }); if (m) m.userData.bld = 1; } add(geos.roof, MAT.roof, { cs });
     }
+    yield; if (gone()) return;
     if (layers[L.BLD]) {
       const footOnly = !M || !!job.bbuf;
       // the City's 3D buildings are a few years old: newer homes (whole streets in new communities) are only in the
@@ -1280,6 +1294,7 @@ export class TileManager {
       if (!job.bbuf) coll = buildCollision(rings);          // with the City's 3D buildings, their real walls are the obstacles
       else if (fill && rings.length) { const extra = buildCollision(rings); if (coll) { for (const [k, l] of extra.grid) { const c = coll.grid.get(k); if (c) c.push(...l); else coll.grid.set(k, l); } } else coll = extra; }
     }
+    yield; if (gone()) return;
     if (layers[L.TREE]) {        // tree trunks block cars and people
       const tr = layers[L.TREE].map(f => { const x = f.rings[0][0], y = f.rings[0][1], s2 = 0.35; return [[x - s2, y - s2], [x + s2, y - s2], [x + s2, y + s2], [x - s2, y + s2]]; });
       if (coll) { const extra = buildCollision(tr); for (const [k, l] of extra.grid) { const c = coll.grid.get(k); if (c) c.push(...l); else coll.grid.set(k, l); } }

@@ -136,7 +136,9 @@ function appMissions() {
 
 function appSettings() {
   const q = game.settings;
-  show('Settings', `<div class="p-h">View distance</div><div class="chips">${[['1', 'Short (faster)'], ['2', 'Normal'], ['3', 'Far'], ['4', 'Very far']].map(([v, t]) => `<button class="chip${String(q.radius) === v ? ' on' : ''}" data-r="${v}">${t}</button>`).join('')}</div>
+  show('Settings', `<div class="p-h">Picture quality</div><div class="chips">${[['low', 'Low (smoothest)'], ['medium', 'Medium'], ['high', 'High (best look)']].map(([v, t]) => `<button class="chip${q.q === v ? ' on' : ''}" data-q="${v}">${t}</button>`).join('')}</div>
+    <div class="p-h">Frame rate counter</div><div class="chips"><button class="chip${q.fps ? ' on' : ''}" data-fps="1">Show</button><button class="chip${!q.fps ? ' on' : ''}" data-fps="0">Hide</button></div>
+    <div class="p-h">View distance</div><div class="chips">${[['1', 'Short (faster)'], ['2', 'Normal'], ['3', 'Far'], ['4', 'Very far']].map(([v, t]) => `<button class="chip${String(q.radius) === v ? ' on' : ''}" data-r="${v}">${t}</button>`).join('')}</div>
     <div class="p-h">Shadows</div><div class="chips"><button class="chip${q.shadows ? ' on' : ''}" data-s="1">On</button><button class="chip${!q.shadows ? ' on' : ''}" data-s="0">Off</button></div>
     <div class="p-h">Night glow (lights bloom after dark)</div><div class="chips"><button class="chip${q.glow ? ' on' : ''}" data-gl="1">On</button><button class="chip${!q.glow ? ' on' : ''}" data-gl="0">Off (faster)</button></div>
     <div class="p-h">Sound</div><div class="chips"><button class="chip${!isMuted() ? ' on' : ''}" data-snd="1">On</button><button class="chip${isMuted() ? ' on' : ''}" data-snd="0">Off</button></div>
@@ -147,6 +149,8 @@ function appSettings() {
     <button class="p-btn alt" id="s-reset">Start the story again</button>
     <p style="font-size:12px;color:#5b6573;margin-top:16px"><b>YYC City Stories</b> · A game by Hassan Ali<br>${game.world.credits.data.map(esc).join('<br>')}<br>Map data downloaded ${esc((game.world.osm_date || '').slice(0, 10))}.</p>`);
   const b = $('.phone-body');
+  b.querySelectorAll('[data-q]').forEach(x => x.onclick = () => { game.setQuality(x.dataset.q); appSettings(); });
+  b.querySelectorAll('[data-fps]').forEach(x => x.onclick = () => { game.setFps(x.dataset.fps === '1'); appSettings(); });
   b.querySelectorAll('[data-r]').forEach(x => x.onclick = () => { game.setRadius(+x.dataset.r); appSettings(); });
   b.querySelectorAll('[data-s]').forEach(x => x.onclick = () => { game.setShadows(x.dataset.s === '1'); appSettings(); });
   b.querySelectorAll('[data-gl]').forEach(x => x.onclick = () => { game.setGlow(x.dataset.gl === '1'); appSettings(); });

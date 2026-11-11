@@ -34,7 +34,7 @@ export class Games {
     this.mat = {}; for (const k in W) this.mat[k] = k == 1 ? new THREE.MeshBasicMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.8, depthWrite: false }) : new THREE.MeshLambertMaterial({ color: W[k].col, emissive: k == 5 || k == 6 ? W[k].col : 0, emissiveIntensity: 0.3 });
     this.mat.yolk = new THREE.MeshBasicMaterial({ color: 0xffc928 }); this.mat.wet = new THREE.MeshBasicMaterial({ color: 0x5a7f9a, transparent: true, opacity: 0.28, depthWrite: false });
     this.mat.snow = new THREE.MeshBasicMaterial({ color: 0xf4f8ff }); this.paint = PAINT.map(c => new THREE.MeshBasicMaterial({ color: c }));
-    this.ui(); this.ch = new Challenges(game, scene, this); this.crew = new RivalCrew(game, scene, this);
+    this.fight = true; this.ui(); this.ch = new Challenges(game, scene, this); this.crew = new RivalCrew(game, scene, this);
     if (game.mp) game.mp.onGame = (id, name, d) => this.onNet(id, name, d);
     game.onDeath = (why, by) => this.died(why, by);
     game.ridePass = p => this.ridePass(p);
@@ -64,7 +64,12 @@ export class Games {
     addEventListener('keyup', e => { if (e.code === 'KeyF') this.held = false; });
   }
   show(on) { document.getElementById('gamebar').style.display = on ? '' : 'none'; }
-  cycle() { this.w = (this.w + 1) % WEAPONS.length; const W0 = WEAPONS[this.w]; this.$('#g-weapon').textContent = W0.icon; this.$('#g-fire').hidden = this.w === 0; toast(`${W0.icon} ${W0.name}`); this.updateHeld(); }
+  // free roam is peaceful (meet up, ride together, race); 🌐 Play online is the fight: crews, weapons and rounds
+  setFight(on) {
+    this.fight = !!on; const bar = document.getElementById('gamebar'); bar.classList.toggle('peace', !on);
+    if (!on) { this.w = 0; this.held = false; this.$('#g-weapon').textContent = WEAPONS[0].icon; this.$('#g-fire').hidden = true; this.team = ''; this.updateHeld(); }
+  }
+  cycle() { if (!this.fight) return; this.w = (this.w + 1) % WEAPONS.length; const W0 = WEAPONS[this.w]; this.$('#g-weapon').textContent = W0.icon; this.$('#g-fire').hidden = this.w === 0; toast(`${W0.icon} ${W0.name}`); this.updateHeld(); }
   updateHeld() {
     const ch = this.g.player && this.g.player.char; if (!ch || !ch.bones) return;
     const hand = ch.bones.RightHand || ch.bones.handR; if (!hand) return;
@@ -129,8 +134,8 @@ export class Games {
   }
   // ---------------------------------------------------------------- teams, kills and rounds
   get myId() { return this.g.mp && this.g.mp.on ? this.g.mp.id : 'me'; }
-  friend(o) { return this.team && o.tm === this.team; }
-  cycleTeam() {
+  friend(o) { return o.tm === 'p' || !this.fight || (this.team && o.tm === this.team); }      // 'p': a player in peaceful free roam
+  cycleTeam() { if (!this.fight) return;
     if (this.team && this.teamRound === this.round) { toast(`You're in the ${this.team === 'r' ? '🔴 Red' : '🔵 Blue'} crew until round ${this.round} ends.`); return; }
     this.team = this.team === 'r' ? 'b' : this.team === 'b' ? '' : 'r'; this.teamRound = this.team ? this.round : 0;
     const b = this.$('#g-team'); b.textContent = this.team === 'r' ? '🔴' : this.team === 'b' ? '🔵' : '👥';
@@ -203,6 +208,7 @@ export class Games {
       this.spawn(w, { x, y, z, vx, vy, vz, c: d.c }, false);
     }
     else if (d.k === 'hit') {           // someone got you
+      if (!this.fight) return;
       const o = this.g.mp.others.get(id), p = this.g.player;
       if (o && this.friend(o)) return;          // a crew-mate (their game may not know yet)
       const car = d.w === 'car', dmg = Math.max(1, Math.min(car ? 40 : 20, +d.dmg || DMG));
@@ -291,7 +297,7 @@ export class Games {
   update(dt) {
     const p = this.g.player; if (!p) return;
     this.cool -= dt; this.updateRide();
-    if (this.held && this.w && this.cool <= 0 && p.mode === 'foot' && !this.g.paused) { this.cool = W[this.w].every; this.fire(); }
+    if (this.fight && this.held && this.w && this.cool <= 0 && p.mode === 'foot' && !this.g.paused) { this.cool = W[this.w].every; this.fire(); }
     const ch = p.char, aimW = this.w && !W[this.w].throw;
     if (ch && aimW && p.mode === 'foot') { const a = this.held ? 1 : 0, cur = ch.pose && ch.pose.aim != null ? ch.pose.aim : 0, n = cur + (a - cur) * Math.min(1, dt * 12); ch.pose = n > 0.02 ? { aim: n } : null; }
     else if (ch && ch.pose && ch.pose.aim != null) ch.pose = null;
@@ -336,7 +342,7 @@ export class Games {
     }
     for (let i = this.splats.length - 1; i >= 0; i--) { const s = this.splats[i]; s.t -= dt; if (s.t <= 0) { this.scene.remove(s.m); this.splats.splice(i, 1); } }
     // driving into another player (or a rival) knocks them down: three shots' worth
-    if (p.mode === 'car' && Math.abs(p.v) > 3) {
+    if (this.fight && p.mode === 'car' && Math.abs(p.v) > 3) {
       const u = p.car && p.car.mesh.userData, L = (u && u.L) || 4.5, Wd = (u && u.W) || 1.9, fx = Math.sin(p.h), fy = Math.cos(p.h);
       for (const o of [...others, ...bots]) {
         if ((o.mode && o.mode !== 'foot') || (o.hitCool || 0) > performance.now() || this.friend(o) || (o.bot && o.team && o.team === this.team)) continue;

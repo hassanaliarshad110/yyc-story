@@ -26,6 +26,11 @@ export function pSit() {
   const P = pStance(); P.thighL = [-1.5, 0, .22]; P.thighR = [-1.5, 0, -.22]; P.shinL = [1.55, 0, 0]; P.shinR = [1.55, 0, 0]; P.footL = [-.05, 0, 0]; P.footR = [-.05, 0, 0];
   P.spine = [.22, 0, 0]; P.chest = [.06, 0, 0]; P.head = [-.1, 0, 0]; P.armL = [-1.1, 0, .12]; P.armR = [-1.1, 0, -.12]; P.foreL = [-.55, 0, 0]; P.foreR = [-.55, 0, 0]; return P;
 }
+// astride a motorbike: knees out round the tank, feet back on the pegs, leaning forward to the handlebars
+export function pRide() {
+  const P = pStance(); P.thighL = [-1.15, 0, .3]; P.thighR = [-1.15, 0, -.3]; P.shinL = [1.45, 0, 0]; P.shinR = [1.45, 0, 0]; P.footL = [-.2, 0, 0]; P.footR = [-.2, 0, 0];
+  P.spine = [.38, 0, 0]; P.chest = [.1, 0, 0]; P.head = [-.32, 0, 0]; P.armL = [-1.05, 0, .32]; P.armR = [-1.05, 0, -.32]; P.foreL = [-.5, 0, 0]; P.foreR = [-.5, 0, 0]; return P;
+}
 function pTalk(t) {
   const P = pStance(), a = Math.sin(t * 2.3), b = Math.sin(t * 1.7 + 1);
   P.armR = [-.35 - .25 * Math.max(0, a), 0, -.18]; P.foreR = [-1.2 - .3 * a, 0, 0]; P.armL = [-.15 - .15 * Math.max(0, b), 0, .14]; P.foreL = [-.7 - .4 * Math.max(0, b), 0, 0];
@@ -209,7 +214,8 @@ export class Character {
   animate(dt, st = {}) {
     this.t += dt; const t = this.t, sp = st.speed || 0, ph0 = this.phase;
     let tg;
-    if (st.sit) tg = pSit();
+    if (st.ride) tg = pRide();
+    else if (st.sit) tg = pSit();
     else if (sp > 0.3) { const run = st.run ? 1 : 0; this.phase += dt * (run ? 11 * sp / 6.2 : 7 * sp / 2.9); tg = pGait(this.phase, run ? 1.15 : Math.min(.9, .45 + sp * .15), run); }
     else if (st.dance != null) tg = pDance((st.syncT ?? t) + (st.offset || 0), st.dance, st.beat || 1.9);   // syncT/beat: dance on a song's beat
     else if (st.wave) tg = pWave(t);
@@ -218,7 +224,7 @@ export class Character {
     const fast = 1 - Math.exp(-dt * 16), slow = 1 - Math.exp(-dt * 10);
     for (const b of KC.B) { const c = this.cur[b], v = tg[b] || [0, 0, 0], a = (b === 'head' || b === 'neck' || b.startsWith('fore') || b.startsWith('hand')) ? slow : fast; c[0] += (v[0] - c[0]) * a; c[1] += (v[1] - c[1]) * a; c[2] += (v[2] - c[2]) * a; }
     const ef = KC.eff(this.cur, this.R.RP); for (const b of KC.B) { const e = ef[b]; this.bones[b].rotation.set(e[0], e[1], e[2]); }
-    const gy = st.sit ? 0 : st.dance != null ? Math.min(.02, KC.ground(this.R.J, this.R.off, ef, this.R.CLR)) : Math.min(.02, KC.ground(this.R.J, this.R.off, ef, this.R.CLR));
+    const gy = st.sit || st.ride ? 0 : st.dance != null ? Math.min(.02, KC.ground(this.R.J, this.R.off, ef, this.R.CLR)) : Math.min(.02, KC.ground(this.R.J, this.R.off, ef, this.R.CLR));
     this.dy += (gy - this.dy) * Math.min(1, dt * 20); this.bones.hips.position.y = this.R.off.hips[1] + this.dy;
     return Math.floor(ph0 / Math.PI) !== Math.floor(this.phase / Math.PI);   // true on each footstep
   }

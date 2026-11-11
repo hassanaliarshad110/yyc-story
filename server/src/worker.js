@@ -40,7 +40,7 @@ export class Room {
     if (m.t === 'hello') { a.name = clean(m.name, 20) || 'Player'; a.look = clean(m.look, 12); ws.serializeAttachment(a); this.broadcast(ws, { t: 'join', id: a.id, name: a.name, look: a.look }); }
     else if (m.t === 'pos') {
       const n = v => (typeof v === 'number' && isFinite(v) ? Math.round(v * 100) / 100 : 0);
-      a.p = [n(m.x), n(m.y), n(m.z), n(m.h), clean(m.mode, 6), clean(m.anim, 10), Math.max(0, Math.min(99999, Math.round(+m.sc || 0))), Math.max(0, Math.min(100, Math.round(+m.hp || 0))), m.tm === 'r' || m.tm === 'b' ? m.tm : '', clean(m.ride, 12)]; ws.serializeAttachment(a);
+      a.p = [n(m.x), n(m.y), n(m.z), n(m.h), clean(m.mode, 6), clean(m.anim, 10), Math.max(0, Math.min(99999, Math.round(+m.sc || 0))), Math.max(0, Math.min(100, Math.round(+m.hp || 0))), m.tm === 'r' || m.tm === 'b' || m.tm === 'p' ? m.tm : '', clean(m.ride, 12)]; ws.serializeAttachment(a);
       this.broadcast(ws, { t: 'pos', id: a.id, name: a.name, look: a.look, p: a.p });
     }
     else if (m.t === 'chat') { const text = clean(m.text, 200); if (text) this.broadcast(ws, { t: 'chat', id: a.id, name: a.name, text }); }
