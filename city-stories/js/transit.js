@@ -1,8 +1,8 @@
 // Calgary Transit buses and CTrains on their real routes (City of Calgary timetable shapes).
 import * as THREE from 'three';
-import { makeBus, makeTrain } from './actors.js?v=11111647';
-import { rotY, TYRE_Y } from './player.js?v=11111647';
-import { spinWheels } from './vehicles.js?v=11111647';
+import { makeBus, makeTrain } from './actors.js?v=11111720';
+import { rotY, TYRE_Y } from './player.js?v=11111720';
+import { spinWheels } from './vehicles.js?v=11111720';
 
 export class Path {
   constructor(pts) {

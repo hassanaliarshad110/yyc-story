@@ -1,11 +1,11 @@
 // The player: walking, running and driving. Heading h: 0 = north, clockwise (east = PI/2).
 import * as THREE from 'three';
-import { Character, heroReady } from './rig.js?v=11111647';
-import { spinWheels } from './vehicles.js?v=11111647';
-import { lightsOn } from './carlights.js?v=11111647';
-import { blockPush } from './stagekit.js?v=11111647';
-import { ground } from './terrain.js?v=11111647';
-import { syncHeli } from './heli.js?v=11111647';
+import { Character, heroReady } from './rig.js?v=11111720';
+import { spinWheels } from './vehicles.js?v=11111720';
+import { lightsOn } from './carlights.js?v=11111720';
+import { blockPush } from './stagekit.js?v=11111720';
+import { ground } from './terrain.js?v=11111720';
+import { syncHeli } from './heli.js?v=11111720';
 
 export const dirOf = h => [Math.sin(h), Math.cos(h)];           // (east, north)
 export const rotY = h => Math.PI - h;
@@ -77,6 +77,7 @@ export class Player {
       if (Math.abs(inp.x) > 0.3 || Math.abs(inp.y) > 0.3) this.standUp();
       else { this.x = this.seat.x; this.y = this.seat.y; this.h = this.seat.h; this.v = 0; this.char.animate(dt, { sit: true }); this.height(dt); this.sync(); this.person.position.y += SEAT_Y; return; }
     }
+    if (this.mode === 'foot' && !this.seat && this.powerUpdate && this.powerUpdate(dt, inp, camHeading)) { this.sync(); if (this.powerPose) this.powerPose(); return; }      // flying, swinging
     if (this.mode === 'foot') {
       this.walk(dt, inp, camHeading);
       if ((this.inT = (this.inT || 0) - dt) <= 0) { this.inT = 0.3; const o = this.gy - ground(this.x, this.y) < 3 && this.tiles.outside(this.x, this.y); if (o) { this.x = o.x; this.y = o.y; } }   // never stuck inside a building

@@ -1,6 +1,6 @@
 // Take the CTrain from any station in free roam: walk onto a platform, press E, pick where to go,
 // board when the train pulls in, ride (6x speed, or skip ahead) and step off at your stop.
-import { dirOf } from './player.js?v=11111647';
+import { dirOf } from './player.js?v=11111720';
 
 const isStation = n => /CTrain/i.test(n) || (/Station/.test(n) && !/LRT|Terminal|@|Bus/.test(n));
 const clean = n => (n || '').replace(/^\s*(NB|SB|EB|WB)\s+/, '').replace(/\((Free Fare Zone|NB|SB|EB|WB)\)/gi, '').replace(/\s*(CTrain\s+)?(Station|Staion|Stn)\b.*$/i, '').replace(/\s+/g, ' ').trim();

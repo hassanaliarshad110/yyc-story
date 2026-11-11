@@ -1,70 +1,71 @@
 // YYC Story — a game by Hassan Ali. Main loop: renderer, sky, camera, game state.
 import * as THREE from 'three';
-import { initMaterials, setNight, MAT } from './materials.js?v=11111647';
-import { setMaxAnisotropy } from './textures.js?v=11111647';
-import { TileManager, SPEED_LIMIT, loadTreeModels, TREE_M } from './tiles.js?v=11111647';
-import { buildWorldMeshes, prepLookups, communityAt, wardAt, loadSky3D } from './world.js?v=11111647';
-import { Player, dirOf, angDiff, LOOKS } from './player.js?v=11111647';
-import { Traffic } from './traffic.js?v=11111647';
-import { Transit } from './transit.js?v=11111647';
-import { Missions, P } from './missions.js?v=11111647';
-import { initHUD, tilePaths, drawMinimap, openMap, closeMap, mapOpen, refreshMap, toast, setObjective, setPrompt, nextPressed, say, card, $ } from './hud.js?v=11111647';
-import { initPhone, openPhone, closePhone, phoneOpen } from './phone.js?v=11111647';
-import { initRealView, openReal, closeReal, realOpen } from './realview.js?v=11111647';
-import { initInput, readInput, input, onAction } from './input.js?v=11111647';
-import { makeCar } from './actors.js?v=11111647';
-import { loadHero } from './rig.js?v=11111647';
-import { loadHumans, humanReady, loadHuman, VIEW } from './humans.js?v=11111647';
-import { loadHouses, loadCityHall, updateHouses, setHouseRange, LM_NIGHT, updateLandmarks, landmarkRoofAt } from './houses3d.js?v=11111647';
-import { ROOF_EXTRA } from './tiles.js?v=11111647';
+import { initMaterials, setNight, MAT } from './materials.js?v=11111720';
+import { setMaxAnisotropy } from './textures.js?v=11111720';
+import { TileManager, SPEED_LIMIT, loadTreeModels, TREE_M } from './tiles.js?v=11111720';
+import { buildWorldMeshes, prepLookups, communityAt, wardAt, loadSky3D } from './world.js?v=11111720';
+import { Player, dirOf, angDiff, LOOKS } from './player.js?v=11111720';
+import { Traffic } from './traffic.js?v=11111720';
+import { Transit } from './transit.js?v=11111720';
+import { Missions, P } from './missions.js?v=11111720';
+import { initHUD, tilePaths, drawMinimap, openMap, closeMap, mapOpen, refreshMap, toast, setObjective, setPrompt, nextPressed, say, card, $ } from './hud.js?v=11111720';
+import { initPhone, openPhone, closePhone, phoneOpen } from './phone.js?v=11111720';
+import { initRealView, openReal, closeReal, realOpen } from './realview.js?v=11111720';
+import { initInput, readInput, input, onAction } from './input.js?v=11111720';
+import { makeCar } from './actors.js?v=11111720';
+import { loadHero } from './rig.js?v=11111720';
+import { loadHumans, humanReady, loadHuman, VIEW } from './humans.js?v=11111720';
+import { loadHouses, loadCityHall, updateHouses, setHouseRange, LM_NIGHT, updateLandmarks, landmarkRoofAt } from './houses3d.js?v=11111720';
+import { ROOF_EXTRA } from './tiles.js?v=11111720';
 ROOF_EXTRA.fn = landmarkRoofAt;
-import { loadCars3D, makeCar3D } from './cars3d.js?v=11111647';
-import { WARM } from './gltf.js?v=11111647';
-import { Multiplayer } from './mp.js?v=11111647';
-import { ask } from './ask.js?v=11111647';
-import { initHealth, hurt, updateHealth } from './health.js?v=11111647';
-import { buildPlatforms } from './platforms.js?v=11111647';
-import { buildFuel } from './fuel.js?v=11111647';
-import { Games } from './games.js?v=11111647';
-import { Life } from './life.js?v=11111647';
-import { loadVehicles, makeKarachiVehicle } from './vehicles.js?v=11111647';
-import { sfx, unlockAudio, updateAudio } from './sound.js?v=11111647';
-import { Sky } from './sky.js?v=11111647';
+import { loadCars3D, makeCar3D } from './cars3d.js?v=11111720';
+import { WARM } from './gltf.js?v=11111720';
+import { Multiplayer } from './mp.js?v=11111720';
+import { ask } from './ask.js?v=11111720';
+import { initHealth, hurt, updateHealth } from './health.js?v=11111720';
+import { buildPlatforms } from './platforms.js?v=11111720';
+import { buildFuel } from './fuel.js?v=11111720';
+import { Games } from './games.js?v=11111720';
+import { Life } from './life.js?v=11111720';
+import { loadVehicles, makeKarachiVehicle } from './vehicles.js?v=11111720';
+import { sfx, unlockAudio, updateAudio } from './sound.js?v=11111720';
+import { Sky } from './sky.js?v=11111720';
 import { EffectComposer } from '../vendor/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from '../vendor/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../vendor/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from '../vendor/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from '../vendor/jsm/postprocessing/OutputPass.js';
-import { loadTerrain, ground } from './terrain.js?v=11111647';
-import { loadBusinesses, Signs } from './business.js?v=11111647';
-import { Requests311 } from './r311.js?v=11111647';
-import { Leaves } from './leaves.js?v=11111647';
-import { TrafficStops } from './stops.js?v=11111647';
-import { Gatherings } from './gatherings.js?v=11111647';
-import { loadPlazas, Plazas, PLAZA_NIGHT } from './plazas.js?v=11111647';
-import { loadParks, ParkAssets, parksCredit } from './parks.js?v=11111647';
-import { loadFields, Fields } from './fields.js?v=11111647';
-import { loadLyrics, updateLyrics } from './lyrics.js?v=11111647';
-import { GOOGLE_KEY } from './config.js?v=11111647';
-import { music } from './music.js?v=11111647';
+import { loadTerrain, ground } from './terrain.js?v=11111720';
+import { loadBusinesses, Signs } from './business.js?v=11111720';
+import { Requests311 } from './r311.js?v=11111720';
+import { Leaves } from './leaves.js?v=11111720';
+import { TrafficStops } from './stops.js?v=11111720';
+import { Gatherings } from './gatherings.js?v=11111720';
+import { loadPlazas, Plazas, PLAZA_NIGHT } from './plazas.js?v=11111720';
+import { loadParks, ParkAssets, parksCredit } from './parks.js?v=11111720';
+import { loadFields, Fields } from './fields.js?v=11111720';
+import { loadLyrics, updateLyrics } from './lyrics.js?v=11111720';
+import { GOOGLE_KEY } from './config.js?v=11111720';
+import { music } from './music.js?v=11111720';
 window.__music = music;
-import { newHeli, idleHeli, syncHeli } from './heli.js?v=11111647';
-import { Concert } from './concert.js?v=11111647';
-import { Stampede, STAMPEDE } from './stampede.js?v=11111647';
-import { Metro } from './metro.js?v=11111647';
-import { Buses } from './buses.js?v=11111647';
-import { Signals, loadSigns } from './signals.js?v=11111647';
-import { HouseNumbers } from './numbers.js?v=11111647';
-import { People } from './people.js?v=11111647';
-import { initIntro } from './intro.js?v=11111647';
-import { CHARACTERS } from './stories.js?v=11111647';
-import { tr } from './i18n.js?v=11111647';
-import { Billboards, loadBillboards } from './billboards.js?v=11111647';
-import { Navigator, loadRoute } from './route.js?v=11111647';
-import { setHalloweenNight } from './halloween.js?v=11111647';
-import { setCarLightsNight } from './carlights.js?v=11111647';
-import { stageAt, setPerforming } from './stagekit.js?v=11111647';
-import { QUALITY, guessQuality, DynRes, FpsMeter, GradeShader, setEnvNight } from './graphics.js?v=11111647';
+import { newHeli, idleHeli, syncHeli } from './heli.js?v=11111720';
+import { Concert } from './concert.js?v=11111720';
+import { Stampede, STAMPEDE } from './stampede.js?v=11111720';
+import { Metro } from './metro.js?v=11111720';
+import { Buses } from './buses.js?v=11111720';
+import { Signals, loadSigns } from './signals.js?v=11111720';
+import { HouseNumbers } from './numbers.js?v=11111720';
+import { People } from './people.js?v=11111720';
+import { initIntro } from './intro.js?v=11111720';
+import { CHARACTERS } from './stories.js?v=11111720';
+import { tr } from './i18n.js?v=11111720';
+import { Billboards, loadBillboards } from './billboards.js?v=11111720';
+import { Navigator, loadRoute } from './route.js?v=11111720';
+import { setHalloweenNight } from './halloween.js?v=11111720';
+import { setCarLightsNight } from './carlights.js?v=11111720';
+import { stageAt, setPerforming } from './stagekit.js?v=11111720';
+import { Powers } from './powers.js?v=11111720';
+import { QUALITY, guessQuality, DynRes, FpsMeter, GradeShader, setEnvNight } from './graphics.js?v=11111720';
 
 const mobile = matchMedia('(pointer: coarse)').matches || innerWidth < 760;
 const saved = (() => { try { return JSON.parse(localStorage.getItem('yyc-settings')) || {}; } catch (e) { return {}; } })();
@@ -171,6 +172,7 @@ async function boot() {
   game.concert = new Concert(scene, 385, -772, Math.PI, { crowd: mobile ? 14 : 28 });     // on the lawn north of the Saddledome, facing it
   game.stampede = new Stampede(scene, { mobile });                                            // it's Stampede time: the fair at Stampede Park and a street party at Olympic Plaza
   player = new Player(scene, tiles, game.look); game.player = player; player.parks = game.parks;
+  game.powers = new Powers(game, scene, player, tiles, { toast, sfx });      // hero powers, earned with good deeds
   player.onCrash = () => { if (performance.now() - (game._crash || 0) > 1500) { game._crash = performance.now(); toast('Bump! Careful.'); sfx.crash(); } };
   player.onStep = run => sfx.step(run);
   player.onPlace = () => { if (game.unstick) game.unstick.pending = true; };
@@ -322,6 +324,7 @@ async function checkIn() {
   if (checking) return; checking = true;
   const lines = ['"I\'m okay, just cold. Thanks for asking."', '"Do you have any water? Thanks, friend."', '"Shelter\'s full tonight. I\'ll be alright."', '"Thanks for not walking past."'];
   await say('Person sheltering here', lines[Math.floor(Math.random() * lines.length)]);
+  { const n = game.people && game.people.near, c = n && n.c; if (game.powers) game.powers.deed('you checked in on someone outside', c ? 'p:' + Math.round(c.x) + ',' + Math.round(c.y) : null); }
   await card({ tag: 'Helping someone outside', title: 'Homelessness and addiction are health issues', src: [['Calgary Police: vulnerable persons (Alpha House HELP team)', 'https://www.calgary.ca/cps/community-programs-and-resources/vulnerable-persons/vulnerable-persons.html'], ['211 Alberta', 'https://ab.211.ca/']],
     body: `<ul><li>A kind word helps. Ask if they're okay and if they'd like help.</li><li><b>Alpha House HELP team</b> (formerly DOAP), 24/7: <b>403-998-7388</b>. Outreach workers who connect people to shelter, detox and care.</li><li><b>2-1-1</b>, call or text, 24/7: shelters, food and services.</li><li>Someone not breathing or not waking up could be an overdose: call <b>9-1-1</b>. Free <b>naloxone kits</b> are available at Alberta pharmacies.</li><li>Concerns about an encampment? Report it to <b>311</b>.</li></ul>` });
   checking = false;
@@ -543,7 +546,7 @@ function loop(now) {
   if (game.started && player) watchStuck(dt, blocked ? { x: 0, y: 0 } : inp);       // runs during dialogs too, so you are never left inside a wall
   if (game.started && !blocked) {
     { const c0 = game.clock; game.clock = (game.clock + dt / 60) % 24; if (game.clock < c0) game.dayN = (game.dayN || 0) + 1; }
-    player.update(dt, inp, camH);
+    game.camHeading = camH; player.update(dt, inp, camH);
     if (player.mode === 'ride' && game.rideVehicle) { player.x = game.rideVehicle.x; player.y = game.rideVehicle.y; }
     traffic.update(dt, player);
     transit.update(dt, player.x, player.y);

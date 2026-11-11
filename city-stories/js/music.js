@@ -1,7 +1,7 @@
 // The title song "Under One Sky" (by Hassan Ali): plays on the title screen, from the chorus when the game starts,
 // as the radio in cars and the helicopter, and at the Saddledome concert every night.
 // Phones only let a page start sound inside a tap or key press, so every (re)start happens in one.
-import { isMuted } from './sound.js?v=11111647';
+import { isMuted } from './sound.js?v=11111720';
 const SONG = 'audio/under-one-sky.mp3', CHORUS = 61.8, CHORUS_LEN = 26;
 const S = { title: false, chorusEnd: 0, radio: false, concert: 0, want: 0, cur: 0, lastTry: 0, pendingSeek: null, radioOff: false };
 try { S.radioOff = localStorage.getItem('yyc-radio') === 'off'; } catch (e) { }

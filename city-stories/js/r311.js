@@ -2,8 +2,8 @@
 // each request near you. The open data only gives each request's community, so every icon sits at its own random spot
 // inside that community (the same spot every time). Tap an icon to see what the request is about.
 import * as THREE from 'three';
-import { ground } from './terrain.js?v=11111647';
-import { card } from './hud.js?v=11111647';
+import { ground } from './terrain.js?v=11111720';
+import { card } from './hud.js?v=11111720';
 
 const CELL = 200;
 const ICONS = [
@@ -92,6 +92,7 @@ export class Requests311 {
     const t = performance.now() / 1000; for (const s of this.group.children) s.position.y += Math.sin(t * 2 + s.id) * 0.02;
   }
   open(q) {
+    const game = window.game || {};
     const ds = String(q.date), date = new Date(+ds.slice(0, 4), +ds.slice(4, 6) - 1, +ds.slice(6, 8)).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
     const esc = s => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
     card({
@@ -99,8 +100,12 @@ export class Requests311 {
       body: `<p><b>${q.open ? '🟠 Open' : '✅ Closed'}</b> · reported ${esc(date)}${q.src && !/^other$/i.test(q.src) ? ' by ' + esc(q.src.toLowerCase()) : ''}</p>
         <p>📍 ${esc(q.comm)} <small>(the City shares only the community, so this spot is approximate)</small></p>
         ${q.agency ? `<p>Handled by: ${esc(q.agency)}</p>` : ''}<p>Request number: <b>${esc(q.id)}</b></p>
-        <p><small>See something like this in your neighbourhood? Report it on the 311 app, at calgary.ca/311 or by calling 311.</small></p>`,
+        <p><small>See something like this in your neighbourhood? Report it on the 311 app, at calgary.ca/311 or by calling 311.</small></p>
+        ${q.open ? `<p><button id="r311-help" class="primary" style="padding:8px 14px;border-radius:10px">🤝 Pitch in and help (a good deed)</button></p>` : ''}`,
       src: [['This request in the City\'s 311 open data', 'https://data.calgary.ca/resource/iahh-g8bj.json?service_request_id=' + encodeURIComponent(q.id)], ['Calgary 311', 'https://www.calgary.ca/311.html']],
     });
+    const hb = document.getElementById('r311-help');
+    if (hb) { if (game.powers && game.powers.helped.has('311:' + q.id)) { hb.disabled = true; hb.textContent = '💛 You helped here'; }
+      hb.onclick = () => { if (game.powers && game.powers.deed('you pitched in on a 311 issue (' + q.svc + ')', '311:' + q.id)) { hb.disabled = true; hb.textContent = '💛 Thanks for helping!'; } }; }
   }
 }

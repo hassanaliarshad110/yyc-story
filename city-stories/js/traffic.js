@@ -1,13 +1,13 @@
 // Cars on the real streets: keep right, follow the car ahead, stop at red lights and stop signs,
 // take turns at intersections, and give way to bigger roads. Parked cars line residential streets.
-import { makeCar } from './actors.js?v=11111647';
-import { spinWheels } from './vehicles.js?v=11111647';
-import { ground } from './terrain.js?v=11111647';
-import { L } from './tiles.js?v=11111647';
-import { dirOf, rotY, TYRE_Y, BIKE_SEAT, BIKE_BACK } from './player.js?v=11111647';
-import { lightsOn } from './carlights.js?v=11111647';
-import { Character } from './rig.js?v=11111647';
-import { NPCS, humanReady } from './humans.js?v=11111647';
+import { makeCar } from './actors.js?v=11111720';
+import { spinWheels } from './vehicles.js?v=11111720';
+import { ground } from './terrain.js?v=11111720';
+import { L } from './tiles.js?v=11111720';
+import { dirOf, rotY, TYRE_Y, BIKE_SEAT, BIKE_BACK } from './player.js?v=11111720';
+import { lightsOn } from './carlights.js?v=11111720';
+import { Character } from './rig.js?v=11111720';
+import { NPCS, humanReady } from './humans.js?v=11111720';
 
 const SPEED = { 1: 27, 2: 20, 3: 15, 4: 13.5, 5: 12, 6: 9, 7: 5.5, 8: 14, 9: 11, 10: 11 };
 const DRIVE = new Set([1, 2, 3, 4, 5, 6, 8, 9]);

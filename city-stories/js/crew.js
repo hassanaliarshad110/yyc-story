@@ -3,10 +3,10 @@
 // and you, unless you've joined their crew with 👥), with the same toy weapons. Ten shots and they're out for 5 s.
 // Each splat is a point; they're on the scoreboard and can win the round too. ⚔️ calls a truce (they stop shooting).
 import * as THREE from 'three';
-import { Character } from './rig.js?v=11111647';
-import { humanReady, loadHuman, NPCS } from './humans.js?v=11111647';
-import { standY } from './tiles.js?v=11111647';
-import { toast } from './hud.js?v=11111647';
+import { Character } from './rig.js?v=11111720';
+import { humanReady, loadHuman, NPCS } from './humans.js?v=11111720';
+import { standY } from './tiles.js?v=11111720';
+import { toast } from './hud.js?v=11111720';
 
 const NAMES = ['Paramjeet', 'Chris', 'Maryam', 'Simi', 'Ali', 'Hassan', 'Hussain', 'Fatima', 'Muhammad', 'Emma', 'Liam', 'Olivia', 'Noah', 'Sophie', 'Jack',
   'Emily', 'Ryan', 'Grace', 'Daniel', 'Hannah'];

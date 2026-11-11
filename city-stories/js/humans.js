@@ -3,9 +3,9 @@
 // bone names, so one set of clips drives them all. Until a model has loaded, the simpler built-in
 // people (rig.js) stand in, so the game never waits on a download.
 import * as THREE from 'three';
-import { loader, warm } from './gltf.js?v=11111647';
+import { loader, warm } from './gltf.js?v=11111720';
 import { clone as skClone } from '../vendor/jsm/utils/SkeletonUtils.js';
-import { setGlbFactory, hatGroup } from './rig.js?v=11111647';
+import { setGlbFactory, hatGroup } from './rig.js?v=11111720';
 
 
 const MODELS = new Map();       // name -> { scene, hipsY, height } once loaded

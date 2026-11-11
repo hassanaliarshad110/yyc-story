@@ -1,8 +1,8 @@
 // Solid stages: you walk up the front steps onto the deck (you can't walk through it any more), and at the mic you can
 // take over the show and rap the song yourself while the crowd dances. Used by the Stampede stages and the Saddledome concert.
 import * as THREE from 'three';
-import { PLATFORMS } from './tiles.js?v=11111647';
-import { ground } from './terrain.js?v=11111647';
+import { PLATFORMS } from './tiles.js?v=11111720';
+import { ground } from './terrain.js?v=11111720';
 
 // solid boxes: { x, y, fx, fy, hl (half length along f), hw (half width across), top }; anything you can step up (< 0.9 m)
 // or are already standing on doesn't block

@@ -1,6 +1,6 @@
 // A small helicopter you can fly (same handling as the Karachi game): model and per-frame pose.
 import * as THREE from 'three';
-import { rotY } from './player.js?v=11111647';
+import { rotY } from './player.js?v=11111720';
 
 const M = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o });
 function labelTex(text) {

@@ -1,8 +1,8 @@
 // Streams 500 m map tiles around the player and turns them into 3D meshes plus collision data.
 import * as THREE from 'three';
-import { MAT, nearFade } from './materials.js?v=11111647';
-import { loader } from './gltf.js?v=11111647';
-import { TER, ground, gl } from './terrain.js?v=11111647';
+import { MAT, nearFade } from './materials.js?v=11111720';
+import { loader } from './gltf.js?v=11111720';
+import { TER, ground, gl } from './terrain.js?v=11111720';
 
 export const L = { BLD: 1, ROAD: 2, PATH: 3, RAIL: 4, AREA: 5, WATER: 6, WWAY: 7, POI: 8, STOP: 9, BARR: 10, TREE: 11 };
 const dec = new TextDecoder();

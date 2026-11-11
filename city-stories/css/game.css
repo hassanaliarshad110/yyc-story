@@ -303,3 +303,7 @@ body.hurt #dead { border-color: #fff; }
 #gamebar.peace #g-weapon, #gamebar.peace #g-fire, #gamebar.peace #g-team, #gamebar.peace #g-board, #gamebar.peace #g-score { display: none !important; }
 /* frame rate counter (Settings) */
 #fps { position: fixed; left: 8px; bottom: 6px; z-index: 30; background: rgba(10,16,26,.7); color: #b8ffb0; font: 600 12px/1 ui-monospace, monospace; padding: 5px 9px; border-radius: 8px; pointer-events: none; }
+/* hero powers (earned with good deeds): fly 🦸 and web line 🕸️, with the power left */
+#gamebar > button.pw-btn { position: relative; border-color: rgba(255, 214, 90, .85); background: rgba(60, 40, 110, .7); }
+#gamebar > button.pw-btn.on { background: rgba(200, 140, 20, .85); }
+#gamebar > button.pw-btn small { position: absolute; bottom: -13px; left: 50%; transform: translateX(-50%); font: 700 10px/1 system-ui, sans-serif; color: #ffe08a; text-shadow: 0 1px 2px #000; white-space: nowrap; }
