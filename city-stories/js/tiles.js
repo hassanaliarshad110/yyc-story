@@ -1083,6 +1083,31 @@ export const ROAD_Y = { 1: 0.2, 2: 0.19, 3: 0.18, 4: 0.17, 5: 0.16, 6: 0.15, 7: 
 export const ROAD_TEX = c => (c === 1 || c === 2 || c === 8) ? 'highway' : (c === 3 || c === 4) ? 'major' : (c === 11 || c === 12) ? 'runway' : 'local';
 
 // ---------------------------------------------------------------- tile manager
+// map footprints that no City 3D building stands on (and that aren't landmarks or rebuilt plazas)
+function missingFootprints(feats, outlines, ox, oy) {
+  const G = new Map(), C = 25, key = (i, j) => i + ',' + j;
+  for (const o of outlines) for (let i = Math.floor(o.mnx / C); i <= Math.floor(o.mxx / C); i++) for (let j = Math.floor(o.mny / C); j <= Math.floor(o.mxy / C); j++) { const k = key(i, j); let l = G.get(k); if (!l) G.set(k, l = []); l.push(o); }
+  const inside = (o, x, y) => {
+    if (x < o.mnx - 0.5 || x > o.mxx + 0.5 || y < o.mny - 0.5 || y > o.mxy + 0.5) return false;
+    let c = false; const E = o.E;
+    for (let i = 0; i < E.length; i += 4) { const x1 = E[i], y1 = E[i + 1], x2 = E[i + 2], y2 = E[i + 3]; if ((y1 > y) !== (y2 > y) && x < (x2 - x1) * (y - y1) / (y2 - y1 + 1e-12) + x1) c = !c; }
+    return c;
+  };
+  const out = [];
+  for (const f of feats) {
+    const r = f.rings[0]; if (!r || r.length < 6) continue;
+    const n = r.length / 2; let cx = 0, cy = 0; for (let i = 0; i < n; i++) { cx += r[i * 2]; cy += r[i * 2 + 1]; } cx /= n; cy /= n;
+    if (Math.abs(ringArea(r)) < 25) continue;                 // sheds
+    const pts = [[cx, cy]]; for (let i = 0; i < n; i += Math.max(1, Math.floor(n / 4))) pts.push([r[i * 2] * 0.6 + cx * 0.4, r[i * 2 + 1] * 0.6 + cy * 0.4]);
+    let hit = false;
+    for (const [x, y] of pts) { for (const o of G.get(key(Math.floor(x / C), Math.floor(y / C))) || []) if (inside(o, x, y)) { hit = true; break; } if (hit) break; }
+    if (hit) continue;
+    const wx = cx + ox, wy = cy + oy;
+    if (B3D_SKIP.some(q => Math.hypot(wx - q[0], wy - q[1]) < q[2] + 15) || skipped(wx, wy)) continue;
+    out.push(f);
+  }
+  return out;
+}
 export class TileManager {
   constructor(scene, world, opts = {}) {
     this.scene = scene; this.world = world; this.TS = world.ts;
@@ -1239,11 +1264,21 @@ export class TileManager {
     }
     if (layers[L.BLD]) {
       const footOnly = !M || !!job.bbuf;
-      const { geos, coll: rings } = !footOnly ? buildBuildings(layers[L.BLD], true, layers[L.ROAD]) : { geos: {}, coll: layers[L.BLD].map(f => { const p = cleanRing(f.rings[0]); if (ringArea(f.rings[0]) < 0) p.reverse(); return p; }).filter(p => p.length >= 3) };
+      // the City's 3D buildings are a few years old: newer homes (whole streets in new communities) are only in the
+      // map's footprints, so any footprint with no 3D building on it is built from the footprint
+      let fill = null;
+      // the camera is only pulled in by walls that are drawn (footprints hidden under 3D models used to block it out of thin air)
+      t.camBld = footOnly ? [] : layers[L.BLD];
+      if (footOnly && job.bbuf && t.roofs3d) {
+        fill = missingFootprints(layers[L.BLD], t.roofs3d, ox, oy); t.camBld = fill;
+        if (fill.length) fill = buildBuildings(fill, true, layers[L.ROAD]); else fill = null;
+      }
+      const { geos, coll: rings } = !footOnly ? buildBuildings(layers[L.BLD], true, layers[L.ROAD]) : fill ? { geos: fill.geos, coll: fill.coll } : { geos: {}, coll: [] };
       const cs = !lite;
       for (let i = 0; i < 4; i++) add(geos['house' + i], MAT.wallHouses[i], { cs });
       for (const [k, mt] of [['apt', MAT.wallApt], ['comm', MAT.wallComm], ['shop', MAT.wallShop], ['tower', MAT.wallTower]]) { const m = add(geos[k], mt, { cs }); if (m) m.userData.bld = 1; } add(geos.roof, MAT.roof, { cs }); add(geos.trim, MAT.concrete, { cs }); if (D) { add(geos.doors, MAT.doors); add(geos.drive, MAT.drive, { ro: 2 }); }
       if (!job.bbuf) coll = buildCollision(rings);          // with the City's 3D buildings, their real walls are the obstacles
+      else if (fill && rings.length) { const extra = buildCollision(rings); if (coll) { for (const [k, l] of extra.grid) { const c = coll.grid.get(k); if (c) c.push(...l); else coll.grid.set(k, l); } } else coll = extra; }
     }
     if (layers[L.TREE]) {        // tree trunks block cars and people
       const tr = layers[L.TREE].map(f => { const x = f.rings[0][0], y = f.rings[0][1], s2 = 0.35; return [[x - s2, y - s2], [x + s2, y - s2], [x + s2, y + s2], [x - s2, y + s2]]; });
@@ -1356,9 +1391,9 @@ export class TileManager {
   rayHit(x0, y0, x1, y1) {
     let tMin = 1; const seen = new Set();
     for (const [x, y] of [[x0, y0], [x1, y1]]) {
-      const t = this.tileAt(x, y); if (!t || !t.layers || !t.layers[L.BLD] || seen.has(t)) continue; seen.add(t);
+      const t = this.tileAt(x, y); if (!t || seen.has(t)) continue; seen.add(t);
       const ax = x0 - t.ox, ay = y0 - t.oy, bx = x1 - t.ox, by = y1 - t.oy, mnx = Math.min(ax, bx) - 1, mxx = Math.max(ax, bx) + 1, mny = Math.min(ay, by) - 1, mxy = Math.max(ay, by) + 1;
-      for (const f of t.layers[L.BLD]) {
+      for (const f of t.camBld || []) {
         if (f.a < 30) continue;                     // low sheds and fences don't block the view
         const r = f.rings[0], n = r.length / 2;
         let inBox = false; for (let i = 0; i < n; i++) { const px = r[i * 2], py = r[i * 2 + 1]; if (px > mnx - 40 && px < mxx + 40 && py > mny - 40 && py < mxy + 40) { inBox = true; break; } }
