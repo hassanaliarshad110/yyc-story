@@ -5,8 +5,8 @@
 //   🍕 Pizza Rush    grab the pizza and deliver it; anyone who touches the carrier (or splashes them) steals it (+5 to deliver)
 // Points go on the same scoreboard as the water fights and races.
 import * as THREE from 'three';
-import { toast } from './hud.js?v=11112205';
-import { ground } from './terrain.js?v=11112205';
+import { toast } from './hud.js?v=11112231';
+import { ground } from './terrain.js?v=11112231';
 
 const TYPES = ['hunt', 'hill', 'pizza'];
 const NAME = { hunt: '🤠 Stetson Hunt', hill: '⛰️ Chinook Hill', pizza: '🍕 Pizza Rush' };

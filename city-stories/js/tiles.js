@@ -1,8 +1,8 @@
 // Streams 500 m map tiles around the player and turns them into 3D meshes plus collision data.
 import * as THREE from 'three';
-import { MAT, nearFade } from './materials.js?v=11112205';
-import { loader } from './gltf.js?v=11112205';
-import { TER, ground, gl } from './terrain.js?v=11112205';
+import { MAT, nearFade } from './materials.js?v=11112231';
+import { loader } from './gltf.js?v=11112231';
+import { TER, ground, gl } from './terrain.js?v=11112231';
 
 export const L = { BLD: 1, ROAD: 2, PATH: 3, RAIL: 4, AREA: 5, WATER: 6, WWAY: 7, POI: 8, STOP: 9, BARR: 10, TREE: 11 };
 const dec = new TextDecoder();
@@ -1408,8 +1408,10 @@ export class TileManager {
     return best;
   }
   // buildings between two points (for the camera): the fraction along the line where the first wall is hit, or 1
-  rayHit(x0, y0, x1, y1) {
-    let tMin = 1; const seen = new Set();
+  // z0, z1 (optional): heights of the two ends; a wall the line passes over (above its top) doesn't block it
+  rayHit(x0, y0, x1, y1, z0, z1) {
+    let tMin = 1; const seen = new Set(), hz = z0 != null;
+    const over = (tt, top) => hz && z0 + (z1 - z0) * tt > top + 0.3;
     for (const [x, y] of [[x0, y0], [x1, y1]]) {
       const t = this.tileAt(x, y); if (!t || seen.has(t)) continue; seen.add(t);
       const ax = x0 - t.ox, ay = y0 - t.oy, bx = x1 - t.ox, by = y1 - t.oy, mnx = Math.min(ax, bx) - 1, mxx = Math.max(ax, bx) + 1, mny = Math.min(ay, by) - 1, mxy = Math.max(ay, by) + 1;
@@ -1422,7 +1424,7 @@ export class TileManager {
           const j = (i + 1) % n, cx = r[i * 2], cy = r[i * 2 + 1], dx = r[j * 2] - cx, dy = r[j * 2 + 1] - cy, ex = bx - ax, ey = by - ay;
           const den = ex * dy - ey * dx; if (Math.abs(den) < 1e-9) continue;
           const tt = ((cx - ax) * dy - (cy - ay) * dx) / den, uu = ((cx - ax) * ey - (cy - ay) * ex) / den;
-          if (tt > 0 && tt < tMin && uu >= 0 && uu <= 1) tMin = tt;
+          if (tt > 0 && tt < tMin && uu >= 0 && uu <= 1 && !(hz && over(tt, ground(x0 + (x1 - x0) * tt, y0 + (y1 - y0) * tt) + f.a / 10))) tMin = tt;
         }
       }
       // the 3D models' walls stand at the roof edge (eaves), a little outside the footprints
@@ -1431,7 +1433,7 @@ export class TileManager {
         if (Math.max(cx, w[2]) < mnx || Math.min(cx, w[2]) > mxx || Math.max(cy, w[3]) < mny || Math.min(cy, w[3]) > mxy) continue;
         const ex = bx - ax, ey = by - ay, den = ex * dy - ey * dx; if (Math.abs(den) < 1e-9) continue;
         const tt = ((cx - ax) * dy - (cy - ay) * dx) / den, uu = ((cx - ax) * ey - (cy - ay) * ex) / den;
-        if (tt > 0 && tt < tMin && uu >= 0 && uu <= 1) tMin = tt;
+        if (tt > 0 && tt < tMin && uu >= 0 && uu <= 1 && !over(tt, w[5])) tMin = tt;
       }
     }
     return tMin;

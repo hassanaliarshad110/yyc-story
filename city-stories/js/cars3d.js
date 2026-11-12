@@ -2,7 +2,7 @@
 // the city bus and the CTrain car. Each is fitted to its real length, width and height and faces +z
 // like the other vehicles. Until a model has loaded, the simpler vehicles stand in.
 import * as THREE from 'three';
-import { loader, warm } from './gltf.js?v=11112205';
+import { loader, warm } from './gltf.js?v=11112231';
 
 
 // real sizes (metres): length, width, height

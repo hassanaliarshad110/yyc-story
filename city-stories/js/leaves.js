@@ -1,8 +1,8 @@
 // Autumn: leaves drifting down from the maples and birches around you, fluttering in the wind and settling on the
 // ground for a while before the next ones fall. Only near you, so it costs little.
 import * as THREE from 'three';
-import { L } from './tiles.js?v=11112205';
-import { ground } from './terrain.js?v=11112205';
+import { L } from './tiles.js?v=11112231';
+import { ground } from './terrain.js?v=11112231';
 
 const COLS = [0xc8321e, 0xe0601c, 0xf09a24, 0xe8c030, 0xb04a1c, 0x9a5a2a, 0xd9471f];
 export class Leaves {

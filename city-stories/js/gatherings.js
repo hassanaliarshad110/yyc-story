@@ -1,8 +1,8 @@
 // Places where people gather: groups walking about outside a building, coming and going and stopping to chat.
 // Dashmesh Culture Centre (135 Martindale Boulevard NE): 20 people in turbans, the same 3D character as on the streets.
-import { Character } from './rig.js?v=11112205';
-import { humanReady, loadHuman } from './humans.js?v=11112205';
-import { standY } from './tiles.js?v=11112205';
+import { Character } from './rig.js?v=11112231';
+import { humanReady, loadHuman } from './humans.js?v=11112231';
+import { standY } from './tiles.js?v=11112231';
 
 const SPOTS = [{ name: 'Dashmesh Culture Centre', x: 7194, y: 7606, n: 20, glb: 'npc_sikh', r: 34 }];
 

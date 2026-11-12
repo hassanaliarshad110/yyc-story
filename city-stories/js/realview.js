@@ -1,7 +1,7 @@
 // "See it for real": the real street photo of a place (Google Street View Static API).
 // Opens facing the place; arrows turn left and right. Photos load only when asked for.
-import { $, esc, toast } from './hud.js?v=11112205';
-import { toLatLon } from './world.js?v=11112205';
+import { $, esc, toast } from './hud.js?v=11112231';
+import { toLatLon } from './world.js?v=11112231';
 
 let game = null;
 export function initRealView(g) {

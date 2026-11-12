@@ -1,6 +1,6 @@
 // Spoken dialogue: every line of the stories is voiced in each language (audio/<lang>/<n>.mp3, n = the line's
 // number in lang/en.json; tools/build_voices.py). Lines without a recording are simply shown.
-import { LANG } from './i18n.js?v=11112205';
+import { LANG } from './i18n.js?v=11112231';
 
 let ids = null, man = null, cur = null;
 const ready = (async () => {

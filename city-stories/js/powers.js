@@ -3,8 +3,8 @@
 // Tap 🦸 (B): you lift off to rooftop height and hold it; the stick steers (where the camera looks), speed builds to
 // 250 km/h; ⤴️ (Space) climbs, ⚡ (Shift) descends, and coming down to the ground lands you.
 import * as THREE from 'three';
-import { dirOf } from './player.js?v=11112205';
-import { ground } from './terrain.js?v=11112205';
+import { dirOf } from './player.js?v=11112231';
+import { ground } from './terrain.js?v=11112231';
 
 const KEY = 'yyc-powers', PER_DEED = 180, MAX = 900, TOP = 69.4;      // 250 km/h
 const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } };

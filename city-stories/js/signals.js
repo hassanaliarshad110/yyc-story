@@ -2,8 +2,8 @@
 // same red/amber/green the traffic obeys; pedestrian flashers; and the City's own stop, yield, playground-zone,
 // school-zone, speed and crosswalk signs at their surveyed spots, facing the way they face on the street.
 import * as THREE from 'three';
-import { ground } from './terrain.js?v=11112205';
-import { rotY, dirOf } from './player.js?v=11112205';
+import { ground } from './terrain.js?v=11112231';
+import { rotY, dirOf } from './player.js?v=11112231';
 
 let SIGNS = null;
 export async function loadSigns() {
