@@ -1,12 +1,12 @@
 // A concert at the Scotiabank Saddledome every night: a stage with lights and a big screen, a dancing crowd,
 // and "Under One Sky" playing (louder the closer you get).
-import { solidStage } from './stagekit.js?v=11111720';
+import { solidStage } from './stagekit.js?v=11112205';
 import * as THREE from 'three';
-import { drawLyricsOn } from './lyrics.js?v=11111720';
-import { Character, HAT_COLORS } from './rig.js?v=11111720';
-import { ground } from './terrain.js?v=11111720';
-import { rotY } from './player.js?v=11111720';
-import { Dancers } from './dancers.js?v=11111720';
+import { drawLyricsOn } from './lyrics.js?v=11112205';
+import { Character, HAT_COLORS } from './rig.js?v=11112205';
+import { ground } from './terrain.js?v=11112205';
+import { rotY } from './player.js?v=11112205';
+import { Dancers } from './dancers.js?v=11112205';
 
 export const isConcertTime = clock => clock >= 19 || clock < 3;
 const SKIN = [0x8d5a3b, 0xb07a52, 0xc69373, 0xe1b899, 0x5c3a24, 0xa4704e];

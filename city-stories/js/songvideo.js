@@ -2,8 +2,8 @@
 // The song (by Hassan Ali) plays, the camera cuts on the beat, everyone acts out the lyrics and dances,
 // the lyrics show as subtitles (as sung, never translated), and then the game ends.
 // Timing comes from the audio itself (tools/song_timing.py): bpm, the first downbeat, section starts and line starts.
-import { ground } from './terrain.js?v=11111720';
-import { LANG, pick, tr, tx } from './i18n.js?v=11111720';
+import { ground } from './terrain.js?v=11112205';
+import { LANG, pick, tr, tx } from './i18n.js?v=11112205';
 
 export const SONG = {
   src: 'audio/beyond-the-mask.mp3',

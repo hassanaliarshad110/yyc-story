@@ -2,13 +2,13 @@
 // (Ferris wheel, swing ride, food and game booths, string lights), the Grandstand Show on the track in front of the
 // Grandstand, a country music stage, an entrance arch, fireworks every night and big crowds in cowboy hats.
 // Downtown gets a street party stage at Olympic Plaza. Crowds are instanced (one draw call per body part).
-import { solidStage } from './stagekit.js?v=11111720';
+import { solidStage } from './stagekit.js?v=11112205';
 import * as THREE from 'three';
-import { drawLyricsOn } from './lyrics.js?v=11111720';
-import { Character, HAT_COLORS } from './rig.js?v=11111720';
-import { ground } from './terrain.js?v=11111720';
-import { rotY } from './player.js?v=11111720';
-import { Dancers } from './dancers.js?v=11111720';
+import { drawLyricsOn } from './lyrics.js?v=11112205';
+import { Character, HAT_COLORS } from './rig.js?v=11112205';
+import { ground } from './terrain.js?v=11112205';
+import { rotY } from './player.js?v=11112205';
+import { Dancers } from './dancers.js?v=11112205';
 
 export const STAMPEDE = { x: 420, y: -820 };             // the middle of Stampede Park (metres from City Hall)
 export const PARK_SPOTS = {

@@ -109,6 +109,7 @@ export function readInput() {
   input.x = x; input.y = y;
   // run · handbrake · fly down. On foot the ⚡ button is a run on/off switch, and pushing the stick all the way also runs
   input.sprint = keys.has('ShiftLeft') || keys.has('ShiftRight') || !!input.sprintBtn || (input.onFoot && (input.runLock || Math.hypot(input.tx || 0, input.ty || 0) > 0.97));
+  input.shift = keys.has('ShiftLeft') || keys.has('ShiftRight');                          // (flying: descend; never the run toggle)
   input.up = keys.has('Space') || !!input.upBtn;                                            // jump · fly up
   input.brake = keys.has('Space') || !!input.brakeBtn;
   return input;

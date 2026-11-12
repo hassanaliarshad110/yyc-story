@@ -1,6 +1,6 @@
 // Shared materials. Built once; tiles reuse them.
 import * as THREE from 'three';
-import { facadeTexture, roadTexture, groundTexture, railTexture, nightWindowsTexture, doorTexture, sidewalkTexture, guardrailTexture } from './textures.js?v=11111720';
+import { facadeTexture, roadTexture, groundTexture, railTexture, nightWindowsTexture, doorTexture, sidewalkTexture, guardrailTexture } from './textures.js?v=11112205';
 
 export const MAT = {};
 // houses swapped for detailed models near you: the plain version folds away inside this circle (world x, world z, radius)

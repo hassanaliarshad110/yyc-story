@@ -2,11 +2,11 @@
 // the curb, and an officer in uniform stands at the driver's window (Canada: the driver sits on the left, the road
 // side). They clear away after a few minutes or when you're far off.
 import * as THREE from 'three';
-import { makeCar } from './actors.js?v=11111720';
-import { makeCar3D } from './cars3d.js?v=11111720';
-import { Character } from './rig.js?v=11111720';
-import { loadHuman, humanReady } from './humans.js?v=11111720';
-import { standY } from './tiles.js?v=11111720';
+import { makeCar } from './actors.js?v=11112205';
+import { makeCar3D } from './cars3d.js?v=11112205';
+import { Character } from './rig.js?v=11112205';
+import { loadHuman, humanReady } from './humans.js?v=11112205';
+import { standY } from './tiles.js?v=11112205';
 
 export const OFFICER = { glb: 'police_officer', skin: 0xc69373, shirt: 0x1d2a44, pants: 0x1d2a44, hair: 0x15100d };
 

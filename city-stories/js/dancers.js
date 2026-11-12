@@ -1,9 +1,9 @@
 // The people at the front of a concert crowd: real 3D people (the same models as on the streets), dancing to the beat
 // with each person a little apart, cowboy hats at the Stampede. The rest of a big crowd further back stays light.
-import { Character, HAT_COLORS } from './rig.js?v=11111720';
-import { humanReady, loadHuman, NPCS } from './humans.js?v=11111720';
-import { standY } from './tiles.js?v=11111720';
-import { ground } from './terrain.js?v=11111720';
+import { Character, HAT_COLORS } from './rig.js?v=11112205';
+import { humanReady, loadHuman, NPCS } from './humans.js?v=11112205';
+import { standY } from './tiles.js?v=11112205';
+import { ground } from './terrain.js?v=11112205';
 
 const H = (i, n) => Math.abs(Math.sin(i * 12.9898 + n * 78.233) * 43758.5453) % 1;
 const EXTRA = ['teen_girl', 'npc_teen', 'npc_dress', 'npc_cowboy'];

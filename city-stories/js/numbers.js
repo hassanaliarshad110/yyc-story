@@ -1,8 +1,8 @@
 // House numbers on the front of every building, from the City of Calgary Parcel Address open data.
 // Each address gets a small dark plate with white digits on the wall that faces its street.
 import * as THREE from 'three';
-import { ground } from './terrain.js?v=11111720';
-import { buildHalloween, HALLOWEEN } from './halloween.js?v=11111720';
+import { ground } from './terrain.js?v=11112205';
+import { buildHalloween, HALLOWEEN } from './halloween.js?v=11112205';
 
 const CH = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-', COLS = 8, ROWS = 5, CW = 64, CHH = 96;
 let MAT = null;
